@@ -1,0 +1,10 @@
+import nextEnv from '@next/env';
+nextEnv.loadEnvConfig(process.cwd(),false);
+const missing=['NEXT_PUBLIC_SITE_URL','NEXT_PUBLIC_API_URL'].filter(name=>!process.env[name]);
+if(missing.length)throw Error('Configura antes del build de producción: '+missing.join(', '));
+const site=new URL(process.env.NEXT_PUBLIC_SITE_URL);
+if(site.protocol!=='https:'||['localhost','127.0.0.1'].includes(site.hostname))throw Error('NEXT_PUBLIC_SITE_URL debe ser el dominio HTTPS de producción.');
+const api=process.env.NEXT_PUBLIC_API_URL;
+if(api!=='/'&&(new URL(api).protocol!=='https:'||['localhost','127.0.0.1'].includes(new URL(api).hostname)))throw Error('Usa / para la API del mismo dominio o su origen HTTPS público.');
+if(process.env.NEXT_PUBLIC_DEMO_MODE==='true')throw Error('Desactiva NEXT_PUBLIC_DEMO_MODE para publicar.');
+console.log('Variables públicas de producción verificadas.');

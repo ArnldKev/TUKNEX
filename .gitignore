@@ -1,0 +1,10 @@
+deploy/.env
+**/node_modules/
+**/.env*
+!**/.env.example
+**/.local-data/
+**/.next*/
+**/dist/
+**/out/
+.qa-*/
+*.dump

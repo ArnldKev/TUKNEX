@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="360" viewBox="0 0 320 360" role="img" aria-labelledby="title desc">
+  <title id="title">NEXI, el perrito digital de TUKNEX</title><desc id="desc">Ilustración original de un perro pequeño crema, con pelaje ondulado, orejas caídas, ojos grandes oscuros y collar azul marino con turquesa.</desc>
+  <defs><linearGradient id="coat" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff8e8"/><stop offset="1" stop-color="#e8d5b6"/></linearGradient><linearGradient id="ear" x2="1" y2="1"><stop stop-color="#edddc2"/><stop offset="1" stop-color="#c8a77d"/></linearGradient><radialGradient id="nose" cx=".32" cy=".2"><stop stop-color="#52606a"/><stop offset=".45" stop-color="#25333b"/><stop offset="1" stop-color="#101b21"/></radialGradient><filter id="shadow"><feGaussianBlur stdDeviation="6"/></filter></defs>
+  <ellipse cx="161" cy="332" rx="81" ry="9" fill="#143d4915" filter="url(#shadow)"/>
+  <path d="M214 283c48-1 65-55 39-60-22-4-9 34-39 34" fill="none" stroke="#e9d6b4" stroke-width="23" stroke-linecap="round"/>
+  <path d="M107 214c-26 32-35 77-20 99 11 18 38 11 42 2h66c9 21 44 15 44-7 0-40-23-93-37-96" fill="url(#coat)" stroke="#d5c2a4" stroke-width="1.5"/>
+  <path d="M128 176c-32 11-28 74-22 105 3 19 4 34 6 43 2 9 27 10 32 0l1-61h32l2 61c5 11 29 10 33 0 3-35 16-91-5-131-19-35-60-28-79-17" fill="url(#coat)"/>
+  <path d="M113 209c-4 31 10 55 5 91m21-88c-2 26 0 53-6 80m54-83c-4 27 4 55-1 84m21-74c9 24-6 48-1 77" fill="none" stroke="#fff9ec" stroke-width="6" stroke-linecap="round"/>
+  <path d="M111 319c9-7 27-7 34 4m33 0c8-8 22-8 34-3" fill="none" stroke="#d7c09c" stroke-width="2"/>
+  <path d="M105 178c21 20 89 24 111-3l2 17c-32 24-86 21-116 1z" fill="#0a344d"/><path d="M105 183c27 20 82 20 112-2" fill="none" stroke="#09bbb2" stroke-width="4"/>
+  <circle cx="161" cy="204" r="12" fill="#09bcb2" stroke="#f8f0dd" stroke-width="3"/>
+  <path d="M103 82c-25-2-37 21-40 49-3 21 1 58 18 58 15 4 31-12 37-34l13-52z" fill="url(#ear)" stroke="#d2b58e" stroke-width="1"/>
+  <path d="M217 83c27-6 37 25 40 49 4 29-3 53-17 55-16 7-29-9-35-32l-15-50z" fill="url(#ear)" stroke="#d2b58e" stroke-width="1"/>
+  <path d="M91 92c-4 14-20 20-14 38s-8 18-1 33m20-50c-11 13 0 27-8 40m145-58c-1 17 14 23 10 41s6 17-1 30m-15-54c11 15 0 29 7 43" fill="none" stroke="#f6e5c9" stroke-width="5" stroke-linecap="round"/>
+  <path d="M95 95c-4-23 7-53 31-56 4-15 29-17 37-10 15-10 32 2 37 15 27 2 40 25 33 50l-6 51c-3 31-33 49-67 48-41-1-67-22-69-49z" fill="url(#coat)"/>
+  <path d="M111 70c-7-18 12-26 19-17-8-17 8-28 17-13 0-18 20-21 23-4 8-18 22-9 18 5 13-12 26 3 16 14 16-6 25 8 14 19" fill="none" stroke="#fffaf0" stroke-width="8" stroke-linecap="round"/>
+  <path d="M99 94c6-10 16-12 24-7m13-6c9-9 19-10 26-4m13 1c8-7 17-7 25 0m7 10c10-4 17 0 19 8" fill="none" stroke="#fff9eb" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="123" cy="111" rx="18" ry="20" fill="#bba180"/><ellipse cx="197" cy="111" rx="18" ry="20" fill="#bba180"/>
+  <ellipse cx="124" cy="111" rx="14" ry="17" fill="#201b18"/><ellipse cx="196" cy="111" rx="14" ry="17" fill="#201b18"/>
+  <ellipse cx="119" cy="104" rx="4.4" ry="5.4" fill="#fffaf1"/><ellipse cx="191" cy="104" rx="4.4" ry="5.4" fill="#fffaf1"/>
+  <circle cx="129" cy="118" r="2" fill="#b9c9c8"/><circle cx="201" cy="118" r="2" fill="#b9c9c8"/>
+  <path d="M120 133c12-19 65-21 80 2 19 23-1 52-39 54-40-2-60-30-41-56" fill="#e6d0ad"/>
+  <path d="M123 143c10-15 29-12 38-6 12-10 31-7 37 8" fill="none" stroke="#fff5e1" stroke-width="17" stroke-linecap="round"/>
+  <path d="M142 136c0-13 36-13 37 0 0 11-12 17-19 17-8-1-18-6-18-17" fill="url(#nose)"/><ellipse cx="151" cy="132" rx="6" ry="2.5" fill="#87918c" opacity=".6"/>
+  <path d="M160 153v7c-4 6-13 7-19 3m19-3c5 6 13 7 20 2" fill="none" stroke="#3b3932" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M148 166c7 5 16 5 24-1 3 18-5 23-12 22-9 0-14-8-12-21" fill="#d99596"/>
+  <path d="M160 172v9" stroke="#bf7e83" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M112 144c0 14 8 16 7 24m15-6c0 12 7 13 11 17m36-15c3 9-1 15-6 18m26-37c0 16-7 18-6 24" fill="none" stroke="#fff8e7" stroke-width="4" stroke-linecap="round"/>
+  <g fill="none" stroke="#fff8e9" stroke-width="4" stroke-linecap="round"><path d="M123 222c-9 4-8 13 2 14s12 10 1 15m31-28c-8 8-5 13 4 15s8 12-1 15m33-31c11 5 9 13 0 15s-10 12-1 16m-80 12c-8 5-6 13 2 15m28-17c-7 9-5 16 2 19m39-17c-8 7-6 13 1 18m25-17c8 6 7 12 0 17m-75-87c-8 7-3 14 5 14m16-17c-9 6-6 12 2 14m17-14c-5 7-2 13 5 14"/></g>
+</svg>
