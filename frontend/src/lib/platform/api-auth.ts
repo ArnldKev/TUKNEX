@@ -9,7 +9,6 @@ export class ApiAuthService implements AuthService {
   }
   login(email:string,password:string) {return this.establish('auth/login',{email,password});}
   register(input:RegistrationInput) {return this.establish('auth/register',input);}
-  registerAdmin(input:{name:string;email:string;password:string;setupToken:string}) {return this.establish('auth/setup-admin',input);}
   async getCurrentUser() {
     const response=await fetch(API_URL+'/api/auth/me',{credentials:'include',cache:'no-store',signal:AbortSignal.timeout(10000)});
     if(response.status===401) {this.user=null;setBillingSession(false);return null;}

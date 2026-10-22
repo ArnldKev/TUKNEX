@@ -62,7 +62,7 @@ docker compose --env-file .env up -d
 docker compose ps
 ```
 
-La base se inicia vacía con un usuario de aplicación sin superusuario. Para el primer administrador puedes usar un ADMIN_SETUP_TOKEN aleatorio temporal y el formulario de configuración; retíralo después y recrea sólo el backend. **No se trasladan automáticamente los datos locales**. Si necesitas conservar tus cuentas/cotizaciones actuales, planifica la restauración del backup antes de abrir el registro; no restaures encima de una base activa con datos nuevos.
+La base se inicia vacía con un usuario de aplicación sin superusuario. Los administradores se crean mediante el comando privado documentado en `../backend/ADMINISTRADORES.md`; el registro web siempre crea clientes. No hay rutas HTTP para crear administradores. **No se trasladan automáticamente los datos locales**. Si necesitas conservar tus cuentas/cotizaciones actuales, planifica la restauración del backup antes de abrir el registro; no restaures encima de una base activa con datos nuevos.
 
 Las migraciones se aplican al arrancar la API. Mantén el volumen de PostgreSQL entre despliegues. **No uses `docker compose down -v`** si quieres conservar los datos. No borres ni muevas la antigua `.local-data/billing`.
 

@@ -11,10 +11,11 @@ const schema='tuknex_qa_'+randomUUID().replaceAll('-',''),temporary=path.resolve
 let control,app,base,checks=0;
 if(postgres){control=new pg.Client({connectionString:process.env.DATABASE_URL});await control.connect();await control.query('CREATE SCHEMA "'+schema+'"');const url=new URL(process.env.DATABASE_URL);url.searchParams.set('options','-c search_path='+schema);process.env.DATABASE_URL=url.href;process.env.BILLING_MODE='production';}
 else{process.env.BILLING_MODE='local-demo';process.env.DATA_DIR=temporary;await mkdir(temporary,{recursive:true});}
-Object.assign(process.env,{NODE_ENV:'test',SEED_DEMO_DATA:'false',ADMIN_SETUP_TOKEN:'temporary-production-integration-setup-token',CORS_ORIGINS:'http://127.0.0.1:3000',REQUIRE_EMAIL_VERIFICATION:'true',REQUIRE_PHONE_VERIFICATION:'true'});
+Object.assign(process.env,{NODE_ENV:'test',SEED_DEMO_DATA:'false',CORS_ORIGINS:'http://127.0.0.1:3000',REQUIRE_EMAIL_VERIFICATION:'true',REQUIRE_PHONE_VERIFICATION:'true'});
 for(const name of ['RESEND_API_KEY','EMAIL_FROM','VERIFICATION_SECRET','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_VERIFY_SERVICE_SID'])delete process.env[name];
 const {Logger}=require('@nestjs/common');Logger.overrideLogger(false);
 const {createApp}=require('../dist/main.js'),{Database}=require('../dist/database/database.js'),{quoteDefaults}=require('../dist/domain/quote/form.js'),{assertProductionConfig}=require('../dist/config/production.js');
+const {provisionAdmin}=require('../dist/auth/private-admin.js');
 const origin='http://127.0.0.1:3000',secret='Synthetic-test-password-2026!',nativeFetch=global.fetch;
 const emails=[],sms=[];let emailFailure=false,phoneApproved=false;
 global.fetch=async(url,options)=>{
@@ -37,7 +38,8 @@ async function call(route,body,cookie='',expected=body===undefined?200:201,metho
 async function open(){app=await createApp();await app.listen(0,'127.0.0.1');base=await app.getUrl();}
 try{
   await open();const db=()=>app.get(Database);
-  const admin=await call('auth/setup-admin',{name:'QA Owner',email:'owner@example.test',password:secret,setupToken:process.env.ADMIN_SETUP_TOKEN});
+  await provisionAdmin(db(),{name:'QA Owner',email:'owner@example.test',password:secret});
+  const admin=await call('auth/login',{email:'owner@example.test',password:secret});
   const registration={name:'QA Guest',email:'guest@example.test',password:secret,phone:'900000001',dni:'00000001',privacyConsent:true};
   await call('auth/register',{name:'No details',email:'empty@example.test',password:secret},'',400);
   await call('auth/register',{...registration,dni:'1234'},'',400);

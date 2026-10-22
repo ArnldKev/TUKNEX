@@ -30,20 +30,20 @@ async function configure(input) {
       await admin.query(`CREATE ROLE "${role}" LOGIN PASSWORD '${secret}' NOSUPERUSER NOCREATEDB NOCREATEROLE`);
       await admin.query(`CREATE DATABASE tuknex OWNER "${role}"`);
       const url=new URL('postgresql://127.0.0.1/tuknex');url.hostname=values.host;url.port=String(values.port);url.username=role;url.password=secret;
-      env={NODE_ENV:'development',PORT:'4000',SERVER_HOST:'127.0.0.1',BILLING_MODE:'production',DATABASE_URL:url.href,CORS_ORIGINS:'http://127.0.0.1:3000,http://localhost:3000',ADMIN_SETUP_TOKEN:randomBytes(32).toString('hex'),SESSION_SAMESITE:'lax',ISSUER_NAME:'',ISSUER_TAX_ID:'',ISSUER_ADDRESS:'',ISSUER_EMAIL:'',ISSUER_PHONE:'+51 934 631 664'};
+      env={NODE_ENV:'development',PORT:'4000',SERVER_HOST:'127.0.0.1',BILLING_MODE:'production',DATABASE_URL:url.href,CORS_ORIGINS:'http://127.0.0.1:3000,http://localhost:3000',SESSION_SAMESITE:'lax',ISSUER_NAME:'',ISSUER_TAX_ID:'',ISSUER_ADDRESS:'',ISSUER_EMAIL:'',ISSUER_PHONE:'+51 934 631 664'};
       await writeFile(resolve(root,'.env'),Object.entries(env).map(([k,v])=>k+'='+JSON.stringify(v)).join('\n')+'\n',{mode:0o600});
       await mkdir(resolve(root,'.local-data'),{recursive:true});await writeFile(statusFile,JSON.stringify({pending:true,database:'tuknex'}));
     } finally {await admin.end();}
   }
   Object.assign(process.env,env);
   const {Logger}=require('@nestjs/common');Logger.overrideLogger(false);
-  const {createApp}=require('../dist/main.js'),{AuthService}=require('../dist/auth/auth.js');
+  const {createApp}=require('../dist/main.js'),{Database}=require('../dist/database/database.js'),{provisionAdmin}=require('../dist/auth/private-admin.js');
   let app;
   try {
     app=await createApp();
-    const auth=app.get(AuthService);
-    const session=await auth.setupAdmin({name:values.name,email:values.email,password:values.password,setupToken:env.ADMIN_SETUP_TOKEN});
-    await auth.logout(session.token);
+    const db=app.get(Database);
+    if((await db.query("SELECT id FROM usuarios WHERE rol='admin' LIMIT 1")).rows.length)throw new Error('Ya existe un administrador. No se ha modificado su cuenta.');
+    await provisionAdmin(db,{name:values.name,email:values.email,password:values.password});
     delete env.ADMIN_SETUP_TOKEN;
     await writeFile(resolve(root,'.env'),Object.entries(env).map(([k,v])=>k+'='+JSON.stringify(v)).join('\n')+'\n',{mode:0o600});
     await writeFile(statusFile,JSON.stringify({pending:false,result:'PASS',database:'tuknex',administratorCreated:true,completedAt:new Date().toISOString()}));

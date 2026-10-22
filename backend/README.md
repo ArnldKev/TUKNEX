@@ -15,9 +15,9 @@ Abre el enlace local que aparece en la terminal. Introduce la contraseña de Pos
 npm run dev
 ```
 
-Reinicia también el frontend si ya estaba abierto. Accede a `http://127.0.0.1:3000/acceder` con tu cuenta. Los clientes se registran en `/registro`; otros administradores se crean en `/admin/usuarios` desde una cuenta administradora. No hay accesos demo por defecto. Usa el mismo host (127.0.0.1 o localhost) para frontend y API.
+Reinicia también el frontend si ya estaba abierto. Accede a `http://127.0.0.1:3000/acceder` con tu cuenta. Los clientes se registran en `/registro`; las cuentas administradoras se crean exclusivamente con el comando privado del backend. No hay accesos demo por defecto. Usa el mismo host (127.0.0.1 o localhost) para frontend y API.
 
-El registro manual del primer administrador requiere ADMIN_SETUP_TOKEN en el backend y sólo funciona mientras no exista ningún administrador. El asistente crea el administrador directamente y retira ese código de .env al terminar.
+El registro público crea únicamente clientes. No existe creación de administradores por HTTP ni selector de roles. Consulta [ADMINISTRADORES.md](ADMINISTRADORES.md) para crear el primero o los siguientes desde una terminal privada. El asistente local de PostgreSQL conserva la creación privada de la primera cuenta en una base nueva.
 
 ## Verificación
 

@@ -8,7 +8,6 @@ const root = path.resolve('.local-data'),
   temporary = path.join(root, 'billing-test-' + randomUUID());
 process.env.BILLING_MODE = 'local-demo';
 process.env.SEED_DEMO_DATA = 'true';
-process.env.ADMIN_SETUP_TOKEN = 'integration-setup-key-for-temporary-database';
 process.env.DATA_DIR = temporary;
 delete process.env.ADMIN_EMAIL;
 delete process.env.ADMIN_PASSWORD;
@@ -18,6 +17,7 @@ Logger.overrideLogger(false);
 const { createApp } = require('../dist/main.js');
 const { PDFDocument, PDFName } = require('pdf-lib');
 const { Database } = require('../dist/database/database.js');
+const {provisionAdmin}=require('../dist/auth/private-admin.js');
 const { quoteDefaults } = require('../dist/domain/quote/form.js');
 let app,
   token = '',
@@ -63,7 +63,7 @@ try {
   await app.listen(0, '127.0.0.1');
   base = await app.getUrl();
   check((await (await fetch(base + '/health')).json()).status === 'ok', 'health check');
-  await call('auth/setup-admin', {name:'Administrador QA',email:'admin@demo.tuknex',password:'QA-Demo123!-secure',setupToken:process.env.ADMIN_SETUP_TOKEN},201);
+  await provisionAdmin(app.get(Database), {name:'Administrador QA',email:'admin@demo.tuknex',password:'QA-Demo123!-secure'});
   token = '';
   await call('billing/state', undefined, 401, 'GET', false);
   await call('auth/login', { email: 'admin@demo.tuknex', password: 'incorrecta' }, 401);

@@ -3,28 +3,21 @@ import {
   Inject, Injectable, Post, Req, Res, UnauthorizedException, UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Database, type Sql } from '../database/database';
 import { z } from 'zod';
 import { parse } from '../billing/dto';
 import { credentials, clientRegistration } from './account-fields';
 import { VerificationService } from './verification';
+import { derivePassword as derive, hashPassword as passwordHash } from './passwords';
 
 type Role = 'admin' | 'client';
 export interface Account { id: string; name: string; email: string; role: Role; clientId: string | null; isDemo: false; createdAt: string; phone?: string; emailVerified?: boolean; phoneVerified?: boolean; profileComplete?: boolean }
 type AuthRequest = Request & { account?: Account };
 const registration = credentials;
-const firstAdmin = registration.extend({ setupToken: z.string().min(24).max(200) }).strict();
 const loginSchema = z.object({ email: z.email().trim().toLowerCase().max(254), password: z.string().min(1).max(128) }).strict();
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const cookieName = 'tuknex_session';
-function derive(password: string, salt: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => scrypt(password, salt, 64, { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 }, (error, key) => error ? reject(error) : resolve(key)));
-}
-async function passwordHash(password: string) {
-  const salt = randomBytes(16).toString('hex');
-  return 'scrypt-v1$' + salt + '$' + (await derive(password, salt)).toString('hex');
-}
 function account(row: Record<string, any>): Account {
   return { id: row.id, name: row.nombre, email: row.correo, role: row.rol, clientId: row.cliente_id, isDemo: false, createdAt: new Date(row.created_at).toISOString(), phone:row.telefono||'',emailVerified:!!row.email_verified_at,phoneVerified:!!row.phone_verified_at,profileComplete:!!(row.telefono&&row.dni) };
 }
@@ -41,9 +34,6 @@ function assertOrigin(req: Request) {
 @Injectable()
 export class AuthService {
   constructor(@Inject(Database) private db: Database,@Inject(VerificationService) private verification:VerificationService) {}
-  async setupStatus() {
-    return { needsAdmin: !(await this.db.query("SELECT id FROM usuarios WHERE rol='admin' LIMIT 1")).rows.length };
-  }
   private async insertUser(tx: Sql, input: z.infer<typeof registration> & {phone?:string;dni?:string;privacyConsent?:boolean}, role: Role) {
     const id = randomUUID(), createdAt = new Date().toISOString();
     let clientId: string | null = null;
@@ -65,20 +55,6 @@ export class AuthService {
     const input = parse(clientRegistration, value);
     try { return this.session(await this.db.transaction(tx => this.insertUser(tx,input,'client'))); }
     catch (error: any) { if(error.code==='23505') throw new ConflictException('No se pudo registrar este correo. Si ya tienes una cuenta, inicia sesión.'); throw error; }
-  }
-  async setupAdmin(value: unknown) {
-    const input = parse(firstAdmin,value), expected=process.env.ADMIN_SETUP_TOKEN;
-    if (!expected || !timingSafeEqual(Buffer.from(digest(input.setupToken)),Buffer.from(digest(expected)))) throw new ForbiddenException('Código de configuración no válido.');
-    const user = await this.db.transaction(async tx => {
-      await tx.query('LOCK TABLE usuarios IN EXCLUSIVE MODE');
-      if ((await tx.query("SELECT id FROM usuarios WHERE rol='admin' LIMIT 1")).rows.length) throw new ConflictException('Ya existe un administrador. Inicia sesión para gestionar las cuentas.');
-      return this.insertUser(tx,input,'admin');
-    });
-    return this.session(user);
-  }
-  async createAdmin(value: unknown) {
-    const input = parse(registration,value);
-    return this.db.transaction(tx => this.insertUser(tx,input,'admin'));
   }
   async login(value: unknown) {
     const input = parse(loginSchema,value);
@@ -137,14 +113,11 @@ export class AuthController {
     res.cookie(cookieName,result.token,{httpOnly:true,secure,sameSite,path:'/api',maxAge:8*3600000});
     return {user:result.user,expiresIn:28800};
   }
-  @Get('setup-status') status() { return this.auth.setupStatus(); }
   @Post('register') async register(@Body() body: unknown,@Req() req: Request,@Res({passthrough:true}) res: Response) {assertOrigin(req);return this.respond(await this.auth.register(body),res);}
-  @Post('setup-admin') async setup(@Body() body: unknown,@Req() req: Request,@Res({passthrough:true}) res: Response) {assertOrigin(req);return this.respond(await this.auth.setupAdmin(body),res);}
   @Post('login') async login(@Body() body: unknown,@Req() req: Request,@Res({passthrough:true}) res: Response) {assertOrigin(req);return this.respond(await this.auth.login(body),res);}
   @Post('recovery/request') async requestRecovery(@Body() body:unknown,@Req() req:Request) {assertOrigin(req);return this.auth.requestRecovery(body);}
   @Post('recovery/confirm') async finishRecovery(@Body() body:unknown,@Req() req:Request) {assertOrigin(req);return this.auth.finishRecovery(body);}
   @Get('me') @UseGuards(SessionGuard) me(@Req() req: AuthRequest) {return req.account;}
   @Post('logout') @UseGuards(SessionGuard) async logout(@Req() req: Request,@Res({passthrough:true}) res: Response) {await this.auth.logout(requestToken(req));res.clearCookie(cookieName,{path:'/api'});return {ok:true};}
   @Get('users') @UseGuards(AdminGuard) users() {return this.auth.users();}
-  @Post('admins') @UseGuards(AdminGuard) admin(@Body() body: unknown) {return this.auth.createAdmin(body);}
 }

@@ -14,12 +14,12 @@ if(postgres){
   control=new pg.Client({connectionString:process.env.DATABASE_URL});await control.connect();await control.query('CREATE SCHEMA "'+schema+'"');
   const url=new URL(process.env.DATABASE_URL);url.searchParams.set('options','-c search_path='+schema);process.env.DATABASE_URL=url.href;process.env.BILLING_MODE='production';
 }else{process.env.BILLING_MODE='local-demo';process.env.DATA_DIR=temporary;await mkdir(temporary,{recursive:true});}
-process.env.ADMIN_SETUP_TOKEN='temporary-account-integration-setup-token';
 process.env.SEED_DEMO_DATA='false';process.env.NODE_ENV='test';
 process.env.CORS_ORIGINS='http://127.0.0.1:3000';
 const {Logger}=require('@nestjs/common');Logger.overrideLogger(false);
 const {createApp}=require('../dist/main.js'),{Database}=require('../dist/database/database.js');
 const {quoteDefaults}=require('../dist/domain/quote/form.js');
+const {provisionAdmin}=require('../dist/auth/private-admin.js');
 let app,base,checks=0;
 const origin='http://127.0.0.1:3000',secret='Temporary-test-password-2026!';
 function check(value,message){assert.ok(value,message);checks++;}
@@ -35,12 +35,15 @@ try{
   check((await app.get(Database).query('SELECT id FROM clientes')).rows.length===0,'fresh database has no demo clients');
   await call('auth/me',undefined,'',401);
   await call('auth/login',{email:'admin@demo.tuknex',password:'Demo123!'},'',401);
-  await call('auth/setup-admin',{name:'QA Admin',email:'owner@example.test',password:secret,setupToken:'invalid-temporary-code-for-setup'},'',403);
-  const owner=await call('auth/setup-admin',{name:'QA Admin',email:'owner@example.test',password:secret,setupToken:process.env.ADMIN_SETUP_TOKEN});
+  await call('auth/setup-status',undefined,'',404);
+  await call('auth/setup-admin',{name:'QA Intruder',email:'intruder@example.test',password:secret,setupToken:'obsolete-code'},'',404);
+  await call('auth/admins',{name:'QA Intruder',email:'intruder@example.test',password:secret},'',404);
+  await provisionAdmin(app.get(Database),{name:'QA Admin',email:'owner@example.test',password:secret});
+  const owner=await call('auth/login',{email:'owner@example.test',password:secret});
   const ownerData=await owner.json();
   check(ownerData.user.role==='admin' && !ownerData.token,'login exposes identity, not a session token');
   check(owner.res.headers.get('set-cookie').includes('HttpOnly') && owner.res.headers.get('set-cookie').includes('SameSite=Lax'),'HttpOnly session cookie');
-  await call('auth/setup-admin',{name:'QA Intruder',email:'intruder@example.test',password:secret,setupToken:process.env.ADMIN_SETUP_TOKEN},'',409);
+  await call('auth/setup-admin',{name:'QA Intruder',email:'intruder@example.test',password:secret,setupToken:'obsolete-code'},owner.cookie,404);
   await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'Escalation',email:'bad@example.test',password:secret,role:'admin'},'',400);
   await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'Weak password',email:'weak@example.test',password:'1234'},'',400);
   const a=await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'QA Client A',email:'CLIENTA@example.test',password:secret});
@@ -51,7 +54,7 @@ try{
   await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'Duplicate',email:'clienta@example.test',password:secret},'',409);
   await call('billing/state',undefined,a.cookie,403);
   await call('auth/users',undefined,a.cookie,403);
-  await call('auth/admins',{name:'Escalation',email:'other@example.test',password:secret},a.cookie,403);
+  await call('auth/admins',{name:'Escalation',email:'other@example.test',password:secret},a.cookie,404);
   await call('auth/me',undefined,a.cookie,403,'GET','https://untrusted.example');
   await call('account/profile',{name:'No origin',phone:'',address:''},a.cookie,403,'PATCH','');
   await call('account/profile',{name:'QA Updated',phone:'999000000',address:'Local QA'},a.cookie,200,'PATCH');
@@ -110,8 +113,13 @@ try{
   const cPdf=await call('account/contracts/'+contract.id+'/pdf',undefined,a.cookie);
   check(Buffer.from(await cPdf.res.arrayBuffer()).subarray(0,5).toString()==='%PDF-','own contract PDF is available');
   await call('account/contracts/'+contract.id+'/pdf',undefined,b.cookie,404);
-  const admin=await(await call('auth/admins',{name:'Second QA Admin',email:'admin2@example.test',password:secret},owner.cookie)).json();
-  check(admin.role==='admin' && !admin.password_hash,'administrators can create another administrator');
+  await call('auth/admins',{name:'Second QA Admin',email:'admin2@example.test',password:secret},owner.cookie,404);
+  const admin=await provisionAdmin(app.get(Database),{name:'Second QA Admin',email:'ADMIN2@example.test',password:secret});
+  check(admin.role==='admin' && admin.email==='admin2@example.test' && !admin.password_hash,'private backend provisioning creates a normalized administrator');
+  await assert.rejects(provisionAdmin(app.get(Database),{name:'Overwrite client',email:userA.email,password:secret}));checks++;
+  check((await app.get(Database).query('SELECT rol FROM usuarios WHERE id=$1',[userA.id])).rows[0].rol==='client','private provisioning never promotes an existing client');
+  const adminLogin=await call('auth/login',{email:admin.email,password:secret});
+  check((await(await call('auth/me',undefined,adminLogin.cookie)).json()).role==='admin','privately created administrator can log in');
   const users=await(await call('auth/users',undefined,owner.cookie)).json();
   check(users.length===4 && users.every(u=>!u.password_hash),'user listing excludes password hashes');
   const stored=(await app.get(Database).query('SELECT password_hash FROM usuarios WHERE id=$1',[userA.id])).rows[0];
@@ -130,7 +138,7 @@ try{
   await call('auth/me',undefined,b.cookie,401);
   await app.get(Database).query('UPDATE usuarios SET activo=false WHERE id=$1',[userA.id]);
   await call('auth/me',undefined,a.cookie,401);
-  console.log(JSON.stringify({result:'PASS',checks,storage:postgres?'PostgreSQL isolated schema':'PGlite temporary database',tests:['registration','protected admin creation','role enforcement','client isolation','PDF access','CSRF origins','password hashes','persistent sessions','logout and expiry','no demo credentials']},null,2));
+  console.log(JSON.stringify({result:'PASS',checks,storage:postgres?'PostgreSQL isolated schema':'PGlite temporary database',tests:['registration','private admin creation and removed HTTP routes','role enforcement','client isolation','PDF access','CSRF origins','password hashes','persistent sessions','logout and expiry','no demo credentials']},null,2));
 }finally{
   await app?.close();
   if(control){assert.ok(/^tuknex_qa_[a-f0-9]+$/.test(schema));await control.query('DROP SCHEMA "'+schema+'" CASCADE');await control.end();}

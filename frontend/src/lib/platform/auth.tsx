@@ -107,7 +107,6 @@ interface DemoAuthContextValue {
   loginDemo(role: UserRole): Promise<void>;
   login(email: string,password: string): Promise<User>;
   register(input: RegistrationInput): Promise<User>;
-  registerAdmin(input: {name:string;email:string;password:string;setupToken:string}): Promise<User>;
   logout(): Promise<void>;
   resetPassword(email:string): Promise<string>;
   hasRole(role:UserRole): boolean;
@@ -127,7 +126,6 @@ export function DemoAuthProvider({children}:{children:ReactNode}) {
     loginDemo:async role=>{if(!DEMO_MODE)throw new Error('El acceso demo está desactivado.');setUser(await demoAuthService.loginDemo(role));},
     login:async(email,password)=>{const current=await activeAuth.login(email,password);setUser(current);setError('');return current;},
     register:async input=>{const current=await activeAuth.register(input);setUser(current);setError('');return current;},
-    registerAdmin:async input=>{const current=await apiAuthService.registerAdmin(input);setUser(current);setError('');return current;},
     logout:async()=>{await activeAuth.logout();setUser(null);},
     resetPassword:email=>activeAuth.resetPassword(email),hasRole:role=>user?.role===role,
   }}>{children}</DemoAuthContext.Provider>;
