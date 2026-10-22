@@ -9,6 +9,7 @@ import { useDemoAuth } from '@/lib/platform/auth';
 import { ChatbotWidget } from '@/components/chatbot-widget';
 import './experience.css';
 import './future.css';
+import './account-projects.css';
 
 export const openNexi = () => window.dispatchEvent(new Event('open-tuknex-chat'));
 export function OfficialBrand() {
@@ -57,11 +58,12 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               <i />
             </button>
             <Link
-              className="xp-account"
+              className={"xp-account"+(user?" xp-account-signed":"")}
               href={user ? (user.role === 'admin' ? '/admin' : '/mi-cuenta') : '/acceder'}
-              aria-label={user ? 'Ir a mi panel' : 'Acceder'}
+              aria-label={user ? 'Ir al panel de '+user.name : 'Acceder'}
+              title={user?.name}
             >
-              <UserRound size={18} />
+              <UserRound size={18} />{user&&<span>{user.name}</span>}
             </Link>
             <Link className="button button-primary button-sm" href="/cotizar">
               Cotizar <ArrowUpRight size={15} />

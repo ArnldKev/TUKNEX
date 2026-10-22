@@ -1,3 +1,4 @@
+import { ReviewsAdmin } from '@/components/reviews/real-reviews';
 import { ContactInbox } from '@/components/admin/contact-inbox';
 import { QuoteRequestsAdmin } from '@/components/quote/quote-requests-panel';
 import Link from 'next/link';
@@ -31,6 +32,7 @@ export function generateStaticParams() {
 export default async function AdminSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
   if (!DEMO_MODE) {
+    if(section === 'resenas') return <ReviewsAdmin />;
     if(section === 'mensajes') return <ContactInbox />;
     if(section === 'solicitudes') return <QuoteRequestsAdmin />;
     if (section === 'usuarios') return <RealUsersAdmin />;

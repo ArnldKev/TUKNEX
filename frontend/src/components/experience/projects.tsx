@@ -116,7 +116,7 @@ export function ProjectsExperience() {
                   />
                 ) : (
                   <div className="xp-project-live-cover">
-                    <span>{project.id === 'el-gringo' ? 'G' : 'CS'}</span>
+                    <img className="xp-project-logo" src={project.logo} alt={"Logo de "+project.name} width={170} height={170} loading="lazy"/>
                     <h3>{project.name}</h3>
                     <p>Explora el sitio original en una vista en vivo.</p>
                     <button className="button button-primary" onClick={() => setPreview(project.id)}>

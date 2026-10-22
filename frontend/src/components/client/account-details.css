@@ -1,0 +1,15 @@
+.account-records,.account-profile { margin:24px 0; padding:clamp(18px,2.5vw,28px); }
+.account-records>h2 { font-size:clamp(1.4rem,2vw,1.8rem); margin:8px 0 16px; line-height:1.4; }
+.account-records>p:not(.platform-kicker) { line-height:1.8; color:var(--text-secondary); }
+.account-record { display:flex; flex-wrap:wrap; justify-content:space-between; gap:24px; padding:24px 0; border-top:1px solid #3b5069; }
+.account-record h3 { font-size:1.25rem; margin:8px 0 14px; overflow-wrap:anywhere; }
+.account-record p { color:var(--text-secondary); margin:10px 0; line-height:1.7; }
+.account-record-number { font-size:.875rem; font-weight:600; color:#8ee7e2; letter-spacing:.04em; }
+.account-record-value { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+.account-record-value>span,.account-record-value>small { color:var(--text-secondary); }
+.account-record-value>strong { color:#a0f4e3; font-size:1.5rem; }
+.account-opinion-link { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:18px; padding:22px; border:1px solid #3b8d92; border-radius:14px; background:linear-gradient(110deg,#133b44,#12263d); margin-bottom:24px; }
+.account-opinion-link strong { display:block; font-size:1.15rem; margin-bottom:8px; color:#dcfffa; }
+.account-opinion-link small { color:#bdd6e9; line-height:1.7; }
+.account-opinion-link>span:last-child { color:#8ef5e8; font-weight:600; }
+@media(max-width:650px) { .account-record-value { align-items:flex-start; } .account-record { flex-direction:column; } }

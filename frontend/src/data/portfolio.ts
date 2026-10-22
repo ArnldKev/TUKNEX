@@ -1,6 +1,7 @@
 export const portfolio = [
   {
     id: 'el-gringo',
+    logo: '/images/projects/el-gringo.jpeg',
     name: 'El Gringo J&M',
     tagline: 'Pollería Chifa',
     category: 'Restaurante · Carta y pedidos',
@@ -19,6 +20,7 @@ export const portfolio = [
   },
   {
     id: 'corry-sport',
+    logo: '/images/projects/corry-sport.svg',
     name: 'CORRY SPORT',
     tagline: 'Equipa tu próximo movimiento',
     category: 'Deporte · Catálogo digital',

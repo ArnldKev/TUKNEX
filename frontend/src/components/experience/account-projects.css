@@ -1,0 +1,13 @@
+/* Account identity and authentic project marks. */
+body .xp-account.xp-account-signed { display:flex; width:auto; max-width:200px; gap:8px; padding:8px 10px; border:1px solid #45637c; background:#15273a; border-radius:10px; }
+body .xp-account-signed>span { display:block; min-width:0; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.9rem; font-weight:600; }
+body .xp-account-signed>svg { flex-shrink:0; }
+body .xp-project-live-cover { min-height:470px; height:auto; padding:28px 24px; }
+body .xp-project-live-cover>.xp-project-logo { display:block; width:164px; height:164px; object-fit:contain; border-radius:16px; margin-bottom:6px; }
+body .xp-project-mark { background:#0d1828; border:1px solid #3a516b; display:grid; place-items:center; padding:6px; }
+body .xp-project-mark img { width:100%; height:100%; object-fit:contain; border-radius:6px; }
+@media(min-width:1201px) and (max-width:1400px) { body .xp-links { gap:14px; font-size:14px; } body .xp-nexi-button>span { display:none; } body .xp-nav { width:calc(100% - 40px); gap:16px; } }
+@media(max-width:650px) { body .xp-account.xp-account-signed { padding:6px; gap:5px; } body .xp-account-signed>span { max-width:65px; font-size:.8rem; } body .xp-nav-actions>.button { padding-inline:8px; } body .xp-nav { gap:6px; width:calc(100% - 20px); } body .xp-brand { width:110px; } body .xp-project-live-cover { min-height:420px; } }
+@media(max-width:370px) { body .xp-brand { width:90px; } body .xp-account-signed>span { max-width:45px; } }
+
+@media(max-width:370px) { body .xp-nav-actions>.button svg { display:none; } }

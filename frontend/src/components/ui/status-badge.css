@@ -1,0 +1,7 @@
+.account-status { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:7px 12px; border:1px solid; border-radius:999px; font-size:.875rem; line-height:1.4; font-weight:650; white-space:normal; }
+.account-status svg { flex-shrink:0; }
+.account-status--amber { color:#ffe099; background:#493514; border-color:#927138; }
+.account-status--blue { color:#b8deff; background:#163552; border-color:#3b749b; }
+.account-status--green { color:#a7f5cf; background:#123e32; border-color:#388469; }
+.account-status--rose { color:#ffc1d1; background:#4b2235; border-color:#9b506c; }
+.account-status--muted { color:#d4dfef; background:#243248; border-color:#52647b; }

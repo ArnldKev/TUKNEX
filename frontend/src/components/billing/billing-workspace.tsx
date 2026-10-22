@@ -105,6 +105,7 @@ export function BillingScreen({ section }: { section: BillingSection }) {
           <Link href="/proyectos">Portafolio</Link>
           <Link href="/admin/usuarios">Usuarios</Link>
           <Link href="/admin/mensajes">Mensajes de contacto</Link>
+          <Link href="/admin/resenas">Opiniones de clientes</Link>
           <Link href="/admin/precios">Precios</Link>
         </nav>
         <div className="portal-sidebar-bottom">

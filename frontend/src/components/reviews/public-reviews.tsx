@@ -1,100 +1,37 @@
 'use client';
-
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {DEMO_MODE} from '@/config/environment';
-import { ArrowLeft, ArrowRight, MessageSquareHeart, ShieldCheck, Sparkles } from 'lucide-react';
-import { usePlatformData } from '@/lib/platform/repository';
+import { ArrowLeft, ArrowRight, MessageSquareHeart } from 'lucide-react';
+import { DEMO_MODE } from '@/config/environment';
+import { billingRequest } from '@/lib/billing/api';
+import { useDemoAuth } from '@/lib/platform/auth';
+import { opinionSubjects, type PublicOpinion } from '@/lib/reviews';
+import { ClientOpinions } from './real-reviews';
 import { RatingStars } from './review-editor';
 import '@/components/auth/platform.css';
+import './reviews.css';
 
 export function PublicReviews() {
-  const data = usePlatformData(),
-    examples = data.reviews.filter((r) => r.status === 'published' && r.isDemo);
-  return (
-    <section className="public-reviews">
-      <div className="public-reviews-content">
-        <Link href="/" className="platform-text-link">
-          <ArrowLeft size={14} />
-          Volver al inicio
-        </Link>
-        <span className="platform-pill">
-          <MessageSquareHeart size={14} />
-          EXPERIENCIAS QUE IMPORTAN
-        </span>
-        <h1>
-          La confianza se construye.
-          <br />
-          <em>Una experiencia a la vez.</em>
-        </h1>
-        <p className="public-reviews-intro">
-          Queremos que conozcas lo que nuestros clientes tienen para contar. Siempre con opiniones auténticas
-          y vinculadas a un proyecto.
-        </p>
-        <section className="public-review-empty">
-          <div>
-            <MessageSquareHeart size={38} />
-            <Sparkles size={18} />
-          </div>
-          <h2>Pronto podrás conocer las experiencias de nuestros clientes.</h2>
-          <p>
-            Estamos preparando un espacio de reseñas verificadas. En esta etapa no publicamos opiniones
-            ficticias como testimonios reales ni calculamos calificaciones comerciales.
-          </p>
-          <Link className="platform-button" href="/proyectos">
-            Conocer proyectos reales
-            <ArrowUpRightIcon />
-          </Link>
-          <span>
-            <ShieldCheck size={16} />
-            Transparencia desde el primer día.
-          </span>
-        </section>
-        <div className="public-review-principles">
-          <article>
-            <strong>Vinculadas a un proyecto</strong>
-            <p>El futuro sistema validará que el servicio haya finalizado antes de aceptar una opinión.</p>
-          </article>
-          <article>
-            <strong>Honestas, también al mejorar</strong>
-            <p>La moderación respeta las críticas legítimas y evita spam o datos privados.</p>
-          </article>
-          <article>
-            <strong>Con tu consentimiento</strong>
-            <p>El cliente elige qué nombre puede mostrarse junto a su experiencia.</p>
-          </article>
-        </div>
-        {DEMO_MODE && examples.length > 0 && (
-          <details className="public-review-demo">
-            <summary>Explorar ejemplos del prototipo · DATOS DE DEMOSTRACIÓN</summary>
-            <p>
-              Estos registros son ficticios y sólo muestran el funcionamiento del sistema. No son testimonios
-              reales ni reseñas verificadas.
-            </p>
-            <div>
-              {examples.map((r) => (
-                <article key={r.id}>
-                  <span className="portal-demo-badge">DEMO · NO VERIFICADA</span>
-                  <RatingStars rating={r.rating} />
-                  <h3>{r.title}</h3>
-                  <p>{r.comment}</p>
-                  <small>{r.displayName} · Ejemplo ficticio</small>
-                  {r.businessReply && <blockquote>{r.businessReply}</blockquote>}
-                </article>
-              ))}
-            </div>
-          </details>
-        )}
-        <div className="public-review-client-link">
-          <span>¿Ya tienes un proyecto con nosotros?</span>
-          <Link href="/acceder">
-            Acceder a mi cuenta
-            <ArrowRight size={15} />
-          </Link>
-        </div>
-      </div>
+  const {user,ready}=useDemoAuth();
+  const [items,setItems]=useState<PublicOpinion[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[retry,setRetry]=useState(0);
+  useEffect(()=>{
+    let alive=true;
+    if(DEMO_MODE){setLoading(false);return;}
+    const load=()=>{setLoading(true);setError('');void billingRequest<PublicOpinion[]>('public/reviews').then(next=>{if(alive)setItems(next);}).catch(()=>{if(alive)setError('No pudimos cargar las opiniones. Inténtalo otra vez.');}).finally(()=>{if(alive)setLoading(false);});};
+    load();window.addEventListener('reviews-change',load);
+    return()=>{alive=false;window.removeEventListener('reviews-change',load);};
+  },[retry]);
+  return <section className="public-reviews"><div className="public-reviews-content">
+    <Link href="/" className="platform-text-link"><ArrowLeft size={14}/> Volver al inicio</Link>
+    <span className="platform-pill"><MessageSquareHeart size={16}/> EXPERIENCIAS QUE IMPORTAN</span>
+    <h1>La confianza se construye.<br/><em>Una experiencia a la vez.</em></h1>
+    <p className="public-reviews-intro">Tu opinión sobre la aplicación y el servicio nos ayuda a mejorar. Aquí compartimos comentarios de clientes con su autorización.</p>
+    <div className="public-opinion-compose" id="escribir-opinion">
+      {!ready?<p role="status">Cargando tu sesión…</p>:DEMO_MODE?<div className="portal-panel"><h2>Estás en la demostración.</h2><p>Las opiniones de prueba se exploran desde la cuenta demo y no se publican como reseñas reales.</p><Link className="platform-button" href="/mi-cuenta/resenas">Explorar reseñas demo</Link></div>:user?.role==='client'?<ClientOpinions key={user.id}/>:<section className="opinion-invite portal-panel"><MessageSquareHeart size={32}/><div><h2>{user?'Opiniones de tus clientes':'Comparte tu experiencia'}</h2><p>{user?'Revisa los comentarios y responde desde administración.':'Inicia sesión con tu cuenta de cliente para comentar sobre la página o el servicio.'}</p></div><Link className="platform-button" href={user?'/admin/resenas':'/acceder'}>{user?'Gestionar opiniones':'Iniciar sesión para opinar'}<ArrowRight size={16}/></Link>{!user&&<Link className="platform-text-link" href="/registro">Crear una cuenta</Link>}</section>}
+    </div>
+    <section className="published-opinions" aria-labelledby="opiniones-publicadas"><h2 id="opiniones-publicadas">Lo que comparten nuestros clientes</h2><p>Opiniones revisadas y publicadas con permiso de sus autores.</p>
+      {loading?<p role="status">Cargando opiniones…</p>:error?<div><p className="platform-error" role="alert">{error}</p><button className="platform-secondary" onClick={()=>setRetry(n=>n+1)}>Reintentar</button></div>:items.length?<div className="public-opinions-grid">{items.map(item=><article key={item.id} className="portal-panel public-opinion"><span className="platform-kicker">{opinionSubjects[item.subject]}</span><RatingStars rating={item.rating} size={20}/>{item.title&&<h3>{item.title}</h3>}<p className="opinion-comment">{item.comment}</p><footer><strong>{item.displayName}</strong><time dateTime={item.updatedAt}>{new Date(item.updatedAt).toLocaleDateString('es-PE',{timeZone:'America/Lima'})}</time></footer>{item.businessReply&&<blockquote><strong>Respuesta de TUKNEX</strong><p>{item.businessReply}</p></blockquote>}</article>)}</div>:<div className="portal-panel opinions-empty"><MessageSquareHeart size={32}/><h3>Aún no hay opiniones publicadas.</h3><p>Puedes ser la primera persona en compartir tu experiencia.</p></div>}
     </section>
-  );
-}
-function ArrowUpRightIcon() {
-  return <ArrowRight size={16} />;
+    <div className="public-review-principles"><article><strong>Tu experiencia, con tus palabras</strong><p>Cuéntanos sobre la aplicación o sobre el servicio que recibes de TUKNEX.</p></article><article><strong>También podemos mejorar</strong><p>La revisión evita spam y datos privados, y respeta las críticas legítimas.</p></article><article><strong>Tú decides si se publica</strong><p>Elige un nombre público y autoriza su publicación, o envía el comentario solo al equipo.</p></article></div>
+  </div></section>;
 }

@@ -185,7 +185,7 @@ export function ExperienceHome() {
         <div className="xp-real-links">
           {portfolio.map((project) => (
             <Link key={project.id} href={'/proyectos#' + project.id}>
-              <span style={{ background: project.color }}>{project.id === 'el-gringo' ? 'G' : 'CS'}</span>
+              <span className="xp-project-mark"><img src={project.logo} alt={"Logo de "+project.name} width={54} height={54} loading="lazy"/></span>
               <div>
                 <strong>{project.name}</strong>
                 <small>{project.category}</small>

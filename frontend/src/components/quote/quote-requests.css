@@ -1,13 +1,31 @@
-.quote-requests-panel { margin: 20px 0; padding: 24px; }
-.quote-request-heading { display: flex; justify-content: space-between; align-items: start; gap: 20px; flex-wrap: wrap; }
-.quote-request-heading h2 { margin: 0 0 8px; }
-.quote-request-heading p { margin: 6px 0 12px; color: var(--text-secondary); }
-.quote-request-card { border-top: 1px solid rgba(134,165,209,.18); margin-top: 20px; padding-top: 20px; }
-.quote-request-card details { margin: 16px 0; }
-.quote-request-card summary { cursor: pointer; color: var(--text-accent); }
-.quote-request-card dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 16px; margin-top: 16px; }
-.quote-request-card dt { font-weight: 600; }
-.quote-request-card dd { margin: 5px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); }
-.quote-request-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
-.quote-request-actions label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.quote-request-actions select { color: var(--foreground); background: var(--surface); border: 1px solid rgba(134,165,209,.3); border-radius: 8px; padding: 9px; }
+.quote-requests-panel { margin:24px 0; padding:clamp(18px,2.5vw,28px); }
+.quote-request-heading { display:flex; justify-content:space-between; align-items:start; gap:20px; flex-wrap:wrap; }
+.quote-request-heading>div { min-width:0; }
+.quote-request-heading h2 { margin:8px 0 12px; font-size:clamp(1.5rem,2.4vw,2rem); line-height:1.25; }
+.quote-request-heading p { margin:8px 0 12px; color:var(--text-secondary); line-height:1.7; }
+.quote-requests-list { display:grid; gap:22px; margin-top:24px; }
+.quote-request-card { border:1px solid #3c526c; background:linear-gradient(130deg,#14263c,#101c2f 65%); border-radius:16px; padding:clamp(18px,2vw,26px); min-width:0; }
+.quote-request-number { color:#8ce6e4; font-size:.875rem; font-weight:600; letter-spacing:.04em; }
+.quote-request-identity h3 { font-size:1.35rem; margin:8px 0 0; overflow-wrap:anywhere; }
+.quote-request-identity>p { margin:8px 0 0; }
+.quote-request-summary { display:grid; grid-template-columns:minmax(200px,1fr) 1.2fr; gap:24px; padding:20px; margin:22px 0; border:1px solid #36536c; background:#0b192b; border-radius:12px; }
+.quote-request-estimate { display:flex; flex-direction:column; gap:8px; }
+.quote-request-estimate>span { font-size:.875rem; color:#a9c5dd; }
+.quote-request-estimate>strong { font-size:clamp(1.4rem,2vw,1.8rem); color:#a0f4e3; line-height:1.3; }
+.quote-request-estimate>small { color:var(--text-secondary); line-height:1.5; }
+.quote-request-summary>dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:18px; margin:0; }
+.quote-request-card dt { color:#a9c5dd; font-size:.875rem; display:flex; align-items:center; gap:6px; }
+.quote-request-card dd { margin:7px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; }
+.quote-request-offering { font-size:1.05rem; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.quote-request-next { color:#c7deee; background:#1b334b; border-left:3px solid #65d6dc; padding:12px 16px; margin:18px 0; border-radius:0 8px 8px 0; line-height:1.7; }
+.quote-request-card details { margin:20px 0; border-block:1px solid #364961; }
+.quote-request-card summary { cursor:pointer; color:#8bf0e5; display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:52px; font-weight:600; }
+.quote-request-card details[open] summary svg { transform:rotate(180deg); }
+.quote-request-card details dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:18px; padding-bottom:20px; }
+.quote-request-actions { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.quote-request-actions label { display:flex; align-items:center; flex-wrap:wrap; gap:8px; color:var(--text-secondary); }
+.quote-request-actions select { color:var(--foreground); background:#0c1b2e; border:1px solid #64809d; border-radius:8px; padding:11px; min-height:44px; }
+.account-empty { border:1px dashed #415b79; border-radius:12px; padding:24px; margin-top:20px; }
+.account-empty h3 { margin:0 0 10px; }
+.account-empty p { color:var(--text-secondary); line-height:1.7; margin-bottom:12px; }
+@media(max-width:650px) { .quote-request-summary { grid-template-columns:1fr; padding:16px; gap:20px; } .quote-request-actions>button { width:100%; } }
