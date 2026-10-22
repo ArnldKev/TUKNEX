@@ -5,3 +5,9 @@
 [build.environment]
   NODE_VERSION = "24"
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://tuknex-backend.onrender.com/api/:splat"
+  status = 200
+  force = true
