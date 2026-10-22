@@ -1,0 +1,63 @@
+name: tuknex
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: tuknex
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configura POSTGRES_PASSWORD}
+      TUKNEX_DB_PASSWORD: ${TUKNEX_DB_PASSWORD:?Configura TUKNEX_DB_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./init-database.sh:/docker-entrypoint-initdb.d/01-tuknex.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d tuknex]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      BILLING_MODE: production
+      SEED_DEMO_DATA: 'false'
+      SERVER_HOST: 0.0.0.0
+      PORT: '4000'
+      TRUST_PROXY_HOPS: '1'
+      DATABASE_URL: postgresql://tuknex_app:${TUKNEX_DB_PASSWORD:?Configura TUKNEX_DB_PASSWORD}@database:5432/tuknex
+      CORS_ORIGINS: https://${DOMAIN:?Configura DOMAIN}
+      SESSION_SAMESITE: lax
+      REQUIRE_EMAIL_VERIFICATION: 'true'
+      REQUIRE_PHONE_VERIFICATION: ${REQUIRE_PHONE_VERIFICATION:-false}
+      VERIFICATION_SECRET: ${VERIFICATION_SECRET:?Configura VERIFICATION_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY:?Configura RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:?Configura EMAIL_FROM}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
+      ADMIN_SETUP_TOKEN: ${ADMIN_SETUP_TOKEN:-}
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        SITE_URL: https://${DOMAIN:?Configura DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?Configura DOMAIN}
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes: [caddy_data:/data, caddy_config:/config]
+volumes:
+  database:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,1 @@
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS solicitud_hash text NOT NULL DEFAULT '';
