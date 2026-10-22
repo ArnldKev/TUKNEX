@@ -99,3 +99,12 @@ test('delivery estimates preserve business-day weekends and explicit quote terms
   assert.equal(estimateDeliveryDate('2026-10-16', '15 a 20 días'), '2026-11-05');
   assert.equal(estimateDeliveryDate('2026-10-16', 'A coordinar'), '2026-11-15');
 });
+
+test('daily agreements use consecutive calendar days and settle the exact total',()=>{
+  const result=buildPlan(10000,{mode:'daily',rate:3,count:3,firstDueDate:'2026-12-30'});
+  assert.deepEqual(result.installments.map(item=>item.date),['2026-12-30','2026-12-31','2027-01-01']);
+  assert.equal(result.totalCents,10300);
+  assert.equal(result.installments.reduce((sum,item)=>sum+item.amountCents,0),10300);
+  const fixed=buildPlan(10000,{mode:'daily',rate:0,count:3,firstDueDate:'2026-12-30',fixedAmountCents:3000});
+  assert.deepEqual(fixed.installments.map(item=>item.amountCents),[3000,3000,3000,1000]);
+});

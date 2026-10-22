@@ -1,4 +1,5 @@
 export interface VerificationStatus {
+  verificationEnabled?:boolean;
   emailRequired:boolean;phoneRequired:boolean;emailAvailable:boolean;phoneAvailable:boolean;
   emailVerified:boolean;phoneVerified:boolean;profileComplete:boolean;email:string;phone:string;dniMasked:string;identityVerified:false;
 }

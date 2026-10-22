@@ -6,7 +6,7 @@ El proyecto existente sigue en `D:\TUKNEX\frontend` y `D:\TUKNEX\backend`. No se
 
 - Un visitante completa el cotizador sin cuenta. «Guardar cotización» abre el acceso dentro de la misma pantalla; iniciar sesión o registrarse conserva sus respuestas y guarda la propuesta en su cuenta. Cerrar el acceso vuelve a la propuesta. No se almacena el texto de la propuesta en localStorage.
 - El registro pide nombre, correo, móvil, DNI de 8 dígitos, contraseña de 12 caracteres o más y consentimiento. El móvil peruano de 9 dígitos se normaliza a +51. El DNI es declarado: no hay consulta a RENIEC ni comprobación de identidad oficial.
-- Cada contacto tiene su propio estado. Correo usa Resend; SMS usa Twilio Verify. Sin proveedor se muestra «no habilitado», nunca «verificado». El correo es obligatorio para guardar propuestas en producción; exigir SMS es opcional mediante configuración.
+- Cada contacto tiene su propio estado. Correo usa Resend; SMS usa Twilio Verify. Sin proveedor se muestra «no habilitado», nunca «verificado». La verificación está desactivada por defecto. Para activarla se requiere CONTACT_VERIFICATION_ENABLED=true; los requisitos de correo y SMS se configuran por separado. Sin verificación se permite registrar y guardar propuestas sin marcar los contactos como confirmados.
 - Códigos de correo y recuperación: 10 minutos, 5 intentos, un solo uso, hash HMAC con secreto privado. Reenvíos: al menos 60 segundos y máximo 10 solicitudes por cuenta/canal/día. SMS usa aprobación del proveedor y el destino guardado en la cuenta. Cambiar el móvil revoca su verificación.
 - Recuperación por código de correo. Al cambiar la contraseña se revocan todas las sesiones de esa cuenta. El endpoint no publica si un correo está registrado.
 - Contacto guarda mensajes en PostgreSQL, disponibles en `/admin/mensajes`. Cambiar el seguimiento no envía una respuesta por correo.
@@ -70,7 +70,7 @@ Las migraciones se aplican al arrancar la API. Mantén el volumen de PostgreSQL 
 
 Frontend: `npm run build:release`, publicar `out` con soporte para rutas `.html`. Configura NEXT_PUBLIC_SITE_URL con el dominio real y NEXT_PUBLIC_API_URL con `/` si usas un proxy en el mismo dominio, o el origen HTTPS de tu API. Nunca pongas claves privadas en NEXT_PUBLIC_*.
 
-Backend: Node 24, PostgreSQL, `npm ci`, `npm run build`, `npm run start:prod`. Configura BILLING_MODE=production, DATABASE_URL, CORS_ORIGINS con orígenes HTTPS exactos, VERIFICATION_SECRET, RESEND_API_KEY y EMAIL_FROM. `start:prod` fuerza NODE_ENV=production y falla si falta configuración. SERVER_HOST y TRUST_PROXY_HOPS dependen del alojamiento; el valor 1 de la plantilla sólo corresponde a un proxy confiable delante de la API. No uses cookies Secure sobre HTTP para probar localmente: conserva `npm run dev` y NODE_ENV=development en tu equipo.
+Backend: Node 24, PostgreSQL, `npm ci`, `npm run build`, `npm run start:prod`. Configura BILLING_MODE=production, DATABASE_URL y CORS_ORIGINS con orígenes HTTPS exactos. Los proveedores de contacto solo se exigen al activar sus verificaciones. `start:prod` fuerza NODE_ENV=production y falla si falta configuración. SERVER_HOST y TRUST_PROXY_HOPS dependen del alojamiento; el valor 1 de la plantilla sólo corresponde a un proxy confiable delante de la API. No uses cookies Secure sobre HTTP para probar localmente: conserva `npm run dev` y NODE_ENV=development en tu equipo.
 
 Si frontend y API están en sitios distintos, revisa cookies, CORS y políticas del navegador en ese alojamiento. La plantilla de un solo dominio evita esa dependencia.
 
@@ -90,3 +90,7 @@ Si frontend y API están en sitios distintos, revisa cookies, CORS y políticas 
 Las reseñas públicas siguen sin testimonios inventados; los ejemplos del prototipo se ocultan en modo real. Los módulos CRM sin persistencia siguen deshabilitados. NEXI conserva su guía local y no se presenta como IA generativa conectada. Esta revisión no conecta pasarelas de pago, validación oficial del DNI, ni realiza un despliegue público.
 
 Referencias de integración: https://resend.com/docs/api-reference/emails/send-email · https://www.twilio.com/docs/verify/api/verification · https://www.twilio.com/docs/verify/api/verification-check · https://caddyserver.com/docs/caddyfile/directives/reverse_proxy .
+
+## Política actual de contacto y pagos
+
+Consulta CONTACTO_Y_PAGOS.md antes de activar proveedores. El registro y guardado funcionan sin verificaciones. La frecuencia preferida no fija condiciones financieras; estas se configuran en el panel administrador tras conversar con el cliente.

@@ -146,7 +146,7 @@ export class PublicController {
   }
   @Get('payment-options') async options() {
     const config = await this.service.settings();
-    return { rates: config.rates, prices: config.prices || DEFAULT_PRICES };
+    return { prices: config.prices || DEFAULT_PRICES };
   }
   @Post('estimate') async estimate(@Body() body: unknown) {
     const values = parse(quoteFormSchema, body),

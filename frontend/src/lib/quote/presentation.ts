@@ -1,5 +1,5 @@
 import { FEATURES, PROJECT_TYPES, money } from '../pricing';
-import type { QuoteFormValues } from './form';
+import { paymentPreferenceLabels, type QuoteFormValues } from './form';
 import type { QuoteAnswer, QuoteResult } from './contracts';
 
 export const sectorLabels = {
@@ -64,6 +64,7 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
     ['Lanzamiento ideal', values.launchDate || 'Flexible'],
     ['Fecha límite real', values.hardDeadline ? values.deadlineReason || 'Sí, por confirmar' : 'No'],
     ['Presupuesto orientativo', budgetLabels[values.budget]],
+    ['Frecuencia de pago preferida', paymentPreferenceLabels[values.paymentPreference||'unsure']],
     ['Dominio', values.domain === 'yes' ? values.existingDomain || 'Ya tiene' : values.domain],
     ['Hosting', values.hosting],
     ['Gestión del contenido', values.management],

@@ -13,7 +13,7 @@ export class VerificationService {
   async status(userId:string) {
     const row=(await this.db.query('SELECT correo,telefono,dni,email_verified_at,phone_verified_at FROM usuarios WHERE id=$1',[userId])).rows[0];
     const policy=verificationPolicy();
-    return {...policy,emailAvailable:this.delivery.emailAvailable(),phoneAvailable:this.delivery.phoneAvailable(),emailVerified:!!row.email_verified_at,phoneVerified:!!row.phone_verified_at,profileComplete:!!(row.telefono&&row.dni),email:row.correo,phone:row.telefono,dniMasked:row.dni?'••••'+row.dni.slice(-4):'',identityVerified:false};
+    return {...policy,emailAvailable:policy.verificationEnabled&&this.delivery.emailAvailable(),phoneAvailable:policy.verificationEnabled&&this.delivery.phoneAvailable(),emailVerified:!!row.email_verified_at,phoneVerified:!!row.phone_verified_at,profileComplete:!!(row.telefono&&row.dni),email:row.correo,phone:row.telefono,dniMasked:row.dni?'••••'+row.dni.slice(-4):'',identityVerified:false};
   }
   async assertReady(userId:string) {
     const status=await this.status(userId);
@@ -25,6 +25,7 @@ export class VerificationService {
     return createHmac('sha256',process.env.VERIFICATION_SECRET).update(id+':'+target+':'+code).digest('hex');
   }
   async start(userId:string,purpose:VerificationPurpose) {
+    if(purpose!=='recovery'&&!verificationPolicy().verificationEnabled)throw new ServiceUnavailableException('La verificación de contacto está desactivada por ahora.');
     if(purpose==='phone'?!this.delivery.phoneAvailable():!this.delivery.emailAvailable())throw new ServiceUnavailableException(purpose==='phone'?'La verificación por SMS aún no está configurada.':'El envío de correo aún no está configurado.');
     return this.db.transaction(async tx=>{
       const user=(await tx.query('SELECT * FROM usuarios WHERE id=$1 AND activo=true FOR UPDATE',[userId])).rows[0];
@@ -53,6 +54,7 @@ export class VerificationService {
     return null;
   }
   async confirm(userId:string,value:unknown) {
+    if(!verificationPolicy().verificationEnabled)throw new ServiceUnavailableException('La verificación de contacto está desactivada por ahora.');
     const {channel,code}=parse(z.object({channel:channelSchema,code:z.string().regex(/^\d{6}$/)}).strict(),value);
     const error=await this.db.transaction(async tx=>{
       const user=(await tx.query('SELECT * FROM usuarios WHERE id=$1 FOR UPDATE',[userId])).rows[0];

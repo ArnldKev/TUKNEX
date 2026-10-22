@@ -2,6 +2,7 @@ export const paymentModes = {
   cash: { label: 'Contado', rate: 0 },
   half: { label: '50% / 50%', rate: 0 },
   three: { label: '40% / 30% / 30%', rate: 5 },
+  daily: { label: 'Diario', rate: 0 },
   weekly: { label: 'Semanal', rate: 8 },
   fortnightly: { label: 'Quincenal · cada 15 días', rate: 6 },
   monthly: { label: 'Mensual', rate: 10 },

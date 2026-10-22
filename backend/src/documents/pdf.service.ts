@@ -16,7 +16,7 @@ import {
   type Issuer,
   type PlanInput,
 } from '../domain/billing/types';
-import { quoteFormSchema } from '../domain/quote/form';
+import { paymentPreferenceLabels, quoteFormSchema } from '../domain/quote/form';
 import { estimateQuote } from '../domain/pricing';
 import { parse } from '../billing/dto';
 import { documentTerms, referenceImages } from './templates';
@@ -268,7 +268,7 @@ export class PdfService {
     @Inject(Database) private db: Database,
     @Inject(BillingService) private billing: BillingService,
   ) {}
-  async quotePdf(q: BillingQuote, preliminary = false, custom = false) {
+  async quotePdf(q: BillingQuote, preliminary = false, custom = false, preference = 'Por acordar') {
     const l = await Layout.create('Cotización', q.number);
     await l.header(
       preliminary ? 'Propuesta preliminar' : 'Cotización de servicios digitales',
@@ -302,7 +302,12 @@ export class PdfService {
     l.text(q.scope);
     l.field('Plazo estimado', q.delivery);
     l.heading('Inversión y modalidad de pago');
-    if (custom) {
+    if (preliminary) {
+      if(custom) l.text('Importe por definir tras evaluar el alcance.',11,l.bold);
+      else l.price('Estimación base del servicio',amount(q.baseCents),true);
+      l.field('Frecuencia de pago preferida',preference);
+      l.text('Preferencia del cliente, sujeta a conversación. TUKNEX acordará el importe final, cuotas, fechas y condiciones antes de emitir una cotización o contrato. Esta propuesta no fija un cronograma de cobro.',10,l.font,muted);
+    } else if (custom) {
       l.text(
         'Importe por definir tras evaluar el alcance. Este documento no fija un precio ni un cronograma de cobro.',
         11,
@@ -441,12 +446,12 @@ export class PdfService {
     const schema = z
       .object({
         values: quoteFormSchema,
-        mode: z.enum(['cash', 'half', 'three', 'weekly', 'fortnightly', 'monthly']),
-        count: z.number().int().min(1).max(120),
+        mode: z.enum(['cash', 'half', 'three', 'daily', 'weekly', 'fortnightly', 'monthly']).optional(),
+        count: z.number().int().min(1).max(120).optional(),
         expectedMinCents: z.number().int().min(0),
       })
       .strict();
-    const { values, mode, count, expectedMinCents } = parse(schema, body),
+    const { values, expectedMinCents } = parse(schema, body),
       settings = snapshot ?? await this.billing.settings(),
       estimate = estimateQuote(values, settings.prices || {}),
       today = todayLima();
@@ -454,7 +459,8 @@ export class PdfService {
       throw new BadRequestException(
         'Las tarifas cambiaron. Vuelve a preparar la propuesta antes de descargar el PDF.',
       );
-    const plan: PlanInput = { mode, rate: settings.rates[mode], count, firstDueDate: today };
+    // Public preferences never authorize a financial agreement, even for legacy callers.
+    const plan: PlanInput = { mode:'cash', rate:0, count:1, firstDueDate:today };
     const calculation = buildPlan(Math.max(1, Math.round(estimate.min * 100)), plan);
     const quote: BillingQuote = {
       id: randomUUID(),
@@ -491,6 +497,6 @@ export class PdfService {
       isDemo: false,
       version: 1,
     };
-    return { bytes: await this.quotePdf(quote, true, estimate.custom), filename: quote.number + '.pdf' };
+    return { bytes: await this.quotePdf(quote, true, estimate.custom, paymentPreferenceLabels[values.paymentPreference||'unsure']), filename: quote.number + '.pdf' };
   }
 }

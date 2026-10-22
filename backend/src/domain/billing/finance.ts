@@ -94,7 +94,7 @@ export function buildPlan(baseCents: number, plan: PlanInput): PlanResult {
     if (installments.reduce((sum, i) => sum + i.amountCents, 0) !== totalCents)
       throw new Error('Las cuotas deben sumar exactamente el monto final.');
   } else {
-    if (plan.fixedAmountCents !== undefined && ['weekly', 'fortnightly', 'monthly'].includes(plan.mode)) {
+    if (plan.fixedAmountCents !== undefined && ['daily', 'weekly', 'fortnightly', 'monthly'].includes(plan.mode)) {
       if (!Number.isSafeInteger(plan.fixedAmountCents) || plan.fixedAmountCents <= 0)
         throw new Error('La cuota fija debe ser positiva.');
       count = Math.ceil(totalCents / plan.fixedAmountCents);
@@ -109,7 +109,7 @@ export function buildPlan(baseCents: number, plan: PlanInput): PlanResult {
           ? remaining
           : weights
             ? Math.floor((totalCents * weights[i]) / 100)
-            : plan.fixedAmountCents && ['weekly', 'fortnightly', 'monthly'].includes(plan.mode)
+            : plan.fixedAmountCents && ['daily', 'weekly', 'fortnightly', 'monthly'].includes(plan.mode)
               ? Math.min(plan.fixedAmountCents, remaining)
               : Math.floor(totalCents / count);
       remaining -= amountCents;
@@ -118,7 +118,7 @@ export function buildPlan(baseCents: number, plan: PlanInput): PlanResult {
           ? addMonths(plan.firstDueDate, i)
           : addDays(
               plan.firstDueDate,
-              i * (plan.mode === 'weekly' ? 7 : plan.mode === 'fortnightly' ? 15 : 15),
+              i * (plan.mode === 'daily' ? 1 : plan.mode === 'weekly' ? 7 : plan.mode === 'fortnightly' ? 15 : 15),
             );
       return {
         number: i + 1,

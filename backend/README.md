@@ -45,3 +45,7 @@ Para desplegar, configura NODE_ENV=production, BILLING_MODE=production, DATABASE
 La migración 004 agrega solicitudes_cotizacion con respuestas, estimación calculada en servidor y PDF persistido. Se aplica al reiniciar el backend. Los clientes usan GET/POST /api/account/quote-requests y GET /api/account/quote-requests/:id/pdf. El administrador usa GET /api/billing/quote-requests y PATCH /api/billing/quote-requests/:id para el seguimiento (pending, reviewing, quoted, closed). El servidor toma la propiedad de la sesión y limita los documentos al titular o administrador. La clave de idempotencia por cliente evita duplicar reintentos. Los PDFs guardados conservan su contenido cuando cambian las tarifas. Estas solicitudes son preliminares; no emiten automáticamente contratos ni obligaciones de pago.
 
 La migración 005 añade datos de contacto y DNI declarado, estados de verificación, desafíos de un solo uso y mensajes de contacto. Guía de despliegue y límites: ../deploy/PRODUCCION.md. npm run db:backup genera una copia privada de PostgreSQL; no incluye la configuración .env.
+
+## Contacto y pagos
+
+Consulta [CONTACTO_Y_PAGOS.md](../deploy/CONTACTO_Y_PAGOS.md). La verificación está desactivada por defecto, también en producción. El cliente indica una frecuencia preferida; el administrador acuerda y configura los importes, cuotas y recargos.

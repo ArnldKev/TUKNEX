@@ -23,7 +23,7 @@ export function PaymentPlanFields({
     error = e instanceof Error ? e.message : 'Revisa el plan.';
   }
   const custom = ['custom', 'milestones'].includes(plan.mode),
-    periodic = ['weekly', 'fortnightly', 'monthly'].includes(plan.mode);
+    periodic = ['daily', 'weekly', 'fortnightly', 'monthly'].includes(plan.mode);
   return (
     <fieldset className="billing-plan">
       <legend>Precio y plan de pago</legend>

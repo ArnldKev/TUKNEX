@@ -259,10 +259,7 @@ export function QuoteStepperForm() {
     try {
       const estimate=await quoteService.calculate(values,prices);
       focusTarget.current='heading';setCompletedValues(values);setResult(estimate);setSavedId('');
-      if(auth.user?.role==='client' && !DEMO_MODE) {
-        try {await saveProposal(values,estimate);}
-        catch(error) {setNotice(`La estimación está lista, pero NO se guardó. ${error instanceof Error?error.message:'Comprueba la conexión con TUKNEX.'} Puedes volver a intentar guardarla sin perder tus respuestas.`);}
-      }
+      setNotice('Elige tu frecuencia de pago preferida y pulsa Guardar cotización cuando estés listo.');
     } catch {setNotice('No pudimos preparar la propuesta. Conservamos tus respuestas; vuelve a intentarlo.');}
     finally {setBusy(false);}
   }
@@ -407,6 +404,7 @@ export function QuoteStepperForm() {
                 savedId={savedId}
                 authenticated={auth.user?.role === 'client'}
                 proposal={proposal}
+                onPreferenceChange={preference=>{if(savedId||busy)return;form.setValue('paymentPreference',preference);setCompletedValues(current=>current?{...current,paymentPreference:preference}:current);requestKey.current=null;}}
                 onEdit={goTo}
                 onRequest={() => void requestAdvice()}
                 onWhatsApp={() => void shareWhatsApp()}

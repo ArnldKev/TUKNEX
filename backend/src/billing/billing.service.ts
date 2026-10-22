@@ -106,11 +106,12 @@ export class BillingService {
     }
   }
   async settings() {
-    return (await queryOne(this.db, "SELECT datos FROM configuracion WHERE id='billing'")).datos as {
+    const stored = (await queryOne(this.db, "SELECT datos FROM configuracion WHERE id='billing'")).datos as {
       issuer: Issuer;
       rates: BillingData['rates'];
       prices?: Record<string, number>;
     };
+    return {...stored,rates:{...Object.fromEntries(Object.entries(paymentModes).map(([key,value])=>[key,value.rate])),...stored.rates}};
   }
   async saveSettings(body: unknown) {
     const input = parse(settingsDto, body);

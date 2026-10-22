@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { FEATURES, type ProjectType } from '../pricing';
 
+export const paymentPreferenceLabels = {unsure:'Por acordar',daily:'Diario',weekly:'Semanal',fortnightly:'Quincenal',monthly:'Mensual'} as const;
+
 const featureIds = FEATURES.map((item) => item.id);
 export const quoteFormSchema = z.object({
   projectType: z.enum(['landing', 'business', 'catalog', 'store', 'system', 'redesign']),
@@ -33,6 +35,7 @@ export const quoteFormSchema = z.object({
   hardDeadline: z.boolean(),
   deadlineReason: z.string().trim().max(300),
   budget: z.enum(['unsure', 'under300', '300-550', '550-800', '800-1000', '1000+']),
+  paymentPreference: z.enum(['unsure','daily','weekly','fortnightly','monthly']).optional(),
   domain: z.enum(['yes', 'no', 'unsure']),
   existingDomain: z.string().trim().max(200),
   hosting: z.enum(['yes', 'no', 'unsure']),
@@ -133,6 +136,7 @@ export const quoteDefaults: QuoteFormValues = {
   hardDeadline: false,
   deadlineReason: '',
   budget: 'unsure',
+  paymentPreference: 'unsure',
   domain: 'unsure',
   existingDomain: '',
   hosting: 'unsure',
@@ -220,6 +224,7 @@ export const anonymousDraftSchema = quoteFormSchema.pick({
   stylePreference: true,
   timeline: true,
   budget: true,
+  paymentPreference: true,
   domain: true,
   hosting: true,
   management: true,

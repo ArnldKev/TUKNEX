@@ -10,10 +10,10 @@ export interface QuoteStepProps {
   prices: Record<string, number>;
 }
 export type QuoteTextFieldName = {
-  [K in keyof QuoteFormValues]: QuoteFormValues[K] extends string ? K : never;
+  [K in keyof QuoteFormValues]-?: NonNullable<QuoteFormValues[K]> extends string ? K : never;
 }[keyof QuoteFormValues];
 type BooleanField = {
-  [K in keyof QuoteFormValues]: QuoteFormValues[K] extends boolean ? K : never;
+  [K in keyof QuoteFormValues]-?: NonNullable<QuoteFormValues[K]> extends boolean ? K : never;
 }[keyof QuoteFormValues];
 
 export function QuoteFieldError({ name }: { name: keyof QuoteFormValues }) {

@@ -12,6 +12,7 @@ export const phoneField = z.string().trim().transform(normalizePhone).pipe(z.str
 export const dniField = z.string().trim().regex(/^\d{8}$/, 'El DNI debe tener 8 dígitos.');
 export const clientRegistration = credentials.extend({phone:phoneField,dni:dniField,privacyConsent:z.literal(true)}).strict();
 export function verificationPolicy() {
-  return { emailRequired: process.env.NODE_ENV==='production' || process.env.REQUIRE_EMAIL_VERIFICATION==='true',
-    phoneRequired: process.env.REQUIRE_PHONE_VERIFICATION==='true' };
+  const verificationEnabled=process.env.CONTACT_VERIFICATION_ENABLED==='true';
+  return { verificationEnabled, emailRequired: verificationEnabled && process.env.REQUIRE_EMAIL_VERIFICATION==='true',
+    phoneRequired: verificationEnabled && process.env.REQUIRE_PHONE_VERIFICATION==='true' };
 }

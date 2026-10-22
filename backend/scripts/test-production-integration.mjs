@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {mkdir,rm} from 'node:fs/promises';
+import {mkdir,rm,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import pg from 'pg';
@@ -11,11 +11,12 @@ const schema='tuknex_qa_'+randomUUID().replaceAll('-',''),temporary=path.resolve
 let control,app,base,checks=0;
 if(postgres){control=new pg.Client({connectionString:process.env.DATABASE_URL});await control.connect();await control.query('CREATE SCHEMA "'+schema+'"');const url=new URL(process.env.DATABASE_URL);url.searchParams.set('options','-c search_path='+schema);process.env.DATABASE_URL=url.href;process.env.BILLING_MODE='production';}
 else{process.env.BILLING_MODE='local-demo';process.env.DATA_DIR=temporary;await mkdir(temporary,{recursive:true});}
-Object.assign(process.env,{NODE_ENV:'test',SEED_DEMO_DATA:'false',CORS_ORIGINS:'http://127.0.0.1:3000',REQUIRE_EMAIL_VERIFICATION:'true',REQUIRE_PHONE_VERIFICATION:'true'});
+Object.assign(process.env,{NODE_ENV:'test',SEED_DEMO_DATA:'false',CORS_ORIGINS:'http://127.0.0.1:3000',CONTACT_VERIFICATION_ENABLED:'true',REQUIRE_EMAIL_VERIFICATION:'true',REQUIRE_PHONE_VERIFICATION:'true'});
 for(const name of ['RESEND_API_KEY','EMAIL_FROM','VERIFICATION_SECRET','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_VERIFY_SERVICE_SID'])delete process.env[name];
 const {Logger}=require('@nestjs/common');Logger.overrideLogger(false);
 const {createApp}=require('../dist/main.js'),{Database}=require('../dist/database/database.js'),{quoteDefaults}=require('../dist/domain/quote/form.js'),{assertProductionConfig}=require('../dist/config/production.js');
 const {provisionAdmin}=require('../dist/auth/private-admin.js');
+const {PdfService}=require('../dist/documents/pdf.service.js'),{BillingService}=require('../dist/billing/billing.service.js');
 const origin='http://127.0.0.1:3000',secret='Synthetic-test-password-2026!',nativeFetch=global.fetch;
 const emails=[],sms=[];let emailFailure=false,phoneApproved=false;
 global.fetch=async(url,options)=>{
@@ -52,6 +53,34 @@ try{
   const client=(await db().query('SELECT datos,telefono,documento FROM clientes WHERE id=$1',[user.clientId])).rows[0];
   check(client.telefono===user.phone&&client.documento===registration.dni&&client.datos.taxId===registration.dni,'registered contact data reaches the real client record');
   const proposal={values:{...quoteDefaults,offering:'Synthetic proposal for production flow',sector:'commerce',problem:'Improve the product catalogue.',privacyAcknowledged:true},idempotencyKey:randomUUID()};
+  process.env.CONTACT_VERIFICATION_ENABLED='false';
+  const noVerification=await(await call('auth/verification',undefined,a.cookie)).json();
+  check(!noVerification.verificationEnabled&&!noVerification.emailRequired&&!noVerification.phoneRequired&&!noVerification.emailVerified&&!noVerification.phoneVerified,'disabled verification accepts contact details without falsely confirming them, even with legacy required flags');
+  const preferred=await(await call('account/quote-requests',{...proposal,values:{...proposal.values,paymentPreference:'daily'},idempotencyKey:randomUUID()},a.cookie)).json();
+  check(preferred.values.paymentPreference==='daily','unverified client can save a payment frequency preference without providers');
+  const myRequests=await(await call('account/quote-requests',undefined,a.cookie)).json();
+  const ownerRequests=await(await call('billing/quote-requests',undefined,admin.cookie)).json();
+  check(myRequests.some(q=>q.id===preferred.id)&&ownerRequests.some(q=>q.id===preferred.id&&q.values.paymentPreference==='daily'),'both portals see the persisted preference');
+  await call('auth/verification/send',{channel:'email'},a.cookie,503);
+  check(emails.length===0&&sms.length===0,'disabled contact verification sends no provider requests');
+  const options=await(await call('public/payment-options')).json();
+  check(!('rates'in options)&&!!options.prices,'public pricing does not expose administrator financing rates');
+  const settings=await app.get(BillingService).settings();
+  const oldRates={...settings.rates};delete oldRates.daily;
+  await db().query("UPDATE configuracion SET datos=$1 WHERE id='billing'",[JSON.stringify({...settings,rates:oldRates})]);
+  check((await app.get(BillingService).settings()).rates.daily===0,'existing settings receive a safe daily default without changing stored agreements');
+  const pdf=app.get(PdfService),originalRender=pdf.quotePdf;
+  let rendered;
+  pdf.quotePdf=function(...args){rendered=args;return originalRender.apply(this,args);};
+  let preview;
+  try {preview=await pdf.preliminary({values:{...proposal.values,paymentPreference:'daily'},mode:'monthly',count:12,expectedMinCents:preferred.result.min*100});}
+  finally {pdf.quotePdf=originalRender;}
+  check(rendered[0].feeCents===0&&rendered[0].totalCents===rendered[0].baseCents&&rendered[3]==='Diario','preliminary PDF never adds financing even for legacy payment-mode input');
+  check(Buffer.from(preview.bytes).subarray(0,5).toString()==='%PDF-','preliminary preference PDF is generated');
+  const previewArg=process.argv.indexOf('--preview-pdf');if(previewArg>=0)await writeFile(path.resolve(process.argv[previewArg+1]),preview.bytes);
+  const daily=await(await call('billing/quotes',{clientId:user.clientId,projectName:'QA Daily agreement',service:'landing',scope:'Scope for the agreed daily plan.',observations:'',conditions:'Agreed with client.',delivery:'15 días',baseCents:10000,plan:{mode:'daily',rate:3,count:3,firstDueDate:'2026-12-30'},status:'draft',issuedDate:'2026-12-01',validUntil:'2027-01-31',isDemo:false},admin.cookie)).json();
+  check(daily.feeCents===300&&daily.totalCents===10300&&daily.schedule.map(q=>q.date).join(',')==='2026-12-30,2026-12-31,2027-01-01','administrator alone sets the daily agreement and surcharge');
+  process.env.CONTACT_VERIFICATION_ENABLED='true';
   await call('account/quote-requests',proposal,a.cookie,403);
   await call('auth/verification/send',{channel:'email'},a.cookie,503);
   await call('auth/verification/send',{channel:'phone'},a.cookie,503);
@@ -127,8 +156,12 @@ try{
   assert.doesNotThrow(assertProductionConfig);checks++;
   process.env.CORS_ORIGINS='http://localhost:3000';assert.throws(assertProductionConfig,/HTTPS/);checks++;
   process.env.CORS_ORIGINS='https://tuknex.example';delete process.env.RESEND_API_KEY;assert.throws(assertProductionConfig,/RESEND_API_KEY/);checks++;
+  process.env.CONTACT_VERIFICATION_ENABLED='false';
+  for(const key of ['RESEND_API_KEY','EMAIL_FROM','VERIFICATION_SECRET','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_VERIFY_SERVICE_SID'])delete process.env[key];
+  assert.doesNotThrow(assertProductionConfig);checks++;
+  process.env.CONTACT_VERIFICATION_ENABLED='true';assert.throws(assertProductionConfig,/VERIFICATION_SECRET/);checks++;
   process.env.NODE_ENV='test';process.env.CORS_ORIGINS=oldOrigins;process.env.BILLING_MODE=oldMode;
-  console.log(JSON.stringify({result:'PASS',checks,storage:postgres?'PostgreSQL isolated schema':'PGlite temporary database',realEmailsSent:0,realSmsSent:0,tests:['extended registration','server verification gate','provider failures','keyed OTP hashes','cooldown','attempt limit','replay prevention','SMS approval','phone change revocation','persistent verification','password recovery and session revocation','contact inbox','production configuration guards']},null,2));
+  console.log(JSON.stringify({result:'PASS',checks,storage:postgres?'PostgreSQL isolated schema':'PGlite temporary database',realEmailsSent:0,realSmsSent:0,tests:['optional verification and provider-free production','stored payment preference','administrator daily plan','preliminary PDFs without financing','extended registration','server verification gate','provider failures','keyed OTP hashes','cooldown','attempt limit','replay prevention','SMS approval','phone change revocation','persistent verification','password recovery and session revocation','contact inbox','production configuration guards']},null,2));
 }finally{
   global.fetch=nativeFetch;await app?.close();
   if(control){assert.ok(/^tuknex_qa_[a-f0-9]+$/.test(schema));await control.query('DROP SCHEMA "'+schema+'" CASCADE');await control.end();}

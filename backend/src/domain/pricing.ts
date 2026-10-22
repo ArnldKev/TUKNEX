@@ -106,6 +106,7 @@ export interface QuoteInput {
   design: DesignStyle;
   timeline: Timeline;
   budget?: string;
+  paymentPreference?: 'unsure'|'daily'|'weekly'|'fortnightly'|'monthly';
   productsRange?: string;
   userRange?: string;
   otherFunctions?: string;

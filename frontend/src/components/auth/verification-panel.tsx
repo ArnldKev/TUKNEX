@@ -25,6 +25,10 @@ export function VerificationPanel({onContinue,compact=false}:{onContinue?:()=>vo
     try{setStatus(await billingRequest<VerificationStatus>('auth/verification/profile',{method:'PATCH',body:JSON.stringify({phone,dni})}));setDni('');setNotice('Datos guardados. El DNI es declarado; no se ha consultado una fuente oficial.');window.dispatchEvent(new Event('account-updated'));}
     catch(e){setError(e instanceof Error?e.message:'No se pudieron guardar tus datos.');}finally{setBusy(false);}
   }
+  if(status?.verificationEnabled===false) {
+    if(compact&&!onContinue)return null;
+    return <details className="verification-panel"><summary>Datos de contacto y verificación</summary><p>Tu correo y móvil están registrados. La verificación no es necesaria por ahora para usar tu cuenta o guardar cotizaciones.</p><p><Mail size={16}/> {status.email} · {status.emailVerified?'Confirmado':'Sin verificar'}</p><p><Smartphone size={16}/> {status.phone||'Móvil pendiente'} · {status.phoneVerified?'Confirmado':'Sin verificar'}</p><p>Este apartado estará disponible cuando TUKNEX habilite la verificación.</p>{onContinue&&<button type="button" className="platform-button" disabled={busy} onClick={onContinue}>Continuar y guardar mi cotización</button>}</details>;
+  }
   return <section className="verification-panel" aria-label="Verificación de mi cuenta">
     <div className="verification-heading"><ShieldCheck size={22}/><div><h2>Tu cuenta, con más confianza.</h2><p>{status?.emailVerified?'Correo confirmado':'Confirma tus datos de contacto'}{status?.phoneVerified?' · Móvil confirmado':''}</p></div>{compact&&<button className="platform-secondary" onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}>{expanded?'Ocultar':'Revisar cuenta'}</button>}</div>
     {error&&<p className="platform-error" role="alert">{error}</p>}

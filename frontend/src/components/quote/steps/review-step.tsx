@@ -56,11 +56,11 @@ export function QuoteReviewStep({ onEdit }: { onEdit: (step: number) => void }) 
       <div className="quote-demo-note">
         <ShieldCheck size={22} />
         <span>
-          Para calcular o descargar tu propuesta, tus respuestas se procesan en el servicio de cotización. Si has iniciado sesión como cliente, la propuesta se guardará en tu cuenta y estará disponible para TUKNEX. Sin iniciar sesión puedes consultar el cálculo sin guardarlo. El borrador local sólo contiene opciones anónimas.
+          Para calcular o descargar tu propuesta, tus respuestas se procesan en el servicio de cotización. Puedes consultar el cálculo sin guardarlo. Al pulsar Guardar cotización, podrás iniciar sesión o crear tu cuenta y la propuesta quedará disponible para ti y TUKNEX. El borrador local sólo contiene opciones anónimas.
         </span>
       </div>
       <QuoteCheckboxField name="privacyAcknowledged">
-        Entiendo que, si he iniciado sesión, mis respuestas se guardarán para gestionar mi solicitud de cotización.
+        Entiendo que, al guardar la cotización, mis respuestas se asociarán a mi cuenta para gestionar la solicitud.
       </QuoteCheckboxField>
     </>
   );
