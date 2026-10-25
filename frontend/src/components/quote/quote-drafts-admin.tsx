@@ -8,6 +8,7 @@ import { projectToForm, projectPreviewInput, quoteProjectSchema, type QuoteProje
 import { quoteAnswers } from '@/lib/quote/presentation';
 import { LiveSolutionPreview } from './live-solution-preview';
 import './quote-drafts-admin.css';
+import { NexiAiPanel } from './nexi-ai';
 
 type Detail=RemoteDraft&{revisions:DraftRevision[]};
 export function QuoteDraftsAdminPanel(){
@@ -52,6 +53,7 @@ export function QuoteDraftsAdminPanel(){
       <div className="qda-heading"><div><h3>{detail.title}</h3><p>Revisión consultada: {snapshot.version}. Solo lectura.</p></div><button className="platform-secondary" type="button" disabled={opening} onClick={()=>void open(detail.id)}>Actualizar este borrador</button><button className="platform-secondary" type="button" onClick={()=>{selection.current++;setDetail(null);setSnapshot(null);setOpening(false);}}>Cerrar detalle</button></div>
       {items.some(item=>item.id===detail.id&&item.version!==detail.version)&&<p className="qda-note">Hay una versión más reciente. Actualiza este borrador para consultarla.</p>}
       <label className="qda-version">Revisiones conservadas<select value={snapshot.version} disabled={opening} onChange={event=>void revision(event.target.value)}>{detail.revisions.map(item=><option value={item.version} key={item.version}>Versión {item.version} · paso {item.step+1} · {new Date(item.createdAt).toLocaleString('es-PE',{timeZone:'America/Lima'})}</option>)}</select></label>
+      <NexiAiPanel key={detail.id+':'+snapshot.version} project={snapshot.project} draft={{id:detail.id,version:snapshot.version}} disabled={opening}/>
       <div className="qda-detail-grid"><div><h4>Respuestas preliminares</h4><dl>{quoteAnswers(projectToForm(snapshot.project,quoteDefaults)).filter(answer=>!['Responsable de aprobar','Consentimiento comercial opcional'].includes(answer.question)).map(answer=><div key={answer.question}><dt>{answer.question}</dt><dd>{answer.value||'Sin indicar'}</dd></div>)}</dl></div><LiveSolutionPreview {...preview}/></div>
     </section>}
   </section>;

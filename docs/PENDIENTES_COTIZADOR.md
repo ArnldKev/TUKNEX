@@ -4,7 +4,7 @@ Actualizado: 25 de octubre de 2026.
 Base de trabajo: [alcance y recorrido](COTIZADOR_GENERATIVO.md).
 Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 
-«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00, el modelo e historial local COT-01 y el cotizador visual escrito COT-02. COT-03 incorpora borradores compartidos y acceso privado, implementados y verificados localmente. Las integraciones de IA, audio, correo y firma siguen pendientes. La activación en producción del guardado remoto requiere la configuración de privacidad descrita en su guía.
+«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00, el modelo e historial local COT-01 y el cotizador visual escrito COT-02. COT-03 incorpora borradores compartidos y acceso privado, implementados y verificados localmente. COT-04 tiene implementación local de IA revisable con Groq; su activación y evaluación con el proveedor real están pendientes de la clave. Audio, avisos de correo y firma siguen pendientes. La activación en producción del guardado remoto requiere la configuración de privacidad descrita en su guía.
 
 ## Orden de entrega
 
@@ -14,7 +14,7 @@ Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 | COT-01 | Modelo común del proyecto e historial local | Implementado y verificado localmente | Respuestas, boceto y requisitos relacionados, con revisiones |
 | COT-02 | Prototipo escrito y controles visuales | Implementado y verificado localmente | Cliente cambia diseño, compara y deshace |
 | COT-03 | Guardado remoto y borradores en administración | Implementado y verificado localmente | Avances autorizados visibles aunque no se envíen |
-| COT-04 | IA para interpretar y sugerir | Pendiente | NEXI transforma lenguaje natural en propuestas revisables |
+| COT-04 | IA para interpretar y sugerir | Implementado localmente; activación y evaluación real pendientes | NEXI transforma lenguaje natural en propuestas revisables |
 | COT-05 | Respuestas por audio | Pendiente | Grabar, transcribir, ordenar y confirmar |
 | COT-06 | Estimación explicada y coherente con el boceto | Pendiente | Rango calculado con catálogo y evaluación de lo complejo |
 | COT-07 | Orientación, envío, asignación y correos | Pendiente | Solicitud persistida, aviso y responsable asignado |
@@ -67,6 +67,8 @@ Entrega implementada: ver [guía de borradores compartidos](../deploy/BORRADORES
 Terminado cuando: el administrador ve un borrador autorizado sin envío formal; otro visitante/cliente no puede consultarlo ni modificarlo; no se activa el guardado remoto sin su configuración de privacidad.
 
 ## COT-04 — IA generativa
+
+Implementación local: [diseño y verificación](IA_GENERATIVA.md). Activación: [guía de Groq gratuito](../deploy/NEXI_IA_GRATUITA.md). El usuario comprobó COT-03 en producción y eligió empezar con un proveedor gratuito. No se considera completada la evaluación real de IA hasta configurar la clave y probar sus respuestas.
 
 - Comparar proveedores/modelos con el caso de prueba y un presupuesto acordado.
 - Conectar desde backend, sin claves en el navegador; establecer límites reales de consumo.

@@ -132,7 +132,7 @@ function commit(history: ProjectHistory, next: ProjectState, options: ChangeOpti
   };
 }
 
-export function createQuoteProject(values: QuoteFormValues = quoteDefaults, id = crypto.randomUUID()): QuoteProject {
+export function createQuoteProject(values: QuoteFormValues = quoteDefaults, id: string = crypto.randomUUID()): QuoteProject {
   return quoteProjectSchema.parse({ ...stateFromForm(values, {}), schemaVersion: PROJECT_SCHEMA_VERSION, id, revision: 0 });
 }
 export function createProjectHistory(project: QuoteProject): ProjectHistory {
@@ -155,6 +155,12 @@ export function acceptProjectSuggestion(history: ProjectHistory, rawSuggestion: 
   if (suggestion.projectId !== history.present.id) throw new StaleProjectRevisionError();
   return changeQuoteProject(history, suggestion.change, { expectedRevision: suggestion.baseRevision, origin: 'suggested' });
 }
+export function acceptProjectSuggestionFromForm(history: ProjectHistory, values: QuoteFormValues, suggestion: ProjectSuggestion): ProjectHistory {
+  // The form can contain an invalid edit that the history refused. Never reset it to an older valid snapshot.
+  const synchronized = recordProjectForm(history, values);
+  return acceptProjectSuggestion(synchronized, suggestion);
+}
+
 export function undoProject(history: ProjectHistory): ProjectHistory {
   const target = history.past.at(-1);
   if (!target) return history;

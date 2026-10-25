@@ -10,6 +10,7 @@ import { quoteAnswers } from '@/lib/quote/presentation';
 import { paymentPreferenceLabels } from '@/lib/quote/form';
 import { useDemoAuth, RoleGate } from '@/lib/platform/auth';
 import { AccountShell } from '@/components/auth/account-shell';
+import { QuoteRequestNexiAi } from './nexi-ai';
 import { QuoteDraftsAdminPanel } from './quote-drafts-admin';
 import { StatusBadge } from '@/components/ui/status-badge';
 const nextSteps:Record<SavedQuoteRequest['status'],string>={
@@ -42,6 +43,7 @@ export function QuoteRequestsPanel({admin=false,limit}:{admin?:boolean;limit?:nu
       <div className="quote-request-summary"><div className="quote-request-estimate"><span>Inversión estimada</span><strong>{item.result.custom?'Evaluación personalizada':`${money(item.result.min)} – ${money(item.result.max)}`}</strong><small>Sujeta a revisión del alcance.</small></div><dl><div><dt><CalendarDays size={15}/> Creada el</dt><dd>{new Date(item.createdAt).toLocaleDateString('es-PE',{timeZone:'America/Lima'})}</dd></div><div><dt>Preferencia de pago</dt><dd>{paymentPreferenceLabels[item.values.paymentPreference||'unsure']}</dd></div>{admin&&<div><dt>Cliente</dt><dd>{item.values.name}<br/>{item.values.email}</dd></div>}</dl></div>
       <p className="quote-request-offering">{item.values.offering}</p><p className="quote-request-next">{nextSteps[item.status]}</p>
       <details><summary>Ver respuestas y alcance <ChevronDown size={17}/></summary><dl>{quoteAnswers(item.values).map((answer,index)=><div key={index}><dt>{answer.question}</dt><dd>{answer.value||'Sin indicar'}</dd></div>)}</dl></details>
+      {admin&&<QuoteRequestNexiAi id={item.id} values={item.values} disabled={busy}/>}
       <div className="quote-request-actions"><button className="platform-secondary" disabled={busy} onClick={()=>void download(item.id)}><Download size={16}/> Descargar propuesta PDF</button>{admin&&<label>Seguimiento<select aria-label={'Estado de '+item.number} disabled={busy} value={item.status} onChange={e=>void status(item.id,e.target.value)}>{Object.entries(requestStatusLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>}</div>
     </article>)}</div>
     {admin&&limit&&items.length>limit&&<Link className="platform-text-link" href="/admin/solicitudes">Ver todas las solicitudes ({items.length})</Link>}

@@ -1,0 +1,34 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": [
+    "frontend/src/components/quote",
+    "frontend/src/lib/quote"
+  ],
+  "locale": "es-PE",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": [
+    "Form",
+    "Select/Listbox",
+    "Scrollbar"
+  ],
+  "ownership": {
+    "Select/Listbox": "native"
+  },
+  "requiredCommands": [
+    "typecheck",
+    "lint",
+    "frontend-test",
+    "backend-test",
+    "release"
+  ],
+  "commands": {
+    "typecheck": "npm --prefix frontend run typecheck",
+    "lint": "npm --prefix frontend run lint",
+    "frontend-test": "npm --prefix frontend test",
+    "backend-test": "npm --prefix backend test",
+    "release": "npm --prefix frontend run build:release"
+  },
+  "evidence": {
+    "failurePaths": "backend/scripts/test-quote-ai.mjs"
+  }
+}

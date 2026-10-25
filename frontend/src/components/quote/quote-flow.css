@@ -1232,3 +1232,4 @@
 .quote-v4 .quote-draft-controls > button {
   font-size: 16px;
 }
+.quote-v4 .quote-field textarea { field-sizing: content; }

@@ -1,4 +1,5 @@
 'use client';
+import { QuoteNexiAi } from '@/components/quote/nexi-ai';
 import { QuoteAuthDialog } from '@/components/auth/quote-auth-dialog';
 import { billingRequest } from '@/lib/billing/api';
 import {canSaveQuote,type VerificationStatus} from '@/lib/platform/verification';
@@ -429,6 +430,7 @@ export function QuoteStepperForm() {
                 <div className="quote-current-step" key={step}>
                   {renderStep()}
                 </div>
+                <QuoteNexiAi disabled={busy}/>
                 <div className="quote-form-footer">
                   <div>
                     {step > 0 ? (

@@ -6,12 +6,13 @@ import { RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import type { QuoteFormValues } from '@/lib/quote/form';
 import {
   PROJECT_FIELDS, createProjectHistory, createQuoteProject, projectToForm, recordProjectForm,
-  redoProject, restoreProjectStart, undoProject, acceptProjectSuggestion, type ProjectHistory, type ProjectChange, type ProjectField, type QuoteProject,
+  redoProject, restoreProjectStart, undoProject, acceptProjectSuggestion, acceptProjectSuggestionFromForm, type ProjectHistory, type ProjectChange, type ProjectField, type QuoteProject, type ProjectSuggestion,
 } from '@/lib/quote/project';
 import './project-session.css';
 
 interface Session {
   history: ProjectHistory;
+  acceptSuggestion: (suggestion: ProjectSuggestion) => boolean;
   error: string;
   undo: () => void;
   redo: () => void;
@@ -94,6 +95,7 @@ export function QuoteProjectSession({ form, children, onRestore }: {
     } finally {restoring.current=false;}
   }
   return <ProjectContext.Provider value={{ history, error, loadProject,
+    acceptSuggestion: suggestion => { try { travel(value => acceptProjectSuggestionFromForm(value, form.getValues(), suggestion), 'Sugerencia de NEXI aplicada. Puedes deshacerla.'); return true; } catch { setError('No se aplicó la sugerencia. Revisa las respuestas y su longitud; después solicita un análisis nuevo.'); return false; } },
     suggest: (change, reason, evidenceFields) => travel(history => acceptProjectSuggestion(history, {
       id: crypto.randomUUID(), projectId: history.present.id, baseRevision: history.present.revision,
       reason, evidenceFields, change,

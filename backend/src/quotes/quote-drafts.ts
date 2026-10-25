@@ -192,5 +192,5 @@ class AdminDraftsController {
   @Get(':id') get(@Param('id') id:string){return this.drafts.adminGet(id);}
   @Get(':id/versions/:version') revision(@Param('id') id:string,@Param('version') version:string){return this.drafts.adminRevision(id,version);}
 }
-@Module({imports:[AuthModule],providers:[QuoteDraftsService],controllers:[QuoteDraftsController,AdminDraftsController]})
+@Module({imports:[AuthModule],providers:[QuoteDraftsService],exports:[QuoteDraftsService],controllers:[QuoteDraftsController,AdminDraftsController]})
 export class QuoteDraftsModule {}

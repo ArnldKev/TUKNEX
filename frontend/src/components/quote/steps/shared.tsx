@@ -53,7 +53,7 @@ export function QuoteTextField({
     <label className="quote-field" htmlFor={props.id}>
       <span>{label}</span>
       {multiline ? (
-        <textarea {...props} rows={3} />
+        <textarea {...props} className="resize-none" rows={4} style={{resize:'none',minHeight:'8rem'}} />
       ) : (
         <input
           {...props}
