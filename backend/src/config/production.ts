@@ -1,5 +1,6 @@
 import { verificationPolicy } from '../auth/account-fields';
 export function assertProductionConfig() {
+  if(process.env.QUOTE_DRAFTS_ENABLED==='true' && !/^(?:[7-9]|[1-8][0-9]|90)$/.test(process.env.QUOTE_DRAFTS_RETENTION_DAYS||''))throw Error('Para activar borradores configura QUOTE_DRAFTS_RETENTION_DAYS entre 7 y 90 días.');
   if(process.env.NODE_ENV!=='production')return;
   const policy=verificationPolicy();
   const required=['DATABASE_URL','CORS_ORIGINS'];

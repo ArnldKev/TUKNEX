@@ -60,6 +60,9 @@ export async function createApp() {
   app.use(json({ limit: '96kb' }));
   const publicLimit={windowMs:15*60*1000,limit:5,standardHeaders:'draft-8' as const,legacyHeaders:false,message:{message:'Demasiadas solicitudes. Espera unos minutos e inténtalo otra vez.'}};
   app.use('/api/public/contact',rateLimit(publicLimit));
+  app.use('/api/quote-drafts',rateLimit({...publicLimit,limit:10,skip:req=>!(req.method==='POST' && (req.path==='/' || req.path==='/session'))}));
+  app.use('/api/quote-drafts',rateLimit({...publicLimit,limit:120,skip:req=>req.method==='GET'}));
+  app.use('/api/quote-drafts',rateLimit({...publicLimit,limit:500,skip:req=>req.method!=='GET'}));
   app.use('/api/account/reviews',rateLimit({...publicLimit,limit:30,skip:req=>req.method==='GET'}));
   app.use('/api/auth/recovery',rateLimit({...publicLimit,limit:10}));
   app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false }));

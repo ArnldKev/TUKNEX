@@ -38,6 +38,7 @@ import {
 import { quoteService } from '@/lib/quote/service';
 import { quoteAnswers, quoteProposalText } from '@/lib/quote/presentation';
 import type { QuoteResult } from '@/lib/quote/contracts';
+import { QuoteRemoteDraft } from '@/components/quote/remote-draft';
 import { QuotePreviewPanel } from '@/components/quote/solution-preview';
 import { QuoteProjectSession, QuoteProjectHistoryControls } from '@/components/quote/project-session';
 import { QuoteIdeaStep } from '@/components/quote/steps/idea-step';
@@ -388,6 +389,7 @@ export function QuoteStepperForm() {
                 <i style={{ width: `${result ? 100 : ((step + 1) / 6) * 100}%` }} />
               </div>
             </div>
+            <QuoteRemoteDraft step={step} onLoadStep={value=>{setStep(value);setFurthestStep(value);focusTarget.current='heading';}} />
             {!result && <QuoteProjectHistoryControls disabled={busy}/>}
             <header className="quote-question-header">
               <h3 id="quote-question" ref={headingRef} tabIndex={-1}>

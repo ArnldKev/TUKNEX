@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "start:prod": "node scripts/start-production.mjs",
-    "test": "npm run build && node --test scripts/test-quote-project.mjs && node scripts/test-billing-integration.mjs && node scripts/test-auth-integration.mjs && node scripts/test-setup-http.mjs && node scripts/test-production-integration.mjs && node scripts/test-reviews-integration.mjs && node --test scripts/test-private-admin-cli.mjs",
+    "test": "npm run build && node --test scripts/test-quote-project.mjs && node scripts/test-quote-drafts.mjs && node scripts/test-billing-integration.mjs && node scripts/test-auth-integration.mjs && node scripts/test-setup-http.mjs && node scripts/test-production-integration.mjs && node scripts/test-reviews-integration.mjs && node --test scripts/test-private-admin-cli.mjs",
     "db:migrate": "tsx --tsconfig tsconfig.json src/migrate.ts",
     "setup": "npm run build && node scripts/setup-postgres.mjs",
     "test:postgres": "npm run build && node scripts/test-auth-integration.mjs --postgres && node scripts/test-production-integration.mjs --postgres && node scripts/test-reviews-integration.mjs --postgres",
@@ -16,7 +16,8 @@
     "db:migrate:prod": "node dist/migrate.js",
     "admin:create": "npm run build && node scripts/create-admin.mjs",
     "test:quote-project": "npm run build && node --test scripts/test-quote-project.mjs",
-    "test:admin": "node --test scripts/test-private-admin-cli.mjs"
+    "test:admin": "node --test scripts/test-private-admin-cli.mjs",
+    "test:quote-drafts": "npm run build && node scripts/test-quote-drafts.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.10",

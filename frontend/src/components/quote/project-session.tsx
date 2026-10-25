@@ -6,7 +6,7 @@ import { RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import type { QuoteFormValues } from '@/lib/quote/form';
 import {
   PROJECT_FIELDS, createProjectHistory, createQuoteProject, projectToForm, recordProjectForm,
-  redoProject, restoreProjectStart, undoProject, acceptProjectSuggestion, type ProjectHistory, type ProjectChange, type ProjectField,
+  redoProject, restoreProjectStart, undoProject, acceptProjectSuggestion, type ProjectHistory, type ProjectChange, type ProjectField, type QuoteProject,
 } from '@/lib/quote/project';
 import './project-session.css';
 
@@ -16,6 +16,7 @@ interface Session {
   undo: () => void;
   redo: () => void;
   restore: () => void;
+  loadProject: (project: QuoteProject) => void;
   suggest: (change: ProjectChange, reason: string, evidenceFields: ProjectField[]) => void;
 }
 const ProjectContext = createContext<Session | null>(null);
@@ -82,7 +83,17 @@ export function QuoteProjectSession({ form, children, onRestore }: {
     } finally { restoring.current = false; }
   }
 
-  return <ProjectContext.Provider value={{ history, error,
+  function loadProject(project: QuoteProject) {
+    pending.current?.();
+    const next=createProjectHistory(project);
+    restoring.current=true;
+    try {
+      form.reset(projectToForm(next.present,form.getValues()),{keepDefaultValues:true});
+      current.current=next;setHistory(next);setError('');
+      notify.current('Borrador recuperado. Los datos de contacto actuales se mantienen. El historial local empieza desde esta versión.');
+    } finally {restoring.current=false;}
+  }
+  return <ProjectContext.Provider value={{ history, error, loadProject,
     suggest: (change, reason, evidenceFields) => travel(history => acceptProjectSuggestion(history, {
       id: crypto.randomUUID(), projectId: history.present.id, baseRevision: history.present.revision,
       reason, evidenceFields, change,

@@ -10,6 +10,7 @@ import { quoteAnswers } from '@/lib/quote/presentation';
 import { paymentPreferenceLabels } from '@/lib/quote/form';
 import { useDemoAuth, RoleGate } from '@/lib/platform/auth';
 import { AccountShell } from '@/components/auth/account-shell';
+import { QuoteDraftsAdminPanel } from './quote-drafts-admin';
 import { StatusBadge } from '@/components/ui/status-badge';
 const nextSteps:Record<SavedQuoteRequest['status'],string>={
   pending:'Recibimos tu propuesta. El equipo revisará la información de tu proyecto.',
@@ -46,4 +47,4 @@ export function QuoteRequestsPanel({admin=false,limit}:{admin?:boolean;limit?:nu
     {admin&&limit&&items.length>limit&&<Link className="platform-text-link" href="/admin/solicitudes">Ver todas las solicitudes ({items.length})</Link>}
   </section>;
 }
-export function QuoteRequestsAdmin(){return <RoleGate allowed={['admin']}><AccountShell admin title="Solicitudes del cotizador"><h1>Solicitudes de cotización</h1><QuoteRequestsPanel admin/></AccountShell></RoleGate>;}
+export function QuoteRequestsAdmin(){return <RoleGate allowed={['admin']}><AccountShell admin title="Solicitudes del cotizador"><h1>Solicitudes de cotización</h1><QuoteDraftsAdminPanel/><QuoteRequestsPanel admin/></AccountShell></RoleGate>;}

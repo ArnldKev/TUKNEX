@@ -4,7 +4,7 @@ Actualizado: 25 de octubre de 2026.
 Base de trabajo: [alcance y recorrido](COTIZADOR_GENERATIVO.md).
 Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 
-«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00, el modelo e historial local COT-01 y el cotizador visual escrito COT-02. Las integraciones de IA, audio, guardado remoto, correo y firma siguen pendientes.
+«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00, el modelo e historial local COT-01 y el cotizador visual escrito COT-02. COT-03 incorpora borradores compartidos y acceso privado, implementados y verificados localmente. Las integraciones de IA, audio, correo y firma siguen pendientes. La activación en producción del guardado remoto requiere la configuración de privacidad descrita en su guía.
 
 ## Orden de entrega
 
@@ -13,7 +13,7 @@ Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 | COT-00 | Alcance, recorrido y pendientes | Definición completada; continuidad autorizada | Documentos y ejemplo coherente de principio a fin |
 | COT-01 | Modelo común del proyecto e historial local | Implementado y verificado localmente | Respuestas, boceto y requisitos relacionados, con revisiones |
 | COT-02 | Prototipo escrito y controles visuales | Implementado y verificado localmente | Cliente cambia diseño, compara y deshace |
-| COT-03 | Guardado remoto y borradores en administración | Pendiente | Avances autorizados visibles aunque no se envíen |
+| COT-03 | Guardado remoto y borradores en administración | Implementado y verificado localmente | Avances autorizados visibles aunque no se envíen |
 | COT-04 | IA para interpretar y sugerir | Pendiente | NEXI transforma lenguaje natural en propuestas revisables |
 | COT-05 | Respuestas por audio | Pendiente | Grabar, transcribir, ordenar y confirmar |
 | COT-06 | Estimación explicada y coherente con el boceto | Pendiente | Rango calculado con catálogo y evaluación de lo complejo |
@@ -53,6 +53,8 @@ Entrega implementada: ver [guía del cotizador visual](../deploy/COTIZADOR_VISUA
 Terminado cuando: las decisiones escritas/seleccionadas se reflejan, conservan y deshacen; se puede completar el formulario en celular; el usuario sabe que está viendo un prototipo. Si las sugerencias iniciales son locales, se identifican como tales.
 
 ## COT-03 — Borradores y acceso
+
+Entrega implementada: ver [guía de borradores compartidos](../deploy/BORRADORES_COMPARTIDOS.md). Publicación y activación pendientes.
 
 - Diseñar migración aditiva para borradores y revisiones; no alterar de forma destructiva solicitudes/contratos.
 - Definir aviso y autorización/base aplicable antes de guardar respuestas libres en servidor.

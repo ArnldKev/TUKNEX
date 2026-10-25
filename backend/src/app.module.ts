@@ -1,3 +1,4 @@
+import { QuoteDraftsModule } from './quotes/quote-drafts';
 import { ReviewsModule } from './reviews/reviews';
 import { ContactModule } from './contact/contact';
 import { Database } from './database/database';
@@ -16,7 +17,7 @@ class HealthController {
   @Get('health') async health() {await this.db.query('SELECT 1'); return {status:'ok'};}
 }
 @Module({
-  imports: [DatabaseModule, AuthModule, BillingModule, DocumentsModule, QuoteRequestsModule, ContactModule, ReviewsModule],
+  imports: [DatabaseModule, QuoteDraftsModule, AuthModule, BillingModule, DocumentsModule, QuoteRequestsModule, ContactModule, ReviewsModule],
   controllers: [BillingController, PublicController, DocumentController, HealthController, AccountController],
 })
 export class AppModule {}
