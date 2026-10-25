@@ -1,0 +1,11 @@
+.quote-project-history { margin: 0 0 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.quote-project-history-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.quote-project-history-heading strong { color: var(--foreground); font-size: .95rem; }
+.quote-project-history-heading span { color: var(--text-secondary); font-size: .8rem; }
+.quote-project-history>p { color: var(--text-secondary); font-size: .85rem; line-height: 1.6; margin: 7px 0 12px; }
+.quote-project-history-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.quote-project-history-actions>button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 12px; min-height: 44px; border-radius: 8px; border: 1px solid var(--line); color: var(--foreground); background: var(--surface); font-size: .85rem; }
+.quote-project-history-actions>button:not(:disabled):hover { border-color: var(--text-accent); color: var(--text-accent); }
+.quote-project-history-actions>button:disabled { opacity: .45; cursor: not-allowed; }
+.quote-project-history-actions>button:focus-visible { outline: 2px solid var(--text-accent); outline-offset: 3px; }
+@media(max-width:450px) { .quote-project-history { padding: 14px; } .quote-project-history-actions { display: grid; grid-template-columns: 1fr 1fr; } .quote-project-history-actions>button:last-child { grid-column: 1/-1; } }

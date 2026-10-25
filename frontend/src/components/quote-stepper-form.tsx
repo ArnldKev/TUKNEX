@@ -39,6 +39,7 @@ import { quoteService } from '@/lib/quote/service';
 import { quoteAnswers, quoteProposalText } from '@/lib/quote/presentation';
 import type { QuoteResult } from '@/lib/quote/contracts';
 import { QuotePreviewPanel } from '@/components/quote/solution-preview';
+import { QuoteProjectSession, QuoteProjectHistoryControls } from '@/components/quote/project-session';
 import { QuoteIdeaStep } from '@/components/quote/steps/idea-step';
 import { QuoteBusinessStep } from '@/components/quote/steps/business-step';
 import { QuoteFeaturesStep } from '@/components/quote/steps/features-step';
@@ -352,6 +353,7 @@ export function QuoteStepperForm() {
   return (
     <FormProvider {...form}>
       {accessOpen && <QuoteAuthDialog onClose={()=>setAccessOpen(false)} onSave={async()=>{if(completedValues&&result)await saveProposal(completedValues,result);}}/>}
+      <QuoteProjectSession form={form} onRestore={()=>{setResult(null);setCompletedValues(null);setSavedId('');requestKey.current=null;setNotice('Cambio recuperado. Tus datos de contacto se mantienen.');}}>
       <div className="quote-experience quote-v4">
         <div className="quote-layout">
           <nav className="quote-sidebar" aria-label="Pasos de la cotización">
@@ -386,6 +388,7 @@ export function QuoteStepperForm() {
                 <i style={{ width: `${result ? 100 : ((step + 1) / 6) * 100}%` }} />
               </div>
             </div>
+            {!result && <QuoteProjectHistoryControls disabled={busy}/>}
             <header className="quote-question-header">
               <h3 id="quote-question" ref={headingRef} tabIndex={-1}>
                 {result ? 'Tu siguiente nivel ya tiene un plan.' : steps[step].title}
@@ -499,10 +502,11 @@ export function QuoteStepperForm() {
           </div>
         </div>
         <aside className="quote-preview-column" aria-label="Vista previa e inversión">
-          <QuotePreviewPanel control={form.control} />
-          <QuoteEstimatePanel control={form.control} prices={prices} />
+          <QuotePreviewPanel />
+          <QuoteEstimatePanel prices={prices} />
         </aside>
       </div>
+      </QuoteProjectSession>
     </FormProvider>
   );
 }

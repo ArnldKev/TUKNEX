@@ -1,9 +1,9 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { useWatch, type Control } from 'react-hook-form';
-import { quoteDefaults, type QuoteFormValues } from '@/lib/quote/form';
-import { PREVIEW_FIELDS, type PreviewContext } from '@/lib/quote/preview';
+import { projectPreviewInput } from '@/lib/quote/project';
+import { useQuoteProjectSession } from './project-session';
+import type { PreviewContext } from '@/lib/quote/preview';
 import type { QuoteInput } from '@/lib/pricing';
 import { LiveSolutionPreview } from './live-solution-preview';
 
@@ -55,43 +55,9 @@ export const SolutionPreview = memo(function SolutionPreview({
   );
 });
 
-/** One isolated subscription, independent of contact fields, price fields and wizard navigation. */
-export const QuotePreviewPanel = memo(function QuotePreviewPanel({
-  control,
-}: {
-  control: Control<QuoteFormValues>;
-}) {
-  const [
-    projectType,
-    features,
-    businessName,
-    sector,
-    offering,
-    goal,
-    design,
-    stylePreference,
-    colorsLiked,
-    firstImpression,
-  ] = useWatch({ control, name: PREVIEW_FIELDS, exact: true });
-  const input = useMemo<QuoteInput>(
-    () => ({
-      projectType: projectType ?? quoteDefaults.projectType,
-      features: features ?? quoteDefaults.features,
-      design: design ?? quoteDefaults.design,
-      timeline: 'standard',
-    }),
-    [projectType, features, design],
-  );
-  const context = useMemo<PreviewContext>(
-    () => ({
-      goal: goal ?? quoteDefaults.goal,
-      sector: sector ?? quoteDefaults.sector,
-      offering: offering ?? '',
-      stylePreference: stylePreference ?? quoteDefaults.stylePreference,
-      colorsLiked: colorsLiked ?? '',
-      firstImpression: firstImpression ?? '',
-    }),
-    [goal, sector, offering, stylePreference, colorsLiked, firstImpression],
-  );
-  return <LiveSolutionPreview input={input} businessName={businessName ?? ''} context={context} />;
+/** Preview and pricing derive from the same validated project revision. */
+export const QuotePreviewPanel = memo(function QuotePreviewPanel() {
+  const { history } = useQuoteProjectSession();
+  const preview = useMemo(() => projectPreviewInput(history.present), [history.present]);
+  return <LiveSolutionPreview {...preview} />;
 });
