@@ -1,3 +1,4 @@
+import { previewFeedbackLabels, visualPreferenceSummary } from './visual';
 import { FEATURES, PROJECT_TYPES, money } from '../pricing';
 import { paymentPreferenceLabels, type QuoteFormValues } from './form';
 import type { QuoteAnswer, QuoteResult } from './contracts';
@@ -55,6 +56,9 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
     ['Material disponible', values.materials.join(', ') || 'Por preparar'],
     ['Diseño', values.design],
     ['Estilo', values.stylePreference],
+    ['Dirección del boceto (provisional)', visualPreferenceSummary(values.visualPreferences)],
+    ['Valoración del boceto', values.previewFeedback ? previewFeedbackLabels[values.previewFeedback] : 'Sin valoración registrada'],
+    ['Cambios que pide el cliente', values.previewComment || 'Sin comentarios'],
     ['Colores preferidos', values.colorsLiked || 'Por definir'],
     ['Colores a evitar', values.colorsDisliked || 'Sin indicar'],
     ['Referencias', values.references || 'Sin indicar'],

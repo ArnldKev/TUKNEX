@@ -14,7 +14,7 @@ Las decisiones visuales actuales son estilo, colores preferidos/evitados y mensa
 
 ## Modelo y compatibilidad
 
-- Esquema versión 1, ID de proyecto y revisión monotónica, incluso al deshacer y rehacer.
+- Esquema inicial versión 1 (ampliado a versión 2 compatible en COT-02), ID de proyecto y revisión monotónica, incluso al deshacer y rehacer.
 - Respuestas parciales válidas para el borrador; el envío final conserva la validación completa actual.
 - Contenido comercial separado de decisiones visuales. La entrada del dibujo utiliza una lista explícita de campos; no recibe contactos, presupuesto ni consentimiento.
 - Requisitos derivados de las funciones elegidas, identificados como selección del formulario. No se presentan como promesas contractuales ni se atribuye al cliente una confirmación que no hizo.
@@ -60,3 +60,7 @@ git push
 Después de los despliegues, abrir el cotizador y seleccionar un objetivo distinto. Deshacer debe recuperar la solución anterior; Rehacer debe volver a la elección. Probar después un color en Estilo: el boceto cambia y la estimación permanece igual. Volver al inicio debe recuperar las decisiones iniciales sin borrar datos de contacto actuales.
 
 La IA generativa, audio, guardado remoto, avisos y firma remota siguen en sus entregas posteriores.
+
+## Continuación COT-02
+
+La ampliación de controles, valoración y compatibilidad con la versión 1 se describe en [Cotizador visual](COTIZADOR_VISUAL.md). Las referencias anteriores corresponden a la entrega inicial COT-01.

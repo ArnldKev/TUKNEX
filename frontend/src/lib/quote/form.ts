@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visualPreferencesSchema, visualDefaults } from './visual';
 import { FEATURES, type ProjectType } from '../pricing';
 
 export const paymentPreferenceLabels = {unsure:'Por acordar',daily:'Diario',weekly:'Semanal',fortnightly:'Quincenal',monthly:'Mensual'} as const;
@@ -30,6 +31,9 @@ export const quoteFormSchema = z.object({
   references: z.string().trim().max(500),
   competitor: z.string().trim().max(200),
   firstImpression: z.string().trim().max(300),
+  visualPreferences: visualPreferencesSchema.optional(),
+  previewFeedback: z.enum(['unsure', 'like', 'changes', 'guidance']).optional(),
+  previewComment: z.string().trim().max(600).optional(),
   timeline: z.enum(['flexible', 'standard', 'urgent']),
   launchDate: z.string().max(20),
   hardDeadline: z.boolean(),
@@ -82,6 +86,7 @@ export const QUOTE_STEP_FIELDS: (keyof QuoteFormValues)[][] = [
     'references',
     'competitor',
     'firstImpression',
+    'visualPreferences',
   ],
   [
     'timeline',
@@ -98,7 +103,7 @@ export const QUOTE_STEP_FIELDS: (keyof QuoteFormValues)[][] = [
     'corporateEmail',
     'approver',
   ],
-  ['name', 'email', 'phone', 'privacyAcknowledged', 'marketingConsent'],
+  ['previewFeedback', 'previewComment', 'name', 'email', 'phone', 'privacyAcknowledged', 'marketingConsent'],
 ];
 
 export function firstInvalidQuoteStep(
@@ -131,6 +136,9 @@ export const quoteDefaults: QuoteFormValues = {
   references: '',
   competitor: '',
   firstImpression: '',
+  visualPreferences: { ...visualDefaults },
+  previewFeedback: 'unsure',
+  previewComment: '',
   timeline: 'standard',
   launchDate: '',
   hardDeadline: false,

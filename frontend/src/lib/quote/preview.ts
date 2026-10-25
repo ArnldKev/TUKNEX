@@ -1,3 +1,4 @@
+import { resolveVisualPreferences, type VisualPreferences } from './visual';
 import { FEATURES, PROJECT_TYPES, type QuoteInput } from '../pricing';
 
 export const PREVIEW_FIELDS = [
@@ -11,6 +12,7 @@ export const PREVIEW_FIELDS = [
   'stylePreference',
   'colorsLiked',
   'firstImpression',
+  'visualPreferences',
 ] as const;
 
 export interface PreviewContext {
@@ -20,6 +22,7 @@ export interface PreviewContext {
   stylePreference?: string;
   colorsLiked?: string;
   firstImpression?: string;
+  visualPreferences?: VisualPreferences;
 }
 export type PreviewKind = 'web' | 'catalog' | 'system';
 export type PreviewSector =
@@ -62,6 +65,7 @@ export interface SolutionPreviewModel {
   styleName: string;
   design: QuoteInput['design'];
   palette: PreviewPalette;
+  presentation: VisualPreferences;
   hero: {
     eyebrow: string;
     title: string;
@@ -167,15 +171,16 @@ export function resolvePreviewPalette(colors = '', style = 'modern'): PreviewPal
             ? palettes[4]
             : palettes[0];
   const accent = hex ? toHex(rgb(hex)) : (semantic ?? fallback).color;
+  const surface = mix(accent, '#ffffff', 0.94);
   let accentText = accent;
-  for (let i = 0; i < 16 && previewContrast(accentText, '#ffffff') < 4.5; i++)
+  for (let i = 0; i < 16 && Math.min(previewContrast(accentText, '#ffffff'), previewContrast(accentText, surface), previewContrast(accentText, '#fffdf9')) < 4.5; i++)
     accentText = mix(accentText, '#000000', 0.18);
   return {
     name: hex ? 'Color personalizado ' + accent.toUpperCase() : (semantic ?? fallback).name,
     accent,
     onAccent: previewContrast(accent, '#ffffff') >= 4.5 ? '#ffffff' : '#000000',
     accentText,
-    surface: mix(accent, '#ffffff', 0.94),
+    surface,
     border: mix(accent, '#ffffff', 0.73),
     ink: '#173346',
   };
@@ -332,6 +337,7 @@ export function buildSolutionPreview(
     ...moduleData[id],
     records: [...moduleData[id].records],
   }));
+  const presentation = resolveVisualPreferences(context.visualPreferences);
   const customTitle = clean(context.firstImpression, 100);
   const sections: PreviewSection[] =
     kind === 'system'
@@ -346,6 +352,10 @@ export function buildSolutionPreview(
             { id: 'services', label: sector === 'food' ? 'Nuestra propuesta' : 'Servicios' },
           ];
   if (kind !== 'system' && featureFlags.contact) sections.push({ id: 'contact', label: 'Contacto' });
+  if (kind !== 'system' && presentation.sectionOrder === 'contact' && featureFlags.contact) {
+    const contactIndex = sections.findIndex(section => section.id === 'contact');
+    sections.splice(1, 0, ...sections.splice(contactIndex, 1));
+  }
   let action: SolutionPreviewModel['hero']['action'] =
     kind === 'catalog'
       ? 'products'
@@ -401,6 +411,7 @@ export function buildSolutionPreview(
     }[style],
     design: input.design,
     palette: resolvePreviewPalette(context.colorsLiked, style),
+    presentation,
     hero: {
       eyebrow: kind === 'system' ? 'TU NEGOCIO, EN SINTONÍA' : copy.eyebrow,
       title: customTitle || (kind === 'system' ? 'Tu día a día, mucho más claro.' : copy.title),

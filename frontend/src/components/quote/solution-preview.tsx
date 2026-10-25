@@ -5,6 +5,7 @@ import { projectPreviewInput } from '@/lib/quote/project';
 import { useQuoteProjectSession } from './project-session';
 import type { PreviewContext } from '@/lib/quote/preview';
 import type { QuoteInput } from '@/lib/pricing';
+import { QuoteVisualEditor } from './visual-editor';
 import { LiveSolutionPreview } from './live-solution-preview';
 
 export { LiveSolutionPreview } from './live-solution-preview';
@@ -30,6 +31,7 @@ export const SolutionPreview = memo(function SolutionPreview({
       stylePreference: context?.stylePreference ?? input.stylePreference,
       colorsLiked: context?.colorsLiked ?? input.colorsLiked,
       firstImpression: context?.firstImpression ?? input.firstImpression,
+      visualPreferences: context?.visualPreferences ?? input.visualPreferences,
     }),
     [
       context?.goal,
@@ -38,12 +40,14 @@ export const SolutionPreview = memo(function SolutionPreview({
       context?.stylePreference,
       context?.colorsLiked,
       context?.firstImpression,
+      context?.visualPreferences,
       input.goal,
       input.sector,
       input.offering,
       input.stylePreference,
       input.colorsLiked,
       input.firstImpression,
+      input.visualPreferences,
     ],
   );
   return (
@@ -56,8 +60,10 @@ export const SolutionPreview = memo(function SolutionPreview({
 });
 
 /** Preview and pricing derive from the same validated project revision. */
-export const QuotePreviewPanel = memo(function QuotePreviewPanel() {
+export const QuotePreviewPanel = memo(function QuotePreviewPanel({ disabled = false, onEdit }: { disabled?: boolean; onEdit?: () => void }) {
   const { history } = useQuoteProjectSession();
   const preview = useMemo(() => projectPreviewInput(history.present), [history.present]);
-  return <LiveSolutionPreview {...preview} />;
+  return <><LiveSolutionPreview {...preview} /><QuoteVisualEditor disabled={disabled} />
+    {onEdit && <button type="button" className="lp-expand-button qve-edit-result" onClick={onEdit}>Editar boceto y recalcular</button>}
+  </>;
 });

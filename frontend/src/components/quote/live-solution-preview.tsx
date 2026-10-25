@@ -25,6 +25,7 @@ const contextFields: (keyof PreviewContext)[] = [
   'stylePreference',
   'colorsLiked',
   'firstImpression',
+  'visualPreferences',
 ];
 const emptyContext: PreviewContext = {};
 
@@ -47,6 +48,7 @@ export const LiveSolutionPreview = memo(
         context.stylePreference,
         context.colorsLiked,
         context.firstImpression,
+        context.visualPreferences,
       ],
     );
     const [state, dispatch] = useReducer(previewInteractionReducer, undefined, initialPreviewInteraction);

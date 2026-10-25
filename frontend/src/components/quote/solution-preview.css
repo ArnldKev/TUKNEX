@@ -1837,3 +1837,37 @@
 .lp-modal-overlay .lp-modal-footer > small {
   font-size: 14px;
 }
+
+/* Controlled visual choices apply to the inline view and the expanded canvas alike. */
+.lp-prototype[data-font='sans'], .lp-prototype[data-font='sans'] :is(h4,h5,.lp-site-header strong) { font-family: Arial, Helvetica, sans-serif; }
+.lp-prototype[data-font='editorial'], .lp-prototype[data-font='editorial'] :is(h4,h5,.lp-site-header strong) { font-family: Georgia, 'Times New Roman', serif; }
+.lp-prototype[data-font='rounded'], .lp-prototype[data-font='rounded'] :is(h4,h5,.lp-site-header strong) { font-family: 'Trebuchet MS', Verdana, sans-serif; }
+.lp-prototype .lp-hero-art { display: grid; min-height: 205px; max-width: 100%; color: var(--lp-accent-text); }
+.lp-prototype .lp-food-illustration { position: relative; z-index: 1; width: min(100%, 285px); height: 225px; filter: drop-shadow(0 12px 15px #17334614); }
+.lp-prototype .lp-art-orbit { width: 190px; height: 190px; }
+.lp-prototype .lp-art-tile { width: 136px; height: 145px; }
+.lp-prototype .lp-art-caption { bottom: 0; font-size: 12px; white-space: normal; text-align: center; min-width: 170px; max-width: 100%; }
+.lp-prototype .lp-catalog-hero { display: grid; gap: 20px; padding: 24px 20px; background: var(--lp-surface); border: 1px solid var(--lp-border); border-radius: var(--lp-radius); margin-bottom: 22px; overflow: hidden; }
+.lp-prototype .lp-catalog-caption { display: inline-block; margin-top: 18px; color: var(--lp-accent-text); font-size: 13px; line-height: 1.6; }
+.lp-prototype[data-surface='paper'] :is(.lp-web-hero,.lp-catalog-hero) { background: #fffdf9; }
+.lp-prototype[data-surface='tinted'] :is(.lp-web-hero,.lp-catalog-hero) { background: var(--lp-surface); }
+/* Even the bold style uses readable text on the chosen light surface. */
+.lp-prototype[data-surface] .lp-web-hero :is(h4,p) { color: var(--lp-ink); }
+.lp-prototype[data-surface] .lp-web-hero .lp-kicker { color: var(--lp-accent-text); }
+.lp-prototype[data-scale='large'] h4 { font-size: 34px; line-height: 1.12; }
+.lp-prototype[data-spacing='compact'] :is(.lp-web-hero,.lp-catalog-hero,.lp-services-view,.lp-contact-view,.lp-detail-view,.lp-system) { padding: 18px 16px; gap: 14px; }
+.lp-prototype[data-spacing='compact'] :is(.lp-service-cards,.lp-products) { gap: 8px; }
+.lp-prototype[data-hero='centered'] :is(.lp-web-hero,.lp-catalog-hero) { grid-template-columns: minmax(0,1fr); text-align: center; }
+.lp-prototype[data-hero='centered'] .lp-hero-copy { max-width: 720px; margin-inline: auto; }
+.lp-prototype[data-hero='centered'] .lp-hero-art { min-height: 200px; width: 100%; }
+.lp-prototype :is(.lp-hero-copy,.lp-services-view,.lp-system-intro) { animation: lp-draw-in .24s ease-out both; }
+@keyframes lp-draw-in { from { opacity: .35; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@container (min-width: 760px) {
+  .lp-prototype[data-hero='split'] :is(.lp-web-hero,.lp-catalog-hero) { grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); align-items: center; padding: 42px 34px; gap: 30px; }
+  .lp-prototype[data-scale='large'] h4 { font-size: 52px; }
+  .lp-prototype .lp-food-illustration { height: 280px; width: min(100%, 335px); }
+  .lp-prototype[data-spacing='compact'] :is(.lp-web-hero,.lp-catalog-hero) { padding: 24px; gap: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .lp-prototype :is(.lp-hero-copy,.lp-services-view,.lp-system-intro) { animation: none; } }
+
+.lp-prototype-expanded .lp-catalog > .lp-catalog-hero { max-width: none; }

@@ -4,7 +4,7 @@ Actualizado: 25 de octubre de 2026.
 Base de trabajo: [alcance y recorrido](COTIZADOR_GENERATIVO.md).
 Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 
-«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00 y el modelo e historial local COT-01. Las integraciones de IA, audio, guardado remoto, correo y firma siguen pendientes.
+«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00, el modelo e historial local COT-01 y el cotizador visual escrito COT-02. Las integraciones de IA, audio, guardado remoto, correo y firma siguen pendientes.
 
 ## Orden de entrega
 
@@ -12,7 +12,7 @@ Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 | --- | --- | --- | --- |
 | COT-00 | Alcance, recorrido y pendientes | Definición completada; continuidad autorizada | Documentos y ejemplo coherente de principio a fin |
 | COT-01 | Modelo común del proyecto e historial local | Implementado y verificado localmente | Respuestas, boceto y requisitos relacionados, con revisiones |
-| COT-02 | Prototipo escrito y controles visuales | Pendiente | Cliente cambia diseño, compara y deshace |
+| COT-02 | Prototipo escrito y controles visuales | Implementado y verificado localmente | Cliente cambia diseño, compara y deshace |
 | COT-03 | Guardado remoto y borradores en administración | Pendiente | Avances autorizados visibles aunque no se envíen |
 | COT-04 | IA para interpretar y sugerir | Pendiente | NEXI transforma lenguaje natural en propuestas revisables |
 | COT-05 | Respuestas por audio | Pendiente | Grabar, transcribir, ordenar y confirmar |
@@ -40,6 +40,8 @@ Entrega implementada: ver [guía del modelo e historial](../deploy/MODELO_E_HIST
 Terminado cuando: una revisión se serializa y restaura produciendo el mismo boceto; deshacer recupera la decisión anterior; un cambio visual no añade funciones ni altera el precio por sí solo.
 
 ## COT-02 — Cotizador visual escrito
+
+Entrega implementada: ver [guía del cotizador visual](../deploy/COTIZADOR_VISUAL.md). Publicación pendiente.
 
 - Mejorar la composición y jerarquía del lienzo, con contenido ajustado al negocio.
 - Añadir paleta, tipografía, escala, espaciado, portada y secciones dentro de opciones controladas.

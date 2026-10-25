@@ -81,6 +81,8 @@ test('palettes accept semantic names and hex while keeping readable text and rej
     assert.match(palette.accent, /^#[0-9a-f]{6}$/);
     assert.ok(previewContrast(palette.accent, palette.onAccent) >= 4.5, color);
     assert.ok(previewContrast(palette.accentText, '#ffffff') >= 4.5, color);
+    assert.ok(previewContrast(palette.accentText, palette.surface) >= 4.5, color);
+    assert.ok(previewContrast(palette.accentText, '#fffdf9') >= 4.5, color);
   }
   assert.equal(resolvePreviewPalette('#ABC').accent, '#aabbcc');
   assert.equal(resolvePreviewPalette('url(javascript:example)').accent, resolvePreviewPalette().accent);

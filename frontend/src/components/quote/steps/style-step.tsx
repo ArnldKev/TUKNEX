@@ -63,6 +63,8 @@ export function QuoteStyleStep({ prices }: QuoteStepProps) {
           </button>
         ))}
       </fieldset>
+      <p className="quote-inline-help">Abre «Personalizar mi boceto» junto a la maqueta para probar letras, tamaños, espacios y composición.</p>
+      <QuoteTextField name="firstImpression" label="¿Qué mensaje debería verse primero?" placeholder="Ej. Comida casera, cerca de ti." />
       <QuoteDetails title="Mi marca, contenido y personalización (opcional)">
         <QuoteSelectField name="design" label="Nivel de personalización">
           <option value="essential">Esencial: estructura adaptada a mi marca · incluido</option>
@@ -97,11 +99,6 @@ export function QuoteStyleStep({ prices }: QuoteStepProps) {
             </label>
           ))}
         </fieldset>
-        <QuoteTextField
-          name="firstImpression"
-          label="¿Qué mensaje debería verse primero?"
-          placeholder="Ej. Comida casera, cerca de ti."
-        />
         <QuoteTextField
           name="colorsLiked"
           label="Otros colores que te gustan"

@@ -1,3 +1,4 @@
+import { visualPreferenceSummary, previewFeedbackLabels } from '../domain/quote/visual';
 import { BACKEND_ROOT } from '../config/paths';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from 'pdf-lib';
@@ -480,7 +481,11 @@ export class PdfService {
       projectName: values.businessName || values.offering,
       service: values.projectType,
       scope: values.offering + '\n' + estimate.scope.map((s) => '- ' + s).join('\n'),
-      observations: values.problem,
+      observations: values.problem + '\n\nDirección visual provisional: ' + visualPreferenceSummary(values.visualPreferences)
+        + '\nColor preferido: ' + (values.colorsLiked || 'Por definir')
+        + '\nTitular: ' + (values.firstImpression || 'Por definir')
+        + '\nValoración del boceto: ' + (values.previewFeedback ? previewFeedbackLabels[values.previewFeedback] : 'Sin valoración registrada')
+        + (values.previewComment ? '\nComentarios: ' + values.previewComment : ''),
       conditions:
         estimate.conditions +
         '\n' +

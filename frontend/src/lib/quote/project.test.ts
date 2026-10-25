@@ -21,7 +21,7 @@ function draw(project: ReturnType<typeof createQuoteProject>) {
 }
 
 test('frontend and backend keep the exact same project schema and form dependencies', async () => {
-  for (const name of ['project', 'form', '../pricing']) {
+  for (const name of ['project', 'form', 'visual', '../pricing']) {
     const [front, back] = await Promise.all([
       readFile(new URL(`./${name}.ts`, import.meta.url), 'utf8'),
       readFile(new URL(`../../../../backend/src/domain/quote/${name}.ts`, import.meta.url), 'utf8'),
@@ -128,7 +128,7 @@ test('history is bounded and owns snapshots instead of retaining mutable form ar
   assert.equal(state.past.length, PROJECT_HISTORY_LIMIT);
   for (let index = 0; index < 80; index++) state = undoProject(state);
   assert.equal(state.future.length, PROJECT_HISTORY_LIMIT);
-  const features = ['gallery'];
+  const features: typeof quoteDefaults.features = ['gallery'];
   const changed = recordProjectForm(original(), { ...quoteDefaults, features });
   features.push('payments');
   assert.deepEqual(changed.present.answers.features, ['gallery']);

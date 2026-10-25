@@ -82,6 +82,32 @@ function CalendarPreview({ state, onAction }: Pick<MockupProps, 'state' | 'onAct
   );
 }
 
+function PreviewArtwork({ model }: { model: SolutionPreviewModel }) {
+  const Icon = sectorIcons[model.sector];
+  return <div className={'lp-hero-art lp-art-' + model.sector} aria-hidden="true">
+    <div className="lp-art-orbit" />
+    {model.sector === 'food' ? <svg className="lp-food-illustration" viewBox="0 0 300 260" fill="none">
+      <ellipse cx="155" cy="224" rx="99" ry="17" fill="currentColor" opacity=".09" />
+      <circle cx="150" cy="126" r="105" fill="#fffdf6" stroke="currentColor" strokeWidth="2" />
+      <circle cx="150" cy="126" r="87" stroke="currentColor" strokeWidth="1" opacity=".25" />
+      <g transform="rotate(-18 150 126)">
+        <ellipse cx="135" cy="119" rx="48" ry="34" fill="#b96037" />
+        <path d="M100 110L160 110M98 123L163 123M108 137L154 137" stroke="#803d25" strokeWidth="4" strokeLinecap="round" />
+        <ellipse cx="181" cy="135" rx="19" ry="32" fill="#51723e" transform="rotate(-32 181 135)" />
+        <ellipse cx="177" cy="105" rx="15" ry="27" fill="#739655" transform="rotate(35 177 105)" />
+        <ellipse cx="146" cy="165" rx="31" ry="14" fill="#e8c174" />
+        <circle cx="107" cy="155" r="13" fill="#d9794d" /><circle cx="106" cy="154" r="8" stroke="#ffe2b3" strokeWidth="2" />
+        <circle cx="186" cy="166" r="11" fill="#d9794d" /><circle cx="185" cy="165" r="6" stroke="#ffe2b3" strokeWidth="2" />
+        <path d="M128 84Q140 63 155 83Q139 97 128 84Z" fill="#51723e" />
+      </g>
+      <path d="M23 71V189M14 71V98Q23 113 32 98V71M272 74V189M272 74Q251 116 272 128" stroke="currentColor" strokeWidth="4" strokeLinecap="round" opacity=".65" />
+      <circle cx="253" cy="38" r="7" fill="currentColor" opacity=".4" />
+    </svg> : <div className="lp-art-tile"><Icon size={76} strokeWidth={1.2} /></div>}
+    <span className="lp-art-caption">{model.sectorName} · ilustración</span>
+    <i className="lp-art-dot" />
+  </div>;
+}
+
 function WebPreview({ model, state, onAction }: MockupProps) {
   const Icon = sectorIcons[model.sector];
   const section = state.section || model.sections[0]?.id;
@@ -168,14 +194,7 @@ function WebPreview({ model, state, onAction }: MockupProps) {
           {model.hero.cta} <ArrowUpRight size={17} />
         </button>
       </div>
-      <div className={'lp-hero-art lp-art-' + model.sector} aria-hidden="true">
-        <div className="lp-art-orbit" />
-        <div className="lp-art-tile">
-          <Icon size={76} strokeWidth={1.2} />
-        </div>
-        <span className="lp-art-caption">{model.sectorName}</span>
-        <i className="lp-art-dot" />
-      </div>
+      <PreviewArtwork model={model} />
     </section>
   );
 }
@@ -189,10 +208,14 @@ function CatalogPreview({ model, state, onAction, expanded = false }: MockupProp
   const total = selected.reduce((sum, product) => sum + state.selection[product.id], 0);
   return (
     <section className="lp-catalog">
-      <header>
-        <span className="lp-kicker">{model.hero.eyebrow}</span>
-        <h4>{model.hero.title}</h4>
-        <p>{model.hero.description}</p>
+      <header className="lp-catalog-hero">
+        <div className="lp-hero-copy">
+          <span className="lp-kicker">{model.hero.eyebrow}</span>
+          <h4>{model.hero.title}</h4>
+          <p>{model.hero.description}</p>
+          <span className="lp-catalog-caption">{model.sector === 'food' ? 'Una carta a tu manera' : 'Una colección con tu identidad'} · ejemplo</span>
+        </div>
+        <PreviewArtwork model={model} />
       </header>
       {model.featureFlags.search && (
         <label className="lp-search" htmlFor={searchId}>
@@ -416,10 +439,11 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
   expanded = false,
 }: MockupProps) {
   const Icon = model.kind === 'system' ? LayoutDashboard : sectorIcons[model.sector];
-  const section = model.sections.some((item) => item.id === state.section)
+  const section = state.section === 'bookings' && model.featureFlags.bookings ? 'bookings' : model.sections.some((item) => item.id === state.section)
     ? state.section
     : model.sections[0]?.id;
-  const commonPage = model.kind !== 'system' && ['contact', 'about', 'bookings'].includes(state.section);
+  const effectiveState = section === state.section ? state : { ...state, section: section ?? '' };
+  const commonPage = model.kind !== 'system' && ['contact', 'about', 'bookings'].includes(section ?? '');
   const style = {
     '--lp-accent': model.palette.accent,
     '--lp-on-accent': model.palette.onAccent,
@@ -435,6 +459,11 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
       data-kind={model.kind}
       data-style={model.style}
       data-design={model.design}
+      data-font={model.presentation.font}
+      data-scale={model.presentation.scale}
+      data-spacing={model.presentation.spacing}
+      data-hero={model.presentation.hero}
+      data-surface={model.presentation.surface}
       aria-label={'Maqueta orientativa de ' + model.businessName}
     >
       <div className="lp-browser-bar" aria-hidden="true">
@@ -471,13 +500,13 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
         ))}
       </nav>
       {model.kind === 'system' ? (
-        <SystemPreview model={model} state={state} onAction={onAction} />
+        <SystemPreview model={model} state={effectiveState} onAction={onAction} />
       ) : commonPage || model.kind === 'web' ? (
-        <WebPreview model={model} state={state} onAction={onAction} />
+        <WebPreview model={model} state={effectiveState} onAction={onAction} />
       ) : (
-        <CatalogPreview model={model} state={state} onAction={onAction} expanded={expanded} />
+        <CatalogPreview model={model} state={effectiveState} onAction={onAction} expanded={expanded} />
       )}
-      {model.featureFlags.gallery && model.kind === 'web' && !commonPage && state.section !== 'services' && (
+      {model.featureFlags.gallery && model.kind === 'web' && !commonPage && section !== 'services' && (
         <section className="lp-gallery" aria-label="Galería de ejemplo">
           <span>ESPACIOS PARA TUS IMÁGENES</span>
           <div>
@@ -489,8 +518,8 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
           </div>
         </section>
       )}
-      {expanded && model.featureFlags.bookings && state.section !== 'bookings' && model.kind !== 'system' && (
-        <CalendarPreview state={state} onAction={onAction} />
+      {expanded && model.featureFlags.bookings && section !== 'bookings' && model.kind !== 'system' && (
+        <CalendarPreview state={effectiveState} onAction={onAction} />
       )}
       {model.featureFlags.whatsapp && model.kind !== 'system' && (
         <button

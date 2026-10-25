@@ -3,6 +3,7 @@
 import { useFormContext, useWatch } from 'react-hook-form';
 import { ShieldCheck } from 'lucide-react';
 import type { QuoteFormValues } from '@/lib/quote/form';
+import { QuotePreviewFeedback } from '../preview-feedback';
 import { QuoteSummary } from './summary';
 import { QuoteCheckboxField, QuoteDetails, QuoteTextField } from './shared';
 
@@ -40,6 +41,7 @@ export function QuoteReviewStep({ onEdit }: { onEdit: (step: number) => void }) 
         }}
         onEdit={onEdit}
       />
+      <QuotePreviewFeedback />
       <QuoteDetails title="Quiero añadir mis datos de contacto (opcional)">
         <QuoteTextField name="name" label="Tu nombre" placeholder="Puedes mantenerlo anónimo." />
         <QuoteTextField

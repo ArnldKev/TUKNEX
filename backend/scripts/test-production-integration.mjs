@@ -61,6 +61,15 @@ try{
   const myRequests=await(await call('account/quote-requests',undefined,a.cookie)).json();
   const ownerRequests=await(await call('billing/quote-requests',undefined,admin.cookie)).json();
   check(myRequests.some(q=>q.id===preferred.id)&&ownerRequests.some(q=>q.id===preferred.id&&q.values.paymentPreference==='daily'),'both portals see the persisted preference');
+  const visualPreferences={font:'editorial',scale:'large',spacing:'compact',hero:'centered',surface:'paper',sectionOrder:'contact'};
+  const visualValues={...proposal.values,visualPreferences,previewFeedback:'changes',previewComment:'Conservar color; agrandar título.',colorsLiked:'#ad552e',firstImpression:'Una carta hecha para compartir.'};
+  const visualRequest=await(await call('account/quote-requests',{values:visualValues,idempotencyKey:randomUUID()},a.cookie)).json();
+  assert.deepEqual(visualRequest.values.visualPreferences,visualPreferences);checks++;
+  check(visualRequest.values.previewComment===visualValues.previewComment,'visual decisions and feedback survive server validation and persistence');
+  const visualInbox=await(await call('billing/quote-requests',undefined,admin.cookie)).json();
+  check(visualInbox.some(q=>q.id===visualRequest.id&&q.values.previewFeedback==='changes'&&q.values.visualPreferences.font==='editorial'),'administrator receives the exact saved direction and feedback');
+  check(visualRequest.result.min===preferred.result.min&&visualRequest.result.max===preferred.result.max,'cosmetic preferences never modify the server price');
+  await call('account/quote-requests',{values:{...visualValues,visualPreferences:{...visualPreferences,font:'arbitrary-css'}},idempotencyKey:randomUUID()},a.cookie,400);
   await call('auth/verification/send',{channel:'email'},a.cookie,503);
   check(emails.length===0&&sms.length===0,'disabled contact verification sends no provider requests');
   const options=await(await call('public/payment-options')).json();
@@ -73,9 +82,10 @@ try{
   let rendered;
   pdf.quotePdf=function(...args){rendered=args;return originalRender.apply(this,args);};
   let preview;
-  try {preview=await pdf.preliminary({values:{...proposal.values,paymentPreference:'daily'},mode:'monthly',count:12,expectedMinCents:preferred.result.min*100});}
+  try {preview=await pdf.preliminary({values:{...visualValues,paymentPreference:'daily'},mode:'monthly',count:12,expectedMinCents:preferred.result.min*100});}
   finally {pdf.quotePdf=originalRender;}
   check(rendered[0].feeCents===0&&rendered[0].totalCents===rendered[0].baseCents&&rendered[3]==='Diario','preliminary PDF never adds financing even for legacy payment-mode input');
+  check(rendered[0].observations.includes('Editorial, con serifas')&&rendered[0].observations.includes(visualValues.previewComment),'preliminary PDF receives the chosen direction and feedback as provisional details');
   check(Buffer.from(preview.bytes).subarray(0,5).toString()==='%PDF-','preliminary preference PDF is generated');
   const previewArg=process.argv.indexOf('--preview-pdf');if(previewArg>=0)await writeFile(path.resolve(process.argv[previewArg+1]),preview.bytes);
   const daily=await(await call('billing/quotes',{clientId:user.clientId,projectName:'QA Daily agreement',service:'landing',scope:'Scope for the agreed daily plan.',observations:'',conditions:'Agreed with client.',delivery:'15 días',baseCents:10000,plan:{mode:'daily',rate:3,count:3,firstDueDate:'2026-12-30'},status:'draft',issuedDate:'2026-12-01',validUntil:'2027-01-31',isDemo:false},admin.cookie)).json();

@@ -353,7 +353,7 @@ export function QuoteStepperForm() {
   return (
     <FormProvider {...form}>
       {accessOpen && <QuoteAuthDialog onClose={()=>setAccessOpen(false)} onSave={async()=>{if(completedValues&&result)await saveProposal(completedValues,result);}}/>}
-      <QuoteProjectSession form={form} onRestore={()=>{setResult(null);setCompletedValues(null);setSavedId('');requestKey.current=null;setNotice('Cambio recuperado. Tus datos de contacto se mantienen.');}}>
+      <QuoteProjectSession form={form} onRestore={(message)=>{setResult(null);setCompletedValues(null);setSavedId('');requestKey.current=null;setNotice(message ?? 'Cambio recuperado. Tus datos de contacto se mantienen.');}}>
       <div className="quote-experience quote-v4">
         <div className="quote-layout">
           <nav className="quote-sidebar" aria-label="Pasos de la cotización">
@@ -502,7 +502,7 @@ export function QuoteStepperForm() {
           </div>
         </div>
         <aside className="quote-preview-column" aria-label="Vista previa e inversión">
-          <QuotePreviewPanel />
+          <QuotePreviewPanel disabled={busy || !!result} onEdit={result && !busy ? () => goTo(3) : undefined} />
           <QuoteEstimatePanel prices={prices} />
         </aside>
       </div>

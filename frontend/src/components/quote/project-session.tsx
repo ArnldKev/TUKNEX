@@ -6,7 +6,7 @@ import { RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import type { QuoteFormValues } from '@/lib/quote/form';
 import {
   PROJECT_FIELDS, createProjectHistory, createQuoteProject, projectToForm, recordProjectForm,
-  redoProject, restoreProjectStart, undoProject, type ProjectHistory,
+  redoProject, restoreProjectStart, undoProject, acceptProjectSuggestion, type ProjectHistory, type ProjectChange, type ProjectField,
 } from '@/lib/quote/project';
 import './project-session.css';
 
@@ -16,16 +16,17 @@ interface Session {
   undo: () => void;
   redo: () => void;
   restore: () => void;
+  suggest: (change: ProjectChange, reason: string, evidenceFields: ProjectField[]) => void;
 }
 const ProjectContext = createContext<Session | null>(null);
 const textFields = new Set(['businessName', 'offering', 'city', 'website', 'customers', 'salesProcess',
   'problem', 'otherFunctions', 'colorsLiked', 'colorsDisliked', 'firstImpression', 'references',
-  'competitor', 'existingDomain', 'deadlineReason', 'launchDate']);
+  'competitor', 'existingDomain', 'deadlineReason', 'launchDate', 'previewComment']);
 
 export function QuoteProjectSession({ form, children, onRestore }: {
   form: UseFormReturn<QuoteFormValues>;
   children: ReactNode;
-  onRestore: () => void;
+  onRestore: (message?: string) => void;
 }) {
   const [history, setHistory] = useState(() => createProjectHistory(createQuoteProject(form.getValues())));
   const [error, setError] = useState('');
@@ -58,8 +59,9 @@ export function QuoteProjectSession({ form, children, onRestore }: {
     pending.current = flush;
     const subscription = form.watch((_values, change) => {
       if (restoring.current) return;
-      if (change.name && !PROJECT_FIELDS.includes(change.name as typeof PROJECT_FIELDS[number])) return;
-      if (change.name) fields.add(change.name);
+      const field = change.name?.split('.')[0];
+      if (field && !PROJECT_FIELDS.includes(field as typeof PROJECT_FIELDS[number])) return;
+      if (field) fields.add(field);
       if (change.type !== 'change') isTyping = false;
       if (!queued) { queued = true; queueMicrotask(flush); }
     });
@@ -68,7 +70,7 @@ export function QuoteProjectSession({ form, children, onRestore }: {
     return () => { active = false; subscription.unsubscribe(); pending.current = null; };
   }, [form]);
 
-  function travel(action: typeof undoProject) {
+  function travel(action: typeof undoProject, message?: string) {
     pending.current?.();
     const next = action(current.current);
     if (next === current.current) return;
@@ -76,11 +78,15 @@ export function QuoteProjectSession({ form, children, onRestore }: {
     try {
       form.reset(projectToForm(next.present, form.getValues()), { keepDefaultValues: true });
       current.current = next; setHistory(next); setError('');
-      notify.current();
+      notify.current(message);
     } finally { restoring.current = false; }
   }
 
   return <ProjectContext.Provider value={{ history, error,
+    suggest: (change, reason, evidenceFields) => travel(history => acceptProjectSuggestion(history, {
+      id: crypto.randomUUID(), projectId: history.present.id, baseRevision: history.present.revision,
+      reason, evidenceFields, change,
+    }), 'Idea visual de ejemplo aplicada. Puedes ajustarla o deshacerla.'),
     undo: () => travel(undoProject), redo: () => travel(redoProject), restore: () => travel(restoreProjectStart),
   }}>{children}</ProjectContext.Provider>;
 }

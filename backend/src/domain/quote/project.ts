@@ -2,9 +2,10 @@
 // project.test.ts verifies the source and dependency parity; no contact data belongs here.
 import { z } from 'zod';
 import { FEATURES, type QuoteInput } from '../pricing';
+import { visualDefaults, visualPreferencesSchema } from './visual';
 import { quoteDefaults, quoteFormSchema, type QuoteFormValues } from './form';
 
-export const PROJECT_SCHEMA_VERSION = 1;
+export const PROJECT_SCHEMA_VERSION = 2;
 export const PROJECT_HISTORY_LIMIT = 30;
 const MAX_PROJECT_JSON_LENGTH = 64_000;
 const revision = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -15,6 +16,7 @@ export const projectAnswersSchema = quoteFormSchema.omit({
   name: true, email: true, phone: true, approver: true,
   privacyAcknowledged: true, marketingConsent: true,
   stylePreference: true, colorsLiked: true, colorsDisliked: true, firstImpression: true,
+  visualPreferences: true, previewFeedback: true, previewComment: true,
 }).extend({
   offering: z.string().max(300),
   problem: z.string().max(1000),
@@ -26,6 +28,11 @@ export const projectAnswersSchema = quoteFormSchema.omit({
 
 export const projectVisualSchema = quoteFormSchema.pick({
   stylePreference: true, colorsLiked: true, colorsDisliked: true, firstImpression: true,
+  visualPreferences: true, previewFeedback: true, previewComment: true,
+}).extend({
+  visualPreferences: visualPreferencesSchema.default(visualDefaults),
+  previewFeedback: quoteFormSchema.shape.previewFeedback.default('unsure'),
+  previewComment: quoteFormSchema.shape.previewComment.default(''),
 }).strict();
 
 const answerKeys = Object.keys(projectAnswersSchema.shape) as (keyof ProjectAnswers)[];
@@ -43,9 +50,15 @@ export const quoteProjectSchema = stateSchema.extend({
   revision,
 }).strict();
 
+// Patches must not fill absent fields with defaults: changing a color must preserve typography and feedback.
+const visualPatchSchema = projectVisualSchema.partial().extend({
+  visualPreferences: visualPreferencesSchema.optional(),
+  previewFeedback: quoteFormSchema.shape.previewFeedback,
+  previewComment: quoteFormSchema.shape.previewComment,
+});
 export const projectChangeSchema = z.object({
   answers: projectAnswersSchema.partial().optional(),
-  visual: projectVisualSchema.partial().optional(),
+  visual: visualPatchSchema.optional(),
 }).strict().refine(change => Object.keys(change.answers ?? {}).length + Object.keys(change.visual ?? {}).length > 0,
   'El cambio debe incluir al menos una decisión.');
 
@@ -174,7 +187,7 @@ export function projectPreviewInput(project: QuoteProject) {
     businessName: answers.businessName,
     context: { goal: answers.goal, sector: answers.sector, offering: answers.offering,
       stylePreference: project.visual.stylePreference, colorsLiked: project.visual.colorsLiked,
-      firstImpression: project.visual.firstImpression },
+      firstImpression: project.visual.firstImpression, visualPreferences: project.visual.visualPreferences },
   };
 }
 export function projectRequirements(project: QuoteProject) {
@@ -190,5 +203,13 @@ export function serializeQuoteProject(project: QuoteProject): string {
 }
 export function parseQuoteProject(json: string): QuoteProject {
   if (json.length > MAX_PROJECT_JSON_LENGTH) throw new Error('El proyecto supera el tamaño permitido.');
-  return quoteProjectSchema.parse(JSON.parse(json));
+  const raw = JSON.parse(json);
+  if (raw?.schemaVersion === 1) {
+    // Validate the original shape before adding defaults; never reinterpret unknown versions.
+    const legacy = quoteProjectSchema.extend({ schemaVersion: z.literal(1),
+      visual: projectVisualSchema.omit({ visualPreferences: true, previewFeedback: true, previewComment: true }),
+    }).parse(raw);
+    return quoteProjectSchema.parse({ ...legacy, schemaVersion: PROJECT_SCHEMA_VERSION });
+  }
+  return quoteProjectSchema.parse(raw);
 }
