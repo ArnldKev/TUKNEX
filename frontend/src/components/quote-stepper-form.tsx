@@ -1,4 +1,5 @@
 'use client';
+import { QuoteAudio } from '@/components/quote/quote-audio';
 import { QuoteNexiAi } from '@/components/quote/nexi-ai';
 import { QuoteAuthDialog } from '@/components/auth/quote-auth-dialog';
 import { billingRequest } from '@/lib/billing/api';
@@ -430,6 +431,7 @@ export function QuoteStepperForm() {
                 <div className="quote-current-step" key={step}>
                   {renderStep()}
                 </div>
+                <QuoteAudio key={step} disabled={busy} initialField={step===2?'otherFunctions':step===3?'firstImpression':step===0?'offering':'problem'}/>
                 <QuoteNexiAi disabled={busy}/>
                 <div className="quote-form-footer">
                   <div>

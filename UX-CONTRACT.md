@@ -1,6 +1,6 @@
 # Contrato UX del cotizador y NEXI
 
-Alcance incremental: COT-04. Las políticas de dominio y servidor prevalecen. No redefine rutas ajenas.
+Alcance incremental: COT-04 y COT-05. Las políticas de dominio y servidor prevalecen. No redefine rutas ajenas.
 
 | Capability | Canonical owner | Source of truth | Allowed variants | Verification |
 | --- | --- | --- | --- | --- |
@@ -11,6 +11,8 @@ Alcance incremental: COT-04. Las políticas de dominio y servidor prevalecen. No
 | Project mutations | project-session.tsx + project.ts | Modelo de proyecto compartido | Aceptación explícita y deshacer | Pruebas de historial y navegador |
 | Disclosure | HTML details/summary | Contrato nativo | Cerrado inicialmente en cliente y solicitudes; abierto en detalle | Teclado y estado de apertura |
 | Feedback | Mensajes inline en nexi-ai.tsx | UX del cotizador existente | role=alert y aria-live=polite; sin toast nuevo | Errores y confirmaciones visibles |
+| Audio capture | audio-capture.ts + permiso nativo MediaRecorder | docs/COT-05_AUDIO_PLAN.md | Grabar, detener, cancelar o subir archivo; 60 s / 4 MB | Ciclo de vida con recursos sintéticos; dispositivos reales pendientes |
+| Audio review | quote-audio.tsx + audio.ts + project-session.tsx | Contrato compartido frontend/backend | Transcripción y redacción separadas, permiso por consulta y aplicación revisable | HTTP, historial, límites y revisión antigua |
 | Read-only admin | AdminGuard + servicios de revisiones | Backend y permisos existentes | Borrador o solicitud formal, sin modificar el original | Pruebas HTTP 401/403/404 |
 
 NEXI general fuera del cotizador mantiene orientación local. IA desactivada no bloquea formulario, cálculo, PDF o historial.

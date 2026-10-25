@@ -1,0 +1,29 @@
+.quote-audio{margin:1.25rem 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);min-width:0}
+.quote-audio>summary{display:flex;gap:.75rem;align-items:center;padding:1rem;cursor:pointer;min-height:64px;color:var(--foreground);font-weight:650}
+.quote-audio>summary>svg{color:var(--primary);flex-shrink:0}
+.quote-audio>summary small{display:block;color:var(--secondary);font-size:.875rem;font-weight:400;margin-top:.25rem}
+.quote-audio-body{padding:0 1.25rem 1.25rem;border-left:3px solid var(--primary);line-height:1.65;display:grid;gap:1rem;overflow-wrap:anywhere}
+.quote-audio-body p{margin:0}
+.quote-audio-body button{min-height:44px;padding:.65rem 1rem;border:1px solid var(--line);border-radius:9px;background:var(--surface-raised);color:var(--foreground);display:inline-flex;justify-content:center;align-items:center;gap:.5rem}
+.quote-audio-body button:hover:not(:disabled){border-color:var(--primary)}
+.quote-audio-body button:disabled{opacity:.5;cursor:not-allowed}
+.quote-audio :is(button,summary,input,select,textarea):focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.quote-audio-actions{display:flex;align-items:flex-start;gap:.75rem;flex-wrap:wrap}
+.quote-audio-help{font-size:.875rem;color:var(--secondary)}
+.quote-audio audio{width:100%;min-width:0}
+.quote-audio-upload{display:grid;gap:.4rem;min-width:0;max-width:100%;color:var(--secondary)}
+.quote-audio-upload input{max-width:100%;min-height:44px;font-size:.875rem}
+.quote-audio-upload input::file-selector-button{padding:.65rem;border-radius:9px;border:1px solid var(--line);background:var(--surface-raised);color:var(--foreground);margin-right:.5rem}
+.quote-audio-review{display:grid;gap:1rem;border-top:1px solid var(--line);padding-top:1.25rem}
+.quote-audio h4{font-size:1.125rem;margin:0;color:var(--foreground)}
+.quote-audio-review details>summary{min-height:44px;cursor:pointer;color:var(--primary)}
+.quote-v4 .quote-audio .quote-field textarea{resize:none;min-height:9rem;field-sizing:content}
+.quote-audio-proposal{display:grid;gap:1rem;padding:1rem;border-left:3px solid var(--primary);background:var(--surface-raised);min-width:0}
+.quote-audio-error,.quote-audio [role=alert]{color:#ffc4b5}
+@media(max-width:600px){.quote-audio-body{padding:0 .8rem .8rem}.quote-audio-actions{flex-direction:column;align-items:stretch}.quote-audio-body button{width:100%}.quote-audio-proposal{padding:.75rem}}
+
+
+.quote-v4 .quote-audio .quote-consent{display:flex;align-items:flex-start;gap:.75rem}
+.quote-audio-body,.quote-audio-review,.quote-audio-proposal{grid-template-columns:minmax(0,1fr)}
+.quote-audio-body>*,.quote-audio-review>*,.quote-audio-proposal>*{min-width:0;max-width:100%}
+.quote-v4 .quote-audio .quote-field select{min-width:0;max-width:100%}

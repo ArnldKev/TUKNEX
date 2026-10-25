@@ -25,6 +25,7 @@ components:
   nexi-analysis: {}
   quote-history: {}
   shared-draft: {}
+  quote-audio: {}
 ---
 
 # TUKNEX Design System
@@ -78,6 +79,10 @@ Disclosure nativo details/summary con indicador de apertura. No se añaden tabs,
 ### Forms and overlays
 
 Se conserva react-hook-form y zod como dueño del cuestionario; no nuevos formularios anidados, diálogos, toasts ni burbujas de validación. Checkbox real etiquetado para la consulta externa. Sin persistencia de informes IA en navegador.
+
+### Respuestas por audio
+
+Se reutiliza el disclosure del cotizador. Controles de captura con texto y contador de segundos real; revisión en dos bloques: transcripción corregible y propuesta de NEXI. No ondas decorativas ni reproducción automática. El navegador es dueño del permiso del micrófono; sin captura al cargar. Cerrar cancela y descarta lo no confirmado. El archivo local se escucha antes de autorizar el envío. CSS quote-audio.css reutiliza --surface-raised y los demás tokens canónicos.
 
 ### Iconography
 

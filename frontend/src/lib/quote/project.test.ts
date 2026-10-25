@@ -21,7 +21,7 @@ function draw(project: ReturnType<typeof createQuoteProject>) {
 }
 
 test('frontend and backend keep the exact same project schema and form dependencies', async () => {
-  for (const name of ['project', 'form', 'visual', 'drafts', 'ai', '../pricing']) {
+  for (const name of ['project', 'form', 'visual', 'drafts', 'ai', 'audio', '../pricing']) {
     const [front, back] = await Promise.all([
       readFile(new URL(`./${name}.ts`, import.meta.url), 'utf8'),
       readFile(new URL(`../../../../backend/src/domain/quote/${name}.ts`, import.meta.url), 'utf8'),
