@@ -17,6 +17,7 @@ import { PublicShell, openNexi } from './public-shell';
 import { SolutionPreview, type SolutionKind } from './solution-preview';
 import { usePrices } from '@/lib/use-prices';
 import { money } from '@/lib/pricing';
+import { openWelcome } from './welcome-intro';
 import { portfolio } from '@/data/portfolio';
 import './future.css';
 
@@ -57,6 +58,7 @@ export function ExperienceHome() {
             <span>A otro nivel.</span>
           </h1>
           <p>Webs que conectan. Catálogos que acercan tus productos. Sistemas que simplifican tu trabajo.</p>
+          <button className="xp-text-link" type="button" onClick={openWelcome}>Conoce nuestro propósito <ArrowRight size={16}/></button>
           <div className="v5-hero-actions">
             <Link className="button button-primary" href="/cotizar">
               Diseñar mi proyecto <ArrowUpRight size={18} />

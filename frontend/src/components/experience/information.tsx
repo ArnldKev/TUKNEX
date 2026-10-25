@@ -19,6 +19,7 @@ import {
   Code2,
   Rocket,
 } from 'lucide-react';
+import { PurposeSection } from './purpose-section';
 import { NexiAvatar } from '@/components/3d/nexi-avatar';
 import { PublicShell, PageIntro, openNexi } from './public-shell';
 import { brandConfig, getWhatsAppUrl } from '@/lib/config';
@@ -40,6 +41,7 @@ export function AboutExperience() {
         }
         text="TUKNEX nace para acercar soluciones digitales a emprendedores y pequeños negocios. Desde Oxapampa, creamos con claridad, propósito y una visión de crecimiento."
       />
+      <PurposeSection />
       <section className="xp-about xp-container">
         <div className="xp-about-intro">
           <span className="xp-eyebrow">

@@ -1,4 +1,6 @@
 'use client';
+import { PaymentReceipt } from './payment-receipt';
+import { receiptFileError, receiptMethods } from '@/lib/billing/receipts';
 import { QuoteRequestsPanel } from '@/components/quote/quote-requests-panel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -1185,6 +1187,7 @@ function PaymentEditor({
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [key] = useState(() => crypto.randomUUID());
+  const uploadedReceipt=useRef<{file:File;id:string}|null>(null);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -1192,11 +1195,9 @@ function PaymentEditor({
     try {
       let receiptId: string | undefined;
       if (file) {
-        if (file.size > 5 * 1024 * 1024) throw new Error('El comprobante no puede superar 5 MB.');
-        const form = new FormData();
-        form.append('file', file);
-        receiptId = (await billingRequest<{ id: string }>('billing/receipts', { method: 'POST', body: form }))
-          .id;
+        const problem=receiptFileError(file);if(problem)throw new Error(problem);
+        if(uploadedReceipt.current?.file===file)receiptId=uploadedReceipt.current.id;
+        else {const form=new FormData();form.append('file',file);receiptId=(await billingRequest<{id:string}>('billing/receipts',{method:'POST',body:form})).id;uploadedReceipt.current={file,id:receiptId};}
       }
       const result = await billingRequest<{ id: string }>('billing/contracts/' + contractId + '/payments', {
         method: 'POST',
@@ -1219,7 +1220,7 @@ function PaymentEditor({
     }
   }
   return (
-    <form onSubmit={submit} className="billing-form">
+    <form onSubmit={submit} className="billing-form"><fieldset disabled={busy} className="billing-payment-fields">
       <p>
         <strong>
           {contract.number} · {contract.client.name}
@@ -1278,16 +1279,17 @@ function PaymentEditor({
           <select value={method} onChange={(e) => setMethod(e.target.value)}>
             {['transferencia', 'yape', 'plin', 'efectivo', 'tarjeta', 'otro'].map((m) => (
               <option key={m} value={m}>
-                {m}
+                {receiptMethods[m].label}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Referencia
-          <input value={reference} maxLength={120} onChange={(e) => setReference(e.target.value)} />
+          {receiptMethods[method].reference}
+          <input value={reference} maxLength={120} placeholder="Código de operación o referencia, si corresponde" onChange={(e) => setReference(e.target.value)} />
         </label>
       </div>
+      <PaymentReceipt method={method} file={file} onChange={next=>{setFile(next);uploadedReceipt.current=null;}}/>
       <label>
         Observación
         <textarea
@@ -1297,15 +1299,7 @@ function PaymentEditor({
           onChange={(e) => setObservation(e.target.value)}
         />
       </label>
-      <label>
-        Comprobante opcional
-        <input
-          type="file"
-          accept="application/pdf,image/png,image/jpeg"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-        />
-        <small>PDF, PNG o JPEG; hasta 5 MB. Se conserva en el servidor.</small>
-      </label>
+
       <p className="billing-hint">
         Registra un pago que ya recibiste. Esta acción no cobra ni transfiere dinero.
       </p>
@@ -1317,7 +1311,7 @@ function PaymentEditor({
       <button disabled={busy} className="platform-button">
         {busy ? 'Registrando…' : 'Guardar pago realizado'}
       </button>
-    </form>
+    </fieldset></form>
   );
 }
 function VoidEditor({ payment, onDone }: { payment: Payment; onDone: (id?: string) => void }) {

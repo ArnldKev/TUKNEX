@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -211,6 +211,26 @@ try {
     'receipt preserves exact bytes',
   );
   await call('billing/receipts/' + receipt.id, undefined, 401, 'GET', false);
+  let imageReceipt;
+  const imageSamples=[
+    {name:'captura-yape.png',mime:'image/png',bytes:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ1kAAAAASUVORK5CYII=','base64')},
+    {name:'foto-recibo.jpeg',mime:'image/jpeg',bytes:await readFile(path.resolve('../frontend/public/images/projects/el-gringo.jpeg'))},
+  ];
+  for(const sample of imageSamples){
+    const form=new FormData();form.append('file',new Blob([sample.bytes],{type:sample.mime}),sample.name);
+    const response=await fetch(base+'/api/billing/receipts',{method:'POST',headers:{Authorization:'Bearer '+token},body:form});
+    check(response.status===201,'PNG and JPEG payment evidence accepted');
+    const stored=await response.json(),download=await call('billing/receipts/'+stored.id);
+    check(download.headers.get('content-type').includes(sample.mime),'stored receipt uses its detected media type');
+    check(Buffer.from(await download.arrayBuffer()).equals(sample.bytes),'image evidence bytes are preserved');
+    if(sample.mime==='image/png')imageReceipt=stored;
+  }
+  const oversized=new FormData();oversized.append('file',new Blob([Buffer.alloc(5*1024*1024+1)],{type:'image/png'}),'demasiado-grande.png');
+  check((await fetch(base+'/api/billing/receipts',{method:'POST',headers:{Authorization:'Bearer '+token},body:oversized})).status===413,'server enforces the five-megabyte receipt limit');
+  const {AuthService}=require('../dist/auth/auth.js');
+  const restricted=await app.get(AuthService).register({name:'QA Receipt Client',email:'receipt-client@example.test',password:'Synthetic-receipt-test-2026!',phone:'900000009',dni:'00000009',privacyConsent:true});
+  check((await fetch(base+'/api/billing/receipts/'+imageReceipt.id,{headers:{Authorization:'Bearer '+restricted.token}})).status===403,'clients cannot download private admin payment evidence');
+
   await call('billing/contracts/' + contract.id + '/status', { status: 'activo', version: 1 }, 409);
   let c = await (
     await call('billing/contracts/' + contract.id + '/status', { status: 'enviado', version: 1 }, 201)
@@ -245,7 +265,7 @@ try {
       date: today,
       method: 'transferencia',
       reference: 'QA-TOTAL',
-      receiptId: receipt.id,
+      receiptId: imageReceipt.id,
       observation: 'Liquidación de prueba',
       idempotencyKey: randomUUID(),
     },
@@ -309,6 +329,10 @@ try {
     data.payments.some((p) => p.id === payment.id && p.voided),
     'payment history persists across restart',
   );
+  check(data.payments.some(p=>p.contractId===contract.id&&p.receiptId===imageReceipt.id),'payment retains the linked image after restart');
+  const persistedImage=await call('billing/receipts/'+imageReceipt.id);
+  check(Buffer.from(await persistedImage.arrayBuffer()).equals(imageSamples[0].bytes),'receipt image remains available after restart');
+
   const saved = (await app.get(Database).query('SELECT id FROM documentos ORDER BY created_at DESC LIMIT 1')).rows[0];
   const savedResponse = await call('documents/' + saved.id);
   check(Buffer.from(await savedResponse.arrayBuffer()).subarray(0, 5).toString() === '%PDF-', 'stored document download remains available');

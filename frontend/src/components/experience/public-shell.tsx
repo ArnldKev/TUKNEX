@@ -6,6 +6,7 @@ import { ArrowUpRight, Menu, X, MessageCircle, UserRound, LogOut } from 'lucide-
 import { brand } from '@/config/brand';
 import { DEMO_MODE } from '@/config/environment';
 import { useDemoAuth } from '@/lib/platform/auth';
+import { WelcomeIntro } from './welcome-intro';
 import { ChatbotWidget } from '@/components/chatbot-widget';
 import './experience.css';
 import './future.css';
@@ -123,6 +124,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </footer>
+      <WelcomeIntro autoOpen={pathname==='/'}/>
       <ChatbotWidget />
     </div>
   );

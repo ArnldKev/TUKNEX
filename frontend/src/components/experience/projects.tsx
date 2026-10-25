@@ -115,16 +115,9 @@ export function ProjectsExperience() {
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="xp-project-live-cover">
-                    <img className="xp-project-logo" src={project.logo} alt={"Logo de "+project.name} width={170} height={170} loading="lazy"/>
-                    <h3>{project.name}</h3>
-                    <p>Explora el sitio original en una vista en vivo.</p>
-                    <button className="button button-primary" onClick={() => setPreview(project.id)}>
-                      Cargar vista real <ArrowUpRight size={15} />
-                    </button>
-                    <small>
-                      Necesita conexión a internet. También puedes abrir el sitio en otra pestaña.
-                    </small>
+                  <div className="xp-project-live-cover xp-project-cover">
+                    <img className="xp-project-screenshot" src={project.cover} alt={"Pantalla de inicio de la web de "+project.name} width={1265} height={712} loading="lazy"/>
+                    <div className="xp-project-cover-actions"><div className="xp-project-cover-identity"><img src={project.logo} alt={"Logo de "+project.name} width={38} height={38}/><div><strong>{project.name}</strong><small>Captura real de la pantalla de inicio</small></div></div><button className="button button-primary" onClick={()=>setPreview(project.id)}>Explorar web en vivo <ArrowUpRight size={15}/></button></div>
                   </div>
                 )}
                 <a
