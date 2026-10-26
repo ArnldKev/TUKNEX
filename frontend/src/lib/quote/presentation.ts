@@ -122,6 +122,6 @@ export function quoteProposalText(values: QuoteFormValues, result: QuoteResult):
     ...result.exclusions,
     '',
     result.conditions,
-    'Demo frontend: datos en memoria de esta sesión, sin envío ni contratación. No se guardan datos personales en el navegador.',
+    'Propuesta preliminar: requiere revisión de TUKNEX y no constituye contratación ni aceptación de un precio definitivo.',
   ].join('\n');
 }

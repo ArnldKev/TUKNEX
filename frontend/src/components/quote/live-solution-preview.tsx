@@ -17,6 +17,7 @@ export interface LiveSolutionPreviewProps {
   input: QuoteInput;
   businessName?: string;
   context?: PreviewContext;
+  openOnMobile?: boolean;
 }
 const contextFields: (keyof PreviewContext)[] = [
   'goal',
@@ -34,6 +35,7 @@ export const LiveSolutionPreview = memo(
     input,
     businessName = '',
     context = emptyContext,
+    openOnMobile = false,
   }: LiveSolutionPreviewProps) {
     const model = useMemo(
       () => buildSolutionPreview(input, businessName, context),
@@ -58,11 +60,11 @@ export const LiveSolutionPreview = memo(
       previousKind = useRef(model.key);
     useEffect(() => {
       const query = window.matchMedia('(min-width: 1024px)');
-      const sync = () => setInlineOpen(query.matches);
+      const sync = () => setInlineOpen(query.matches || openOnMobile);
       sync();
       query.addEventListener('change', sync);
       return () => query.removeEventListener('change', sync);
-    }, []);
+    }, [openOnMobile]);
     useEffect(() => {
       if (previousKind.current === model.key) return;
       previousKind.current = model.key;
@@ -151,5 +153,6 @@ export const LiveSolutionPreview = memo(
     before.input.design === after.input.design &&
     before.input.features === after.input.features &&
     before.businessName === after.businessName &&
+    before.openOnMobile === after.openOnMobile &&
     contextFields.every((field) => before.context?.[field] === after.context?.[field]),
 );

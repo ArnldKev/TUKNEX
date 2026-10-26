@@ -32,7 +32,7 @@ export function QuotePdfDownload({ values, result, savedId, onPreferenceChange }
     </label>
     <p>Es una preferencia para conversar con TUKNEX. El importe de las cuotas, las fechas y las condiciones de pago se acuerdan contigo antes de emitir la cotización final.</p>
     {savedId&&<p>Tu preferencia quedó incluida en la propuesta guardada. Puedes preparar otra cotización si necesitas cambiarla.</p>}
-    <p>PDF con logo, alcance, estimación e imagen referencial del servicio.</p>
+    <p>PDF con logo, alcance, estimación e imagen referencial del servicio. Al descargarlo, envías tus respuestas al servidor de TUKNEX para generar el documento; esta descarga no envía una solicitud al equipo.</p>
     {error&&<p className="billing-error" role="alert">{error}</p>}
     <button type="button" className="quote-primary" disabled={busy} onClick={()=>void download(!!savedId&&!DEMO_MODE)}>
       <Download size={18}/>{busy?'Preparando PDF…':savedId&&!DEMO_MODE?'Descargar propuesta guardada':'Descargar propuesta PDF'}

@@ -132,12 +132,12 @@ export function QuoteResultStep({
         presupuesto orienta las prioridades y no modifica el cálculo.
       </p>
       <div className="quote-demo-note">
-        <ShieldCheck size={22}/><span>{savedId && !DEMO_MODE ? <><strong>Guardada en tu cuenta.</strong> TUKNEX ya puede consultar tus respuestas y tu propuesta.</> : DEMO_MODE ? 'Propuesta de demostración: no se envía a TUKNEX.' : authenticated ? 'Elige tu frecuencia de pago preferida y guarda la propuesta en tu cuenta.' : 'Puedes consultar la estimación sin registrarte. Al guardar podrás iniciar sesión o crear tu cuenta aquí mismo, sin perder tus respuestas.'}</span>
+        <ShieldCheck size={22}/><span>{savedId && !DEMO_MODE ? <><strong>Guardada en tu cuenta.</strong> TUKNEX ya puede consultar tus respuestas y tu propuesta.</> : DEMO_MODE ? 'Propuesta de demostración: no se envía a TUKNEX.' : authenticated ? 'Elige tu frecuencia de pago preferida y envía la solicitud al equipo.' : 'Puedes consultar la estimación sin registrarte. Al guardar podrás iniciar sesión o crear tu cuenta aquí mismo, sin perder tus respuestas.'}</span>
       </div>
       <QuotePdfDownload values={values} result={result} savedId={savedId} onPreferenceChange={onPreferenceChange} />
       <div className="quote-result-actions">
         <button type="button" className="quote-primary" onClick={onRequest} disabled={!!savedId || busy}>
-          {busy ? 'Guardando…' : savedId ? <><Check size={18}/> {DEMO_MODE?'En la sesión demo':'Cotización guardada'}</> : <>Guardar cotización <ArrowRight size={18}/></>}
+          {busy ? 'Guardando…' : savedId ? <><Check size={18}/> {DEMO_MODE?'En la sesión demo':'Cotización guardada'}</> : <>Enviar solicitud <ArrowRight size={18}/></>}
         </button>
         {savedId && !DEMO_MODE && <Link className="quote-outline" href="/mi-cuenta/cotizaciones">Ver mis cotizaciones <ArrowRight size={18}/></Link>}
         <button type="button" className="quote-outline" onClick={onWhatsApp}><MessageCircle size={18}/> Enviar a WhatsApp</button>
@@ -147,7 +147,7 @@ export function QuoteResultStep({
       </button>
       {!authenticated && (
         <p className="quote-guest-link">
-          ¿Quieres guardar y consultar esta propuesta?{' '}
+          ¿Quieres enviar y consultar esta propuesta?{' '}
           <button type="button" className="platform-text-link" onClick={onRequest}>Inicia sesión o crea tu cuenta <ArrowRight size={16}/></button>
           <small>
             Tus respuestas se mantienen mientras completas el acceso.

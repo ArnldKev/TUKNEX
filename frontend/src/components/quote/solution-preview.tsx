@@ -60,10 +60,10 @@ export const SolutionPreview = memo(function SolutionPreview({
 });
 
 /** Preview and pricing derive from the same validated project revision. */
-export const QuotePreviewPanel = memo(function QuotePreviewPanel({ disabled = false, onEdit }: { disabled?: boolean; onEdit?: () => void }) {
+export const QuotePreviewPanel = memo(function QuotePreviewPanel({ disabled = false, onEdit, showEditor = true, openOnMobile = false }: { disabled?: boolean; onEdit?: () => void; showEditor?:boolean; openOnMobile?:boolean }) {
   const { history } = useQuoteProjectSession();
   const preview = useMemo(() => projectPreviewInput(history.present), [history.present]);
-  return <><LiveSolutionPreview {...preview} /><QuoteVisualEditor disabled={disabled} />
+  return <><LiveSolutionPreview {...preview} openOnMobile={openOnMobile}/>{showEditor&&<QuoteVisualEditor disabled={disabled} />}
     {onEdit && <button type="button" className="lp-expand-button qve-edit-result" onClick={onEdit}>Editar boceto y recalcular</button>}
   </>;
 });

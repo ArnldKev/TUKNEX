@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: "TUKNEX"
-description: "Un espacio de cotización donde una idea se convierte en un boceto revisable."
+description: "Un taller de cotización guiada para transformar una idea en un boceto revisable."
 colors:
   primary: "#43dce0"
   background: "#070c18"
@@ -10,6 +10,13 @@ colors:
   foreground: "#edf5ff"
   secondary: "#a5b6cd"
   focus: "#73e8e3"
+  quote-primary: "#076f75"
+  quote-background: "#f3f7fa"
+  quote-surface: "#ffffff"
+  quote-raised: "#edf5f6"
+  quote-foreground: "#132a3e"
+  quote-secondary: "#506479"
+  quote-line: "#ccdce4"
 typography:
   sans:
     fontFamily: "'Segoe UI Variable', 'Segoe UI', Arial, sans-serif"
@@ -18,6 +25,8 @@ typography:
 rounded:
   DEFAULT: "0.8rem"
   control: "9px"
+  quote-panel: "18px"
+  quote-card: "12px"
 spacing:
   touch-target: "44px"
   ai-panel: "20px"
@@ -26,6 +35,9 @@ components:
   quote-history: {}
   shared-draft: {}
   quote-audio: {}
+  quote-workshop:
+    scope: "/cotizar .quote-workshop"
+    source: "frontend/src/components/quote/quote-redesign.css"
 ---
 
 # TUKNEX Design System
@@ -34,71 +46,90 @@ components:
 
 ### Creative North Star
 
-Un taller digital de proyectos: las respuestas del cliente y el boceto se ven juntos; las recomendaciones aparecen como decisiones revisables, con evidencia. Se conserva la identidad azul profundo y turquesa existente, sin rebranding.
+Un taller digital de proyectos para personas que no necesitan conocer tecnología: primero cuentan qué quieren conseguir, luego exploran funciones y un boceto. Las recomendaciones son puntos de partida que se pueden cambiar. La superficie clara de `/cotizar` prioriza preguntas breves, campos legibles y una estimación orientativa junto al formulario.
 
 ### Product context and register
 
-Clientes de pequeños negocios y equipo administrador en Perú. Interfaz y mensajes en español; fechas es-PE, zona America/Lima, importes PEN. Uso en celular y escritorio. Cotizador y panel administrativo son producto; el sitio público conserva su composición de marca. La firma del panel NEXI es el hilo turquesa que conecta análisis y decisiones aplicables. No imitar una conversación infinita ni atribuir certezas a resultados generados.
+Clientes de pequeños negocios y equipo administrador en Perú. Interfaz en español; fechas es-PE, zona America/Lima, importes PEN. Uso en celular y escritorio. El cotizador y la administración son producto. Las demás rutas conservan la identidad azul profundo y turquesa existente; este rediseño no cambia su tema.
 
-Tokens: esta guía documenta el CSS canónico frontend/src/app/globals.css; no genera otro archivo. Las extensiones NEXI usan esas variables y frontend/src/components/quote/nexi-ai.css. Espejo de referencia: remote-draft y project-session. Evidencia de negocio: docs/COTIZADOR_GENERATIVO.md, docs/IA_GENERATIVA.md y contratos de src/lib/quote.
+La decisión de producto es «Solo navegador hasta el envío»: el avance y los textos del proyecto se recuperan en la misma pestaña, sin nuevas actualizaciones remotas de borradores. El cálculo usa únicamente opciones de precio. Dictado, consulta NEXI y descarga de PDF son acciones opcionales que transmiten datos y tienen avisos propios. No atribuir anonimato a los textos locales ni presentar un borrador como solicitud o contrato.
+
+Tokens: `frontend/src/app/globals.css` sigue siendo la fuente del tema general. `frontend/src/components/quote/quote-redesign.css` define las sustituciones de variables bajo `.quote-workshop`, montado en `/cotizar`; `quote-flow.css` conserva la estructura del cuestionario. Esta guía documenta esos archivos, no genera otro tema. Los propietarios de comportamiento están en [UX-CONTRACT.md](UX-CONTRACT.md), `src/lib/quote/workflow.ts` y los contratos de `src/lib/quote`.
 
 ## Colors
 
-Fondo background; contenido surface y raised; texto foreground y secondary; primary para la acción principal y focus para el foco. Bordes mediante --line. Los estados error y advertencia conservan los tonos de remote-draft.css (#ffc4b5, #ffb29c, #ffe19b); no son categorías de progreso. Los estados tienen texto, además de color.
+Tema general: background, surface y raised existentes; texto foreground y secondary; primary y focus turquesa. Tema local del cotizador: fondo #f3f7fa, panel blanco, superficie elevada #edf5f6, texto #132a3e, texto secundario #506479, borde #ccdce4 y acción/foco #076f75. La selección usa borde, marca y `aria-pressed`, además del color. Los errores usan texto y tono de error; no representan progreso.
 
 ## Typography
 
-Segoe del sistema para encabezados y cuerpo, respetando la interfaz existente; monospace solo para identificadores técnicos. Cuerpo con altura de línea 1.65–1.7. No cargar fuentes de terceros. Encabezado del análisis 1.25rem, resumen 1.125rem, metadatos .875rem.
+Segoe del sistema para encabezados y cuerpo; monospace solo para identificadores técnicos. No cargar fuentes de terceros. Campos de al menos 16px, etiquetas completas, descripciones breves y altura de línea suficiente. Las explicaciones sobre tipografía y composición pertenecen a la personalización avanzada del boceto, no a las preguntas principales.
 
 ## Layout
 
-Cotizador actual de preguntas y boceto en dos columnas cuando hay espacio. El panel de IA se integra después de las preguntas, antes de continuar; colapsado inicialmente. En administración aparece en el detalle de la revisión y reutiliza el mismo componente en modo lectura. A menos de 600px las acciones se apilan y los informes tienen una columna; el contenido largo envuelve sin ocultar acciones. La página, no el panel, posee el desplazamiento.
+Seis etapas: Qué necesitas, Tu negocio, Funciones, Diseño, Plazo y Tu cotización. Objetivos sin selección inicial implícita; el progreso representa etapas válidas completadas, no solo la posición. Las tarjetas ofrecen ejemplos concretos. La persona puede volver a etapas disponibles sin perder respuestas.
+
+En escritorio el formulario ocupa la columna principal y el boceto/estimación una columna secundaria. En pantallas estrechas se apilan; la página posee el desplazamiento. La cabecera de progreso y las acciones conservan espacio y no deben tapar la pregunta enfocada. Al cambiar de etapa, el encabezado recibe el foco y se desplaza a la vista; los errores abren sus apartados opcionales y enfocan el campo correspondiente.
+
+Los campos principales quedan visibles. Contexto adicional, publicación, contenido y personalización avanzada usan `details/summary` cerrado inicialmente. El editor visual se encuentra en Diseño. NEXI permanece opcional y colapsado, después de las preguntas. El administrador conserva su lectura de revisiones históricas en el panel privado.
 
 ## Elevation & Depth
 
-Superficies tonales y bordes existentes; sin sombras nuevas ni fondos de página adicionales. No superponer análisis sobre campos o boceto.
+El cotizador usa panel blanco con borde y elevación suave definidos en su CSS local. Tarjetas y campos permanecen tonales y sobrios. No superponer análisis sobre preguntas o boceto. Estas decisiones no se trasladan a las otras rutas.
 
 ## Shapes
 
-Contenedores con --radius; botones con 9px; etiquetas con 6px. Separación de informe por borde turquesa. No introducir iconos como sustituto del texto de una acción.
+Panel del cotizador de 18px, tarjetas de 12px y controles de 9–10px según el propietario CSS. Mantener los radios del tema general fuera de `.quote-workshop`. Los iconos acompañan acciones con texto.
 
 ## Components
 
 ### Foundational visual states
 
-Botones con texto, disabled, foco visible de 3px y objetivo de al menos 44px. Pendiente como estado textual indeterminado; no porcentajes ficticios. Errores inline con role=alert; estados aria-live=polite sin mover el foco. Una respuesta anterior queda marcada y deshabilitada.
+Botones con texto, foco visible de 3px y objetivos de al menos 44px. Selección, pendiente, error y disponibilidad tienen texto accesible. No mostrar porcentajes ficticios de desarrollo ni simular respuestas de IA. Al cargar o fallar una función opcional se puede continuar escribiendo.
 
 ### Buttons and actions
 
-Analizar mi idea y Analizar esta revisión son las acciones principales por contexto. Cancelar consulta no altera respuestas. Aplicar sugerencia y Descartar sugerencia son explícitas e independientes; aceptar una propuesta la incorpora al historial y vuelve antiguo el análisis previo. La autorización se renueva por consulta.
+Continuar valida la etapa actual; Volver conserva los datos. Elegir un objetivo aplica una recomendación ajustable. «Tengo otra idea» usa el objetivo `unsure`; no abre una conversación ni inventa un requisito. La ayuda «No estoy seguro» en Funciones conserva las selecciones. En Plazo, la incertidumbre usa `flexible` y no introduce urgencia.
+
+Las operaciones externas tienen acciones explícitas: dictar, consultar NEXI, descargar PDF y enviar solicitud. Sus avisos distinguen qué se transmite. Cancelar una operación conserva las respuestas ya escritas. Los reintentos de dictado son explícitos.
 
 ### Navigation and data display
 
-Disclosure nativo details/summary con indicador de apertura. No se añaden tabs, tablas ni selección múltiple. La revisión del administrador usa el select nativo ya existente: popup y teclado son del sistema operativo.
+Disclosure nativo `details/summary` con indicador de apertura. Selects y fecha mantienen sus controles nativos, con popup del sistema. Los campos y los importes mantienen los contratos existentes. La administración usa `AdminGuard`; ocultar un panel en frontend no sustituye permisos del servidor.
 
 ### Forms and overlays
 
-Se conserva react-hook-form y zod como dueño del cuestionario; no nuevos formularios anidados, diálogos, toasts ni burbujas de validación. Checkbox real etiquetado para la consulta externa. Sin persistencia de informes IA en navegador.
+React Hook Form y zod siguen siendo dueños del cuestionario. Reutilizar `QuoteTextField`, `QuoteSelectField`, `QuoteCheckboxField` y `QuoteDetails`; no crear formularios anidados ni una validación paralela. Todo texto editable usa el campo compartido para ofrecer dictado cuando corresponda. Los campos de fecha, selects y checks no reciben micrófono.
 
-### Respuestas por audio
+El avance se copia automáticamente a `sessionStorage` de la pestaña, con caducidad máxima de 24 horas por copia y cierre de pestaña. Incluye textos del proyecto y decisiones, pero excluye campos dedicados de identidad/contacto, responsable de aprobación y consentimientos. No llamarlo anónimo: los textos libres pueden contener datos personales. Las solicitudes enviadas y los borradores remotos históricos siguen contratos separados.
 
-Se reutiliza el disclosure del cotizador. Controles de captura con texto y contador de segundos real; revisión en dos bloques: transcripción corregible y propuesta de NEXI. No ondas decorativas ni reproducción automática. El navegador es dueño del permiso del micrófono; sin captura al cargar. Cerrar cancela y descarta lo no confirmado. El archivo local se escucha antes de autorizar el envío. CSS quote-audio.css reutiliza --surface-raised y los demás tokens canónicos.
+### Dictado directo por campo (UX v2)
+
+El flujo público actual ofrece dictado en 20 campos de texto, incluidos los de contacto. Antes de cada micrófono se muestra que la acción solicita enviar esa grabación a Groq. El permiso del navegador no sustituye ese aviso; no hay captura al cargar.
+
+Una grabación de hasta 60 segundos y 4 MB se transcribe y añade automáticamente al final del texto que ya exista en el campo. Se conserva lo escrito mientras llega la respuesta, el resultado queda editable y la última inserción se puede deshacer si no fue modificada después. No hay un segundo modelo para ordenar, corregir nombres o reescribir, ni un segundo paso de confirmación. El resultado no se recorta silenciosamente si supera el límite del campo: se muestra el error para editarlo.
+
+Audio solo en memoria. Cambiar de etapa, ocultar la pestaña, cerrar el apartado que contiene el campo o desmontarlo cancela la operación y descarta resultados tardíos. En un fallo el audio puede permanecer en memoria para un reintento explícito hasta cancelar o abandonar ese contexto. No hay selector de archivos ni reintentos automáticos en este flujo. Los contratos anteriores de transcribir/organizar audio permanecen como compatibilidad legacy; no describen el flujo actual.
+
+### NEXI generativo
+
+Consulta separada del dictado, con autorización vigente para cada análisis. Envía una selección de respuestas y preferencias a Groq; ocultar contactos reconocibles no garantiza anonimato. El informe es orientativo y no se persiste como informe. Solo las sugerencias aceptadas pasan al proyecto e historial local. Nunca fija tarifas, permisos ni contratos.
 
 ### Iconography
 
-Lucide React de la aplicación; Sparkles indica ayuda IA, Check aplicar, X cancelar o descartar. Iconos decorativos con aria-hidden.
+Lucide React existente; Mic para dictar, Square para detener, Undo para deshacer, Sparkles para ayuda IA y Check para selección. Iconos decorativos con `aria-hidden` y acciones con nombre accesible en español.
 
 ### Motion
 
-Sin animación de texto ni respuesta simulada. Respetar prefers-reduced-motion. Los cambios de estado pueden interrumpirse sin borrar respuestas.
+Sin animación de texto ni respuesta simulada. Respetar `prefers-reduced-motion`. Los cambios de etapa y de estado se pueden interrumpir sin borrar respuestas ni aceptar respuestas de una petición cancelada.
 
 ### Content and data visualization
 
-Español directo: sugerencia, propuesta, revisión y borrador se distinguen. No llamar confirmado a contenido generado. No mostrar tokens, claves o detalles internos como tareas del cliente.
+Español directo: idea, boceto, estimación, solicitud y contrato son objetos distintos. El cálculo automático transmite únicamente elecciones de precio y `hasOtherFunctions`; no contactos ni textos. Descargar el PDF preliminar es una acción manual que sí envía las respuestas para generarlo y requiere su aviso separado. Mostrar las reglas de alcance y costes externos sin convertirlas en compromisos.
 
 ## Do's and Don'ts
 
-- Conservar el original y usar el historial existente.
-- Mostrar qué cambió, qué falta y cuándo no hay IA disponible.
-- No sustituir sugerencias por decisiones ni usar IA para fijar precios o contratos.
-
+- Conservar respuestas e historial al navegar; validar antes de avanzar.
+- Mantener la superficie clara limitada a `/cotizar`.
+- Explicar las acciones externas antes de ejecutarlas; no iniciar guardado remoto público de avances.
+- Mantener acceso administrativo privado a registros históricos autorizados, sin borrar sus APIs ni documentos.
+- No prometer anonimato, cumplimiento legal ni decisiones comerciales a partir de un aviso técnico.

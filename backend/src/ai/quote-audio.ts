@@ -7,8 +7,10 @@ import {parse} from '../billing/dto';
 import {quoteAiConfig} from './quote-ai';
 import {AiProviderError} from './groq';
 import {AUDIO_POLICY_VERSION,AUDIO_MAX_BYTES,AUDIO_MAX_SECONDS,audioPermissionSchema,audioTextRequestSchema} from '../domain/quote/audio';
+import {DICTATION_POLICY_VERSION,dictationPermissionSchema} from '../domain/quote/dictation';
 import {transcribeAudio,organizeAudio,validateAudioFile,AUDIO_MODEL} from './groq-audio';
 export function audioConfig(){return {enabled:quoteAiConfig().enabled&&process.env.NEXI_AUDIO_ENABLED==='true'&&(process.env.NEXI_AUDIO_MODEL||AUDIO_MODEL)===AUDIO_MODEL,policyVersion:AUDIO_POLICY_VERSION,maxSeconds:AUDIO_MAX_SECONDS,maxBytes:AUDIO_MAX_BYTES,perVisitorDailyLimit:5};}
+export function dictationConfig(){return {enabled:audioConfig().enabled,policyVersion:DICTATION_POLICY_VERSION,maxSeconds:AUDIO_MAX_SECONDS,maxBytes:AUDIO_MAX_BYTES,perConnectionDailyLimit:20,perConnectionMinuteLimit:4};}
 @Injectable()
 class AudioAccess implements CanActivate{
  canActivate(context:ExecutionContext){
@@ -22,13 +24,14 @@ class AudioAccess implements CanActivate{
 @Injectable()
 export class QuoteAudioService{
  constructor(@Inject(Database)private db:Database){}
- async run<T>(req:Request,res:Response,action:'transcribe'|'organize',operation:(signal:AbortSignal)=>Promise<T>){
+ async run<T>(req:Request,res:Response,action:'transcribe'|'organize'|'dictate',operation:(signal:AbortSignal)=>Promise<T>){
   const controller=new AbortController(),cancel=()=>{if(!res.writableEnded)controller.abort();};res.once('close',cancel);if(res.destroyed)cancel();
   try{
    const now=new Date(),day=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())).toISOString(),minute=new Date(Math.floor(now.getTime()/60000)*60000).toISOString();
    const actor=createHmac('sha256',process.env.GROQ_API_KEY!).update(day+':'+(req.ip||'unknown')).digest('hex');
+   const [globalDay,globalMinute,connectionDay,connectionMinute]=action==='dictate'?[60,6,20,4]:[20,2,5,1];
    await this.db.transaction(async tx=>{
-    for(const [scope,window,limit] of [['global-day',day,20],['global-minute',minute,2],['visitor-day:'+actor,day,5],['visitor-minute:'+actor,minute,1]] as const){
+    for(const [scope,window,limit] of [['global-day',day,globalDay],['global-minute',minute,globalMinute],['visitor-day:'+actor,day,connectionDay],['visitor-minute:'+actor,minute,connectionMinute]] as const){
      const r=await tx.query('INSERT INTO cotizador_ia_cuotas(scope,window_start,hits) VALUES($1,$2,1) ON CONFLICT(scope,window_start) DO UPDATE SET hits=cotizador_ia_cuotas.hits+1 WHERE cotizador_ia_cuotas.hits<$3 RETURNING hits',['audio:'+action+':'+scope,window,limit]);
      if(!r.rows.length)throw new HttpException('Se alcanzó el límite gratuito de audio. Puedes continuar escribiendo y volver más tarde.',429);
     }
@@ -43,14 +46,25 @@ export class QuoteAudioService{
 export class QuoteAudioController{
  constructor(@Inject(QuoteAudioService)private audio:QuoteAudioService){}
  @Get('config')config(){return audioConfig();}
+ @Get('dictation-config')dictationConfig(){return dictationConfig();}
+ @Post('dictate')
+ @UseGuards(AudioAccess)
+ @UseInterceptors(FileInterceptor('file',{limits:{fileSize:AUDIO_MAX_BYTES,files:1,fields:3,parts:4,fieldSize:100}}))
+ async dictate(@Req()req:Request,@Res({passthrough:true})res:Response,@Body()body:unknown,@UploadedFile()file?:Express.Multer.File){
+  try{
+   parse(dictationPermissionSchema,body);validateAudioFile(file);
+   // Transcription only: no rewrite, form context, stored contact or extra language-model call.
+   return await this.audio.run(req,res,'dictate',signal=>transcribeAudio(file!,signal));
+  }catch(e){if(e instanceof AiProviderError)throw new HttpException(e.message,e.status);throw e;}
+  finally{if(file){file.buffer.fill(0);file.buffer=Buffer.alloc(0);}}
+ }
  @Post('transcribe')
  @UseGuards(AudioAccess)
  @UseInterceptors(FileInterceptor('file',{limits:{fileSize:AUDIO_MAX_BYTES,files:1,fields:3,parts:4,fieldSize:100}}))
  async transcribe(@Req()req:Request,@Res({passthrough:true})res:Response,@Body()body:unknown,@UploadedFile()file?:Express.Multer.File){
-  parse(audioPermissionSchema,body);
-  try{validateAudioFile(file);return await this.audio.run(req,res,'transcribe',signal=>transcribeAudio(file!,signal));}
+  try{parse(audioPermissionSchema,body);validateAudioFile(file);return await this.audio.run(req,res,'transcribe',signal=>transcribeAudio(file!,signal));}
   catch(e){if(e instanceof AiProviderError)throw new HttpException(e.message,e.status);throw e;}
-  finally{if(file)file.buffer=Buffer.alloc(0);}
+  finally{if(file){file.buffer.fill(0);file.buffer=Buffer.alloc(0);}}
  }
  @Post('organize')
  @UseGuards(AudioAccess)
@@ -60,4 +74,3 @@ export class QuoteAudioController{
 }
 @Module({providers:[QuoteAudioService,AudioAccess],controllers:[QuoteAudioController]})
 export class QuoteAudioModule{}
-

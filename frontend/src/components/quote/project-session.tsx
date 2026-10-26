@@ -9,10 +9,12 @@ import {
   redoProject, restoreProjectStart, undoProject, acceptProjectSuggestion, acceptProjectSuggestionFromForm, type ProjectHistory, type ProjectChange, type ProjectField, type QuoteProject, type ProjectSuggestion,
 } from '@/lib/quote/project';
 import {acceptAudioAnswer,type AudioAnswer} from '@/lib/quote/audio';
+import {travelProjectFromForm} from '@/lib/quote/project-actions';
 import './project-session.css';
 
 interface Session {
   history: ProjectHistory;
+  noteTranscription: (field: string) => void;
   applyAudio: (answer: AudioAnswer) => boolean;
   acceptSuggestion: (suggestion: ProjectSuggestion) => boolean;
   error: string;
@@ -36,6 +38,7 @@ export function QuoteProjectSession({ form, children, onRestore }: {
   const [error, setError] = useState('');
   const current = useRef(history), restoring = useRef(false), notify = useRef(onRestore);
   const pending = useRef<(() => void) | null>(null);
+  const transcribed = useRef(new Set<string>());
   notify.current = onRestore;
 
   useEffect(() => {
@@ -46,14 +49,16 @@ export function QuoteProjectSession({ form, children, onRestore }: {
       if (!queued || !active || restoring.current) return;
       queued = false;
       const changed = [...fields]; fields.clear();
-      const typing = isTyping && changed.length === 1 && textFields.has(changed[0]);
+      const dictated = changed.some(field => transcribed.current.has(field));
+      for(const field of changed) transcribed.current.delete(field);
+      const typing = !dictated && isTyping && changed.length === 1 && textFields.has(changed[0]);
       const now = Date.now();
       if (!typing || lastTyped !== changed[0] || now - lastTypedAt > 700) groupNumber++;
       const group = typing ? `typing:${changed[0]}:${groupNumber}` : null;
       lastTyped = typing ? changed[0] : ''; lastTypedAt = now; isTyping = true;
       try {
         const next = recordProjectForm(current.current, form.getValues(), {
-          origin: typing ? 'written' : changed.length ? 'selected' : 'imported', group,
+          origin: dictated ? 'transcribed' : typing ? 'written' : changed.length ? 'selected' : 'imported', group,
         });
         current.current = next; setHistory(next); setError('');
       } catch {
@@ -76,14 +81,17 @@ export function QuoteProjectSession({ form, children, onRestore }: {
 
   function travel(action: typeof undoProject, message?: string) {
     pending.current?.();
-    const next = action(current.current);
-    if (next === current.current) return;
+    let next:ProjectHistory;
+    try {next = travelProjectFromForm(current.current,form.getValues(),action);}
+    catch {setError('Antes de recuperar un cambio, revisa la longitud de tus respuestas. Conservamos todo el texto actual.');return false;}
+    if (next === current.current) return true;
     restoring.current = true;
     try {
       form.reset(projectToForm(next.present, form.getValues()), { keepDefaultValues: true });
       current.current = next; setHistory(next); setError('');
       notify.current(message);
     } finally { restoring.current = false; }
+    return true;
   }
 
   function loadProject(project: QuoteProject) {
@@ -97,8 +105,9 @@ export function QuoteProjectSession({ form, children, onRestore }: {
     } finally {restoring.current=false;}
   }
   return <ProjectContext.Provider value={{ history, error, loadProject,
-    applyAudio: answer => {try {travel(value=>acceptAudioAnswer(value,form.getValues(),answer),'Respuesta por audio incorporada. Puedes deshacerla.');return true;}catch{return false;}},
-    acceptSuggestion: suggestion => { try { travel(value => acceptProjectSuggestionFromForm(value, form.getValues(), suggestion), 'Sugerencia de NEXI aplicada. Puedes deshacerla.'); return true; } catch { setError('No se aplicó la sugerencia. Revisa las respuestas y su longitud; después solicita un análisis nuevo.'); return false; } },
+    noteTranscription: field => {if(PROJECT_FIELDS.includes(field as ProjectField))transcribed.current.add(field);},
+    applyAudio: answer => {try {return travel(value=>acceptAudioAnswer(value,form.getValues(),answer),'Respuesta por audio incorporada. Puedes deshacerla.');}catch{return false;}},
+    acceptSuggestion: suggestion => { try { return travel(value => acceptProjectSuggestionFromForm(value, form.getValues(), suggestion), 'Sugerencia de NEXI aplicada. Puedes deshacerla.'); } catch { setError('No se aplicó la sugerencia. Revisa las respuestas y su longitud; después solicita un análisis nuevo.'); return false; } },
     suggest: (change, reason, evidenceFields) => travel(history => acceptProjectSuggestion(history, {
       id: crypto.randomUUID(), projectId: history.present.id, baseRevision: history.present.revision,
       reason, evidenceFields, change,

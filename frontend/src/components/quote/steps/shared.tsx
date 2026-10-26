@@ -5,6 +5,8 @@ import { useFormContext, useFormState } from 'react-hook-form';
 import { PawPrint } from 'lucide-react';
 import { brand } from '@/config/brand';
 import type { QuoteFormValues } from '@/lib/quote/form';
+import { isDictationField } from '@/lib/quote/dictation';
+import { QuoteFieldDictation } from '../field-dictation';
 
 export interface QuoteStepProps {
   prices: Record<string, number>;
@@ -50,8 +52,8 @@ export function QuoteTextField({
     'aria-describedby': `quote-error-${name}`,
   };
   return (
-    <label className="quote-field" htmlFor={props.id}>
-      <span>{label}</span>
+    <div className="quote-field">
+      <label htmlFor={props.id}>{label}</label>
       {multiline ? (
         <textarea {...props} className="resize-none" rows={4} style={{resize:'none',minHeight:'8rem'}} />
       ) : (
@@ -64,7 +66,8 @@ export function QuoteTextField({
         />
       )}
       <QuoteFieldError name={name} />
-    </label>
+      {type !== 'date' && isDictationField(name) && <QuoteFieldDictation field={name} label={label} />}
+    </div>
   );
 }
 export function QuoteSelectField({

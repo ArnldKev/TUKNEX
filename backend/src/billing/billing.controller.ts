@@ -1,5 +1,6 @@
 import { DEFAULT_PRICES, estimateQuote, PROJECT_TYPES } from '../domain/pricing';
 import { quoteFormSchema } from '../domain/quote/form';
+import { minimalEstimateSchema, estimateInputToPricing } from '../domain/quote/estimate-input';
 import { parse } from './dto';
 
 import {
@@ -149,8 +150,10 @@ export class PublicController {
     return { prices: config.prices || DEFAULT_PRICES };
   }
   @Post('estimate') async estimate(@Body() body: unknown) {
-    const values = parse(quoteFormSchema, body),
-      config = await this.service.settings(),
+    const values = body && typeof body === 'object' && Object.hasOwn(body, 'hasOtherFunctions')
+      ? estimateInputToPricing(parse(minimalEstimateSchema, body))
+      : parse(quoteFormSchema, body);
+    const config = await this.service.settings(),
       estimate = estimateQuote(values, config.prices || {});
     return {
       ...estimate,

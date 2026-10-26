@@ -8,10 +8,30 @@ export function canRecordAudio(){return typeof window!=='undefined'&&window.isSe
 function browserEnvironment():CaptureEnvironment{
  return {getStream:()=>navigator.mediaDevices.getUserMedia({audio:true}),createRecorder:stream=>{
   const mime=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm'].find(value=>MediaRecorder.isTypeSupported(value));
-  if(!mime)throw Error('unsupported');
+  if(!mime)throw new DOMException('Unsupported recording format','NotSupportedError');
   return new MediaRecorder(stream as MediaStream,{mimeType:mime,audioBitsPerSecond:64000}) as unknown as Recorder;
  },now:()=>performance.now(),every:callback=>setInterval(callback,200),clear:timer=>clearInterval(timer)};
 }
+function captureStartError(error:unknown):string{
+ const name=error&&typeof error==='object'&&'name' in error?error.name:'';
+ switch(name){
+  case 'NotAllowedError':
+  case 'PermissionDeniedError':
+  case 'SecurityError':
+   return 'El permiso del micrófono está denegado o bloqueado. Revisa el permiso del navegador o escribe tu respuesta.';
+  case 'NotFoundError':
+  case 'DevicesNotFoundError':
+   return 'No encontramos un micrófono disponible. Conecta uno o escribe tu respuesta.';
+  case 'NotReadableError':
+  case 'TrackStartError':
+   return 'El micrófono está ocupado o no está disponible. Cierra otras aplicaciones que lo usen o escribe tu respuesta.';
+  case 'NotSupportedError':
+   return 'Este navegador no es compatible con la grabación de audio. Puedes escribir tu respuesta.';
+  default:
+   return 'No pudimos usar el micrófono. Revisa el permiso y el dispositivo o escribe tu respuesta.';
+ }
+}
+
 export class AudioCapture{
  private run=0;private stream?:Stream;private recorder?:Recorder;private timer?:ReturnType<typeof setInterval>;private active=false;
  constructor(private callbacks:Callbacks,private env:CaptureEnvironment=browserEnvironment()){}
@@ -39,9 +59,9 @@ export class AudioCapture{
    recorder.start(250);const started=this.env.now();
    this.timer=this.env.every(()=>{if(this.env.now()-started>=(AUDIO_MAX_SECONDS-1)*1000)this.stop();});
    this.callbacks.onState('recording');
-  }catch{
+  }catch(error){
    if(run!==this.run)return;
-   this.cancel();this.callbacks.onError('No pudimos usar el micrófono. Revisa el permiso del navegador, sube un audio o escribe tu respuesta.');
+   this.cancel();this.callbacks.onError(captureStartError(error));
   }
  }
  stop(){if(this.recorder?.state==='recording')this.recorder.stop();}

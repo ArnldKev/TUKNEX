@@ -10,6 +10,7 @@ export function QuoteBusinessStep() {
   const channels = useWatch({ control, name: 'salesChannels', exact: true });
   return (
     <div className="quote-fields">
+      <QuoteTextField name="businessName" label="Nombre del negocio o proyecto (opcional)" placeholder="Puedes usar un nombre temporal" />
       <QuoteTextField
         name="offering"
         label="¿Qué vendes u ofreces?"
@@ -29,12 +30,8 @@ export function QuoteBusinessStep() {
         placeholder="Ej. Evitar repetir los precios y el menú por chat."
         multiline
       />
-      <QuoteDetails title="Nombre y contexto de mi negocio (opcional)">
-        <QuoteTextField
-          name="businessName"
-          label="Nombre del negocio o del proyecto"
-          placeholder="Puedes usar un nombre temporal"
-        />
+      <QuoteDetails title="Más sobre tu idea (opcional)">
+
         <QuoteTextField name="city" label="Ciudad o zona de atención" placeholder="Ej. Oxapampa" />
         <QuoteTextField
           name="customers"
@@ -71,8 +68,8 @@ export function QuoteBusinessStep() {
         </fieldset>
         <QuoteTextField
           name="salesProcess"
-          label="¿Cómo gestionas las ventas o reservas hoy?"
-          placeholder="Ej. Anoto los pedidos en un cuaderno."
+          label="Contexto de tu idea o cómo trabajas"
+          placeholder="Ej. Hoy anoto los pedidos en un cuaderno y quiero reunirlos en un solo lugar."
           multiline
         />
         <QuoteTextField

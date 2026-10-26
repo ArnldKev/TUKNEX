@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { Check } from 'lucide-react';
 import { FEATURES, SYSTEM_MODULES, money } from '@/lib/pricing';
@@ -9,6 +10,7 @@ import { QuoteDetails, QuoteSelectField, QuoteStepHelp, QuoteTextField, type Quo
 export function QuoteFeaturesStep({ prices }: QuoteStepProps) {
   const { control, setValue } = useFormContext<QuoteFormValues>();
   const [projectType, features] = useWatch({ control, name: ['projectType', 'features'], exact: true });
+  const [showGuidance, setShowGuidance] = useState(false);
   const isSystem = projectType === 'system';
   const allowed = FEATURES.filter((item) => featuresByProject[projectType].includes(item.id));
   const primaryIds = isSystem
@@ -47,7 +49,7 @@ export function QuoteFeaturesStep({ prices }: QuoteStepProps) {
         }
         aria-pressed={features.includes(item.id)}
       >
-        <span className="quote-checkbox">{features.includes(item.id) && <Check size={17} />}</span>
+        <span className="quote-checkbox">{features.includes(item.id) && <Check size={17} aria-hidden="true" />}</span>
         <span>
           <strong>{item.name}</strong>
           <small>{item.detail}</small>
@@ -65,6 +67,8 @@ export function QuoteFeaturesStep({ prices }: QuoteStepProps) {
       >
         {primary.map(featureButton)}
       </div>
+      <button type="button" className="quote-uncertain" aria-expanded={showGuidance} onClick={() => setShowGuidance(value => !value)}>No estoy seguro de qué elegir</button>
+      {showGuidance && <p className="quote-scope-note" role="status">Puedes conservar las opciones actuales y continuar. Cuéntanos una necesidad en «Otras funciones» si no la encuentras aquí; la revisaremos contigo.</p>}
       {isSystem && (
         <p className="quote-scope-note">
           * El rango de {money(prices.system)}–{money(prices['limit-system'])} contempla sólo uno o dos
@@ -72,7 +76,7 @@ export function QuoteFeaturesStep({ prices }: QuoteStepProps) {
         </p>
       )}
       <QuoteDetails
-        title={isSystem ? 'Usuarios y funciones adicionales' : 'Más opciones y detalles (opcional)'}
+        title={isSystem ? 'Usuarios y funciones adicionales (opcional)' : 'Más opciones y detalles (opcional)'}
       >
         {advanced.length > 0 && <div className="quote-features-grid">{advanced.map(featureButton)}</div>}
         {['catalog', 'store'].includes(projectType) && (
@@ -83,7 +87,7 @@ export function QuoteFeaturesStep({ prices }: QuoteStepProps) {
             <option value="none">Todavía no lo sé</option>
           </QuoteSelectField>
         )}
-        {isSystem && (
+      {isSystem && (
           <QuoteSelectField name="userRange" label="¿Cuántas personas lo usarían?">
             <option value="1-2">Una o dos personas</option>
             <option value="3-5">Entre tres y cinco</option>
@@ -92,7 +96,7 @@ export function QuoteFeaturesStep({ prices }: QuoteStepProps) {
         )}
         <QuoteTextField
           name="otherFunctions"
-          label="¿Hay algo más que deba hacer?"
+          label="Otras funciones (opcional)"
           placeholder="Cuéntalo con tus palabras. Lo revisaremos antes de fijar un precio."
           multiline
         />

@@ -5,6 +5,7 @@ import { billingBase } from '../billing/api';
 import { estimateQuote, PROJECT_TYPES } from '../pricing';
 import { platformRepository } from '../platform/repository';
 import type { QuoteService } from './contracts';
+import { toMinimalEstimateInput } from './estimate-input';
 
 export const quoteService: QuoteService = {
   async calculate(input, overrides = {}) {
@@ -13,7 +14,7 @@ export const quoteService: QuoteService = {
         const response = await fetch(billingBase + '/api/public/estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(input),
+          body: JSON.stringify(toMinimalEstimateInput(input)),
           signal: AbortSignal.timeout(3000),
         });
         if (response.ok) return await response.json();
