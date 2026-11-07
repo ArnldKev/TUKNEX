@@ -1,6 +1,9 @@
 'use client';
 import { PaymentReceipt } from './payment-receipt';
+import { RecordDetail } from '@/components/records/record-detail';
+import { RecordList } from '@/components/records/record-list';
 import { receiptFileError, receiptMethods } from '@/lib/billing/receipts';
+import {AccountShell} from '@/components/auth/account-shell';
 import { QuoteRequestsPanel } from '@/components/quote/quote-requests-panel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,11 +19,9 @@ import {
   RefreshCw,
   Settings2,
   LogOut,
-  Menu,
-  ArrowUpRight,
 } from 'lucide-react';
 import { DEMO_MODE } from '@/config/environment';
-import { RoleGate, useDemoAuth } from '@/lib/platform/auth';
+import { RoleGate } from '@/lib/platform/auth';
 import { usePlatformData } from '@/lib/platform/repository';
 import type { Quote } from '@/lib/platform/types';
 import {
@@ -60,7 +61,7 @@ const billingRoutes = {
 const sections: Record<BillingSection, string> = {
   overview: 'Resumen financiero',
   clients: 'Clientes guardados',
-  quotes: 'Cotizaciones PDF',
+  quotes: 'Cotizaciones formales',
   contracts: 'Contratos',
   payments: 'Pagos y cuotas',
 };
@@ -68,73 +69,7 @@ function message(e: unknown) {
   return e instanceof Error ? e.message : 'No pudimos completar la operación.';
 }
 export function BillingScreen({ section }: { section: BillingSection }) {
-  const [menu, setMenu] = useState(false);
-  const auth = useDemoAuth();
-  return (
-    <RoleGate allowed={['admin']}>
-    <div className="client-portal billing-shell">
-      {menu && <button className="portal-scrim" aria-label="Cerrar menú" onClick={() => setMenu(false)} />}
-      <aside className={'portal-sidebar ' + (menu ? 'open' : '')}>
-        <Link href="/" className="platform-brand">
-          <img className="official" src="/images/brand-logo.png" alt="TUKNEX" />
-        </Link>
-        <div className="portal-workspace">
-          <FileSignature size={22} />
-          <div>
-            <strong>Gestión TUKNEX</strong>
-            <small>Contratos y cobros</small>
-          </div>
-        </div>
-        <nav aria-label="Administración">
-          <Link href="/admin">Vista general</Link>
-          <Link href="/admin/clientes">Clientes</Link>
-          <Link href="/admin/solicitudes">Solicitudes del cotizador</Link>
-          <Link href="/admin/cotizaciones">Cotizaciones</Link>
-          <Link
-            href="/admin/contratos"
-            className={section === 'contracts' ? 'active' : ''}
-            aria-current={section === 'contracts' ? 'page' : undefined}
-          >
-            Contratos
-          </Link>
-          <Link
-            href="/admin/pagos"
-            className={section === 'payments' ? 'active' : ''}
-            aria-current={section === 'payments' ? 'page' : undefined}
-          >
-            Pagos
-          </Link>
-          <Link href="/proyectos">Portafolio</Link>
-          <Link href="/admin/usuarios">Usuarios</Link>
-          <Link href="/admin/mensajes">Mensajes de contacto</Link>
-          <Link href="/admin/resenas">Opiniones de clientes</Link>
-          <Link href="/admin/precios">Precios</Link>
-        </nav>
-        <div className="portal-sidebar-bottom">
-          <Link href="/">
-            Ver sitio público <ArrowUpRight size={15} />
-          </Link>
-          <button className="portal-logout" onClick={() => void auth.logout()}>
-            Cerrar sesión
-          </button>
-        </div>
-      </aside>
-      <main className="portal-main">
-        <header className="portal-topbar">
-          <button className="portal-mobile-menu" aria-label="Abrir menú" onClick={() => setMenu(true)}>
-            <Menu />
-          </button>
-          <span>Administración / {sections[section]}</span>
-          <span className="portal-demo-badge">TUKNEX Studio</span>
-        </header>
-        <div className="portal-content">
-          <h1 className="sr-only">{sections[section]}</h1>
-          <BillingWorkspace section={section} />
-        </div>
-      </main>
-    </div>
-    </RoleGate>
-  );
+  return <RoleGate allowed={['admin']}><AccountShell admin title={sections[section]}><h1 className="sr-only">{sections[section]}</h1><BillingWorkspace section={section}/></AccountShell></RoleGate>;
 }
 function Login() {
   const [email, setEmail] = useState(''),
@@ -226,11 +161,13 @@ function Login() {
   );
 }
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  useAccessibleModal(true, onClose);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useAccessibleModal(true, onClose, dialogRef);
   return (
     <div className="platform-modal-backdrop billing-backdrop" onClick={onClose}>
       <section
         className="platform-modal billing-modal"
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="billing-dialog-title"
@@ -252,6 +189,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     </div>
   );
 }
+type RecordSelection = { kind: 'client' | 'quote' | 'payment' | 'installment'; id: string };
 type Editor =
   | { kind: 'client'; initial?: BillingClient }
   | { kind: 'quote'; initial?: BillingQuote }
@@ -272,8 +210,8 @@ export function BillingWorkspace({
   const [view, setView] = useState(section),
     [editor, setEditor] = useState<Editor | null>(null),
     [selected, setSelected] = useState(''),
+    [record, setRecord] = useState<RecordSelection | null>(null),
     [contractFilter, setFilter] = useState(''),
-    [query, setQuery] = useState(''),
     [notice, setNotice] = useState(''),
     [problem, setProblem] = useState(''),
     [busy, setBusy] = useState(false),
@@ -282,6 +220,7 @@ export function BillingWorkspace({
   const pdfRef = useRef<string | null>(null);
   useEffect(() => {
     setView(section);
+    setRecord(null);
   }, [section]);
   useEffect(() => {
     const p = new URLSearchParams(location.search);
@@ -403,9 +342,6 @@ export function BillingWorkspace({
         <Login />
       </div>
     );
-  const filteredContracts = data.contracts.filter((c) =>
-    (c.number + ' ' + c.client.name + ' ' + c.projectName).toLowerCase().includes(query.toLowerCase()),
-  );
   const contract = data.contracts.find((c) => c.id === selected),
     legacyOrigin = snapshot.quotes.find((q) => q.id === origin);
   const legacyQuotes = (DEMO_MODE ? snapshot.quotes : []).filter((q) => !data.quotes.some((saved) => saved.legacyId === q.id));
@@ -417,19 +353,30 @@ export function BillingWorkspace({
     ),
     payments = data.payments.filter((p) => !contractFilter || p.contractId === contractFilter);
   const allPaid = installments.filter((i) => i.status === 'pagada').length;
-  function actions(c: Contract) {
-    return (
-      <div className="billing-row-actions">
-        <button aria-label={'Ver ' + c.number} onClick={() => setSelected(c.id)}>
-          <Eye size={17} />
-          Ver
-        </button>
-        <button disabled={busy} onClick={() => void download('contract', c.id)}>
-          <Download size={17} />
-          PDF
-        </button>
-      </div>
-    );
+  const activeClient = record?.kind === 'client' ? data.clients.find(item => item.id === record.id) : undefined;
+  const activeQuote = record?.kind === 'quote' ? data.quotes.find(item => item.id === record.id) : undefined;
+  const activePayment = record?.kind === 'payment' ? data.payments.find(item => item.id === record.id) : undefined;
+  const activeInstallment = record?.kind === 'installment' ? data.installments.find(item => item.id === record.id) : undefined;
+  function feedback() {
+    return <>{notice && <p className="billing-success" role="status">{notice}</p>}{(problem || error) && <p className="billing-error" role="alert">{problem || error}</p>}</>;
+  }
+  function quoteActions(q: BillingQuote) {
+    return <div className="billing-row-actions billing-detail-actions">
+      <button disabled={busy} onClick={() => void preview('quote', q.id)}><Eye size={16}/>Ver PDF</button>
+      <button disabled={busy} onClick={() => void download('quote', q.id)}><Download size={16}/>Descargar PDF</button>
+      {['draft', 'sent'].includes(q.status) && <>
+        <button onClick={() => setEditor({ kind: 'quote', initial: q })}><Pencil size={16}/>Editar</button>
+        <button disabled={busy} onClick={() => void run(() => billingRequest('billing/quotes/' + q.id + '/accept', { method: 'POST' }), 'Aceptación del cliente registrada manualmente.')}>Registrar aceptación</button>
+      </>}
+      {q.status === 'accepted' && <button disabled={busy} onClick={() => void convert(q.id)}><FileSignature size={16}/>Generar contrato</button>}
+    </div>;
+  }
+  async function downloadReceipt(payment: Payment) {
+    try {
+      const res = await fetch(billingBase + '/api/billing/receipts/' + payment.receiptId, { headers: await receiptHeaders(), credentials: 'include' });
+      if (!res.ok) throw new Error('No se pudo descargar el comprobante.');
+      savePdf(await res.blob(), 'comprobante-' + payment.id + (res.headers.get('content-type') === 'application/pdf' ? '.pdf' : res.headers.get('content-type') === 'image/png' ? '.png' : '.jpg'));
+    } catch (e) { setProblem(message(e)); }
   }
   return (
     <section className={'billing-workspace ' + (embedded ? 'embedded' : '')}>
@@ -500,7 +447,7 @@ export function BillingWorkspace({
           </button>
         </div>
       )}
-      {!DEMO_MODE && (view === 'overview' || view === 'quotes') && <QuoteRequestsPanel admin limit={view === 'overview' ? 3 : undefined} />}
+      {!DEMO_MODE && view === 'overview' && <QuoteRequestsPanel admin origin="client" limit={3} />}
       {view === 'overview' && (
         <>
           <div className="billing-metrics">
@@ -570,143 +517,24 @@ export function BillingWorkspace({
           </div>
         </>
       )}
-      {view === 'clients' && (
-        <>
-          <div className="billing-section-actions">
-            <p>{data.clients.length} clientes guardados</p>
-            <button className="platform-button" onClick={() => setEditor({ kind: 'client' })}>
-              <Plus size={17} />
-              Nuevo cliente
-            </button>
-          </div>
-          <div className="billing-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th>DNI / RUC</th>
-                  <th>Contacto</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.clients.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <strong>{c.name}</strong>
-                      <small>
-                        {c.address || 'Dirección pendiente'}
-                        {c.isDemo && !/demo/i.test(c.name) ? ' · Demo' : ''}
-                      </small>
-                    </td>
-                    <td>{c.taxId || 'Por completar'}</td>
-                    <td>
-                      {c.phone || '—'}
-                      <small>{c.email}</small>
-                    </td>
-                    <td>
-                      <button
-                        className="platform-secondary"
-                        onClick={() => setEditor({ kind: 'client', initial: c })}
-                      >
-                        <Pencil size={15} />
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-      {view === 'quotes' && (
-        <>
-          <div className="billing-section-actions">
-            <p>Propuestas profesionales guardadas</p>
-            <button
-              className="platform-button"
-              disabled={!data.clients.length}
-              onClick={() => setEditor({ kind: 'quote' })}
-            >
-              <Plus size={17} />
-              Nueva cotización PDF
-            </button>
-          </div>
-          <div className="billing-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cotización / cliente</th>
-                  <th>Modalidad</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.quotes.map((q) => (
-                  <tr key={q.id}>
-                    <td>
-                      <strong>{q.number}</strong>
-                      <small>
-                        {q.client.name} · {q.projectName}
-                      </small>
-                    </td>
-                    <td>
-                      {paymentModes[q.plan.mode].label}
-                      <small>Recargo {q.plan.rate}%</small>
-                    </td>
-                    <td>{amount(q.totalCents)}</td>
-                    <td>
-                      <span className="billing-badge">
-                        {
-                          { draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada' }[
-                            q.status
-                          ]
-                        }
-                      </span>
-                    </td>
-                    <td>
-                      <div className="billing-row-actions">
-                        <button disabled={busy} onClick={() => void preview('quote', q.id)}>
-                          <Eye size={16} />
-                          Ver PDF
-                        </button>
-                        <button disabled={busy} onClick={() => void download('quote', q.id)}>
-                          <Download size={16} />
-                          PDF
-                        </button>
-                        {['draft', 'sent'].includes(q.status) && (
-                          <>
-                            <button onClick={() => setEditor({ kind: 'quote', initial: q })}>Editar</button>
-                            <button
-                              disabled={busy}
-                              onClick={() =>
-                                void run(
-                                  () =>
-                                    billingRequest('billing/quotes/' + q.id + '/accept', { method: 'POST' }),
-                                  'Aceptación del cliente registrada manualmente.',
-                                )
-                              }
-                            >
-                              Registrar aceptación
-                            </button>
-                          </>
-                        )}
-                        {q.status === 'accepted' && (
-                          <button disabled={busy} onClick={() => void convert(q.id)}>
-                            <FileSignature size={16} />
-                            Generar contrato
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {view === 'clients' && <>
+        <div className="billing-section-actions"><p>{data.clients.length} clientes guardados</p><button className="platform-button" onClick={() => setEditor({ kind: 'client' })}><Plus size={17}/>Nuevo cliente</button></div>
+        <RecordList items={data.clients} getKey={c => c.id} getSearchText={c => [c.name, c.taxId, c.email, c.phone, c.address].join(' ')} searchLabel="Buscar clientes" emptyMessage="Aún no hay clientes guardados." renderItem={c => <div className="billing-record-row billing-record-row-client">
+          <div className="billing-record-primary"><strong>{c.name}</strong><small>{c.taxId || 'DNI / RUC por completar'}{c.isDemo ? ' · Demo' : ''}</small></div>
+          <div className="billing-record-contact"><span>{c.email || 'Correo por completar'}</span><small>{c.phone || 'Teléfono por completar'}</small></div>
+          <div className="billing-record-meta"><small>Registro</small><span>{c.createdAt.slice(0, 10)}</span></div>
+          <button className="platform-secondary" aria-label={'Ver detalles de ' + c.name} onClick={() => setRecord({ kind: 'client', id: c.id })}><Eye size={16}/>Ver detalles</button>
+        </div>}/>
+      </>}
+      {view === 'quotes' && <>
+        <div className="billing-section-actions"><p>Propuestas profesionales guardadas</p><button className="platform-button" disabled={!data.clients.length} onClick={() => setEditor({ kind: 'quote' })}><Plus size={17}/>Crear propuesta formal</button></div>
+        <RecordList items={data.quotes} getKey={q => q.id} getSearchText={q => [q.number, q.projectName, q.client.name, q.status, serviceLabels[q.service], { draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada' }[q.status]].join(' ')} searchLabel="Buscar cotizaciones PDF" emptyMessage="Aún no hay cotizaciones profesionales guardadas." renderItem={q => <div className="billing-record-row">
+          <div className="billing-record-primary"><strong>{q.number}</strong><span>{q.projectName}</span><small>{q.client.name}</small></div>
+          <div className="billing-record-meta"><small>Emisión</small><span>{q.issuedDate}</span></div>
+          <span className={'billing-badge ' + q.status}>{{ draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada' }[q.status]}</span>
+          <strong className="billing-record-amount">{amount(q.totalCents)}</strong>
+          <button className="platform-secondary" aria-label={'Ver detalles de cotización ' + q.number} onClick={() => setRecord({ kind: 'quote', id: q.id })}><Eye size={16}/>Ver detalles</button>
+        </div>}/>
           {DEMO_MODE && <details className="billing-legacy">
             <summary>Importar cotizaciones de la sesión demo ({legacyQuotes.length})</summary>
             <p>Se guardan explícitamente como ejemplos y mantienen su identificador de origen.</p>
@@ -729,84 +557,21 @@ export function BillingWorkspace({
               </div>
             ))}
           </details>}
-        </>
-      )}
+      </>}
       {view === 'contracts' && (
         <>
-          <div className="billing-section-actions">
-            <label className="billing-search">
-              Buscar contrato o cliente
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Número, cliente o proyecto"
-              />
-            </label>
-            <button
-              className="platform-button"
-              disabled={!data.clients.length}
-              onClick={() => setEditor({ kind: 'contract' })}
-            >
-              <Plus size={17} />
-              Nuevo contrato
-            </button>
-          </div>
-          <div className="billing-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Contrato / cliente</th>
-                  <th>Servicio</th>
-                  <th>Estado</th>
-                  <th>Total</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredContracts.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <strong>{c.number}</strong>
-                      <small>
-                        {c.client.name}
-                        {c.isDemo && !/demo/i.test(c.client.name) ? ' · Demo' : ''}
-                      </small>
-                    </td>
-                    <td>{serviceLabels[c.service]}</td>
-                    <td>
-                      <span className="billing-badge">{statusLabels[c.status]}</span>
-                    </td>
-                    <td>{amount(c.totalCents)}</td>
-                    <td>{actions(c)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!filteredContracts.length && (
-              <div className="billing-empty">
-                <FileSignature size={32} />
-                <h3>El próximo acuerdo empieza aquí.</h3>
-                <p>
-                  Crea un contrato o convierte una cotización aceptada. Sus cuotas se generan automáticamente.
-                </p>
-              </div>
-            )}
-          </div>
+          <div className="billing-section-actions"><p>Acuerdos y documentos de tus proyectos</p><button className="platform-button" disabled={!data.clients.length} onClick={() => setEditor({ kind: 'contract' })}><Plus size={17}/>Nuevo contrato</button></div>
+          <RecordList items={data.contracts} getKey={c => c.id} getSearchText={c => [c.number, c.client.name, c.projectName, serviceLabels[c.service], statusLabels[c.status]].join(' ')} searchLabel="Buscar contratos" emptyMessage="Crea un contrato o convierte una cotización aceptada. Sus cuotas se generan automáticamente." renderItem={c => <div className="billing-record-row">
+            <div className="billing-record-primary"><strong>{c.number}</strong><span>{c.projectName}</span><small>{c.client.name}{c.isDemo && !/demo/i.test(c.client.name) ? ' · Demo' : ''}</small></div>
+            <div className="billing-record-meta"><small>Entrega</small><span>{c.deliveryDate}</span></div>
+            <span className={'billing-badge ' + c.status}>{statusLabels[c.status]}</span>
+            <strong className="billing-record-amount">{amount(c.totalCents)}</strong>
+            <button className="platform-secondary" aria-label={'Ver detalles de contrato ' + c.number} onClick={() => setSelected(c.id)}><Eye size={16}/>Ver detalles</button>
+          </div>}/>
           {contract && (
+            <RecordDetail title={contract.projectName} subtitle={<>{contract.number} · {contract.client.name} · {statusLabels[contract.status]}</>} onClose={() => setSelected('')} className="billing-workspace billing-record-detail">
+            {feedback()}
             <article className="billing-detail">
-              <div className="billing-section-actions">
-                <div>
-                  <span className="billing-eyebrow">{contract.number}</span>
-                  <h3>{contract.projectName}</h3>
-                  <p>
-                    {contract.client.name} · {statusLabels[contract.status]}
-                  </p>
-                </div>
-                <button className="platform-secondary" onClick={() => setSelected('')}>
-                  Cerrar detalle
-                </button>
-              </div>
               <div className="billing-metrics">
                 <Metric label="Base" value={amount(contract.baseCents)} />
                 <Metric label={'Recargo ' + contract.plan.rate + '%'} value={amount(contract.feeCents)} />
@@ -916,6 +681,7 @@ export function BillingWorkspace({
                 </small>
               </form>
             </article>
+            </RecordDetail>
           )}
         </>
       )}
@@ -956,137 +722,43 @@ export function BillingWorkspace({
             />
             <Metric label="Cuotas pagadas" value={allPaid + ' / ' + installments.length} />
           </div>
-          <div className="billing-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cuota / contrato</th>
-                  <th>Vencimiento</th>
-                  <th>Importe</th>
-                  <th>Pagado</th>
-                  <th>Saldo</th>
-                  <th>Estado</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {installments.map((i) => (
-                  <tr key={i.id}>
-                    <td>
-                      <strong>
-                        {i.number}. {i.label}
-                      </strong>
-                      <small>{data.contracts.find((c) => c.id === i.contractId)?.client.name}</small>
-                    </td>
-                    <td>{i.date}</td>
-                    <td>{amount(i.amountCents)}</td>
-                    <td>{amount(i.paidCents)}</td>
-                    <td>{amount(i.remainingCents)}</td>
-                    <td>
-                      <span className={'billing-badge ' + i.status}>
-                        {i.status === 'pagada'
-                          ? 'Pagada'
-                          : i.status === 'vencida'
-                            ? 'Vencida'
-                            : i.paidCents
-                              ? 'Pago parcial'
-                              : 'Pendiente'}
-                      </span>
-                    </td>
-                    <td>
-                      {i.remainingCents > 0 &&
-                        !['cancelado', 'finalizado'].includes(
-                          data.contracts.find((c) => c.id === i.contractId)?.status || '',
-                        ) && (
-                          <button
-                            className="platform-secondary"
-                            onClick={() =>
-                              setEditor({ kind: 'payment', contractId: i.contractId, installmentId: i.id })
-                            }
-                          >
-                            Registrar pago
-                          </button>
-                        )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!installments.length && (
-              <p className="billing-empty">Crea un contrato para generar sus cuotas.</p>
-            )}
-          </div>
-          <h3>Historial de pagos</h3>
-          <div className="billing-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Contrato</th>
-                  <th>Monto / método</th>
-                  <th>Referencia / observación</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      {p.date}
-                      {p.voided && <small>ANULADO · {p.voidReason}</small>}
-                    </td>
-                    <td>{data.contracts.find((c) => c.id === p.contractId)?.number}</td>
-                    <td>
-                      {amount(p.amountCents)}
-                      <small>{p.method}</small>
-                    </td>
-                    <td>
-                      {p.reference || 'Sin referencia'}
-                      <small>{p.observation}</small>
-                    </td>
-                    <td>
-                      <div className="billing-row-actions">
-                        {p.receiptId && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                const res = await fetch(
-                                  billingBase + '/api/billing/receipts/' + p.receiptId,
-                                  { headers: await receiptHeaders(), credentials: 'include' },
-                                );
-                                if (!res.ok) throw new Error('No se pudo descargar el comprobante.');
-                                savePdf(
-                                  await res.blob(),
-                                  'comprobante-' +
-                                    p.id +
-                                    (res.headers.get('content-type') === 'application/pdf'
-                                      ? '.pdf'
-                                      : res.headers.get('content-type') === 'image/png'
-                                        ? '.png'
-                                        : '.jpg'),
-                                );
-                              } catch (e) {
-                                setProblem(message(e));
-                              }
-                            }}
-                          >
-                            Comprobante
-                          </button>
-                        )}
-                        {!p.voided && (
-                          <button onClick={() => setEditor({ kind: 'void', payment: p })}>
-                            Anular registro
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h3 className="billing-list-title">Cuotas del contrato</h3>
+          <RecordList items={installments} getKey={i => i.id} getSearchText={i => [i.label, i.date, i.status, data.contracts.find(c => c.id === i.contractId)?.number, data.contracts.find(c => c.id === i.contractId)?.client.name].join(' ')} searchLabel="Buscar cuotas" emptyMessage="Crea un contrato para generar sus cuotas." renderItem={i => <div className="billing-record-row">
+            <div className="billing-record-primary"><strong>{i.number}. {i.label}</strong><span>{data.contracts.find(c => c.id === i.contractId)?.number}</span><small>{data.contracts.find(c => c.id === i.contractId)?.client.name}</small></div>
+            <div className="billing-record-meta"><small>Vencimiento</small><span>{i.date}</span></div>
+            <span className={'billing-badge ' + i.status}>{i.status === 'pagada' ? 'Pagada' : i.status === 'vencida' ? 'Vencida' : i.paidCents ? 'Pago parcial' : 'Pendiente'}</span>
+            <div className="billing-record-meta"><small>Saldo</small><strong className="billing-record-amount">{amount(i.remainingCents)}</strong></div>
+            <button className="platform-secondary" aria-label={'Ver detalles de cuota ' + i.number + ' ' + i.label} onClick={() => setRecord({ kind: 'installment', id: i.id })}><Eye size={16}/>Ver detalles</button>
+          </div>}/>
+          <h3 className="billing-list-title">Historial de pagos</h3>
+          <RecordList items={payments} getKey={p => p.id} getSearchText={p => [p.date, p.method, p.reference, p.observation, p.voided ? 'Anulado' : 'Registrado', data.contracts.find(c => c.id === p.contractId)?.number, data.contracts.find(c => c.id === p.contractId)?.client.name].join(' ')} searchLabel="Buscar pagos" emptyMessage="Todavía no hay pagos registrados." renderItem={p => <div className="billing-record-row">
+            <div className="billing-record-primary"><strong>{data.contracts.find(c => c.id === p.contractId)?.number || 'Contrato'}</strong><span>{data.contracts.find(c => c.id === p.contractId)?.client.name}</span><small>{receiptMethods[p.method]?.label || p.method}</small></div>
+            <div className="billing-record-meta"><small>Fecha</small><span>{p.date}</span></div>
+            <span className={'billing-badge ' + (p.voided ? 'cancelado' : 'pagada')}>{p.voided ? 'Anulado' : 'Registrado'}</span>
+            <strong className="billing-record-amount">{amount(p.amountCents)}</strong>
+            <button className="platform-secondary" aria-label={'Ver detalles del pago de ' + amount(p.amountCents) + ' del ' + p.date} onClick={() => setRecord({ kind: 'payment', id: p.id })}><Eye size={16}/>Ver detalles</button>
+          </div>}/>
         </>
       )}
+      {activeClient && <RecordDetail title={activeClient.name} subtitle="Cliente guardado" onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={<button className="platform-secondary" onClick={() => setEditor({ kind: 'client', initial: activeClient })}><Pencil size={16}/>Editar cliente</button>}>
+        {feedback()}
+        <dl className="billing-record-fields"><div><dt>Nombre</dt><dd>{activeClient.name}</dd></div><div><dt>DNI / RUC</dt><dd>{activeClient.taxId || 'Por completar'}</dd></div><div><dt>Correo electrónico</dt><dd>{activeClient.email || 'Por completar'}</dd></div><div><dt>Teléfono</dt><dd>{activeClient.phone || 'Por completar'}</dd></div><div><dt>Dirección</dt><dd>{activeClient.address || 'Dirección pendiente'}</dd></div><div><dt>Fecha de registro</dt><dd>{activeClient.createdAt.slice(0, 10)}</dd></div><div><dt>Tipo de registro</dt><dd>{activeClient.isDemo ? 'Demo' : 'Cliente guardado'}</dd></div></dl>
+        <div className="billing-metrics"><Metric label="Cotizaciones guardadas" value={String(data.quotes.filter(q => q.clientId === activeClient.id).length)}/><Metric label="Contratos guardados" value={String(data.contracts.filter(c => c.clientId === activeClient.id).length)}/></div>
+      </RecordDetail>}
+      {activeQuote && <RecordDetail title={activeQuote.projectName} subtitle={<>{activeQuote.number} · {activeQuote.client.name} · {{ draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada' }[activeQuote.status]}</>} onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={quoteActions(activeQuote)}>
+        {feedback()}
+        <div className="billing-metrics"><Metric label="Base" value={amount(activeQuote.baseCents)}/><Metric label={'Recargo ' + activeQuote.plan.rate + '%'} value={amount(activeQuote.feeCents)}/><Metric label="Monto final" value={amount(activeQuote.totalCents)}/></div>
+        <article className="billing-detail"><div className="billing-detail-grid"><div><h3>Cliente y proyecto</h3><p>{activeQuote.client.name}<br/>DNI/RUC: {activeQuote.client.taxId || 'Por completar'}<br/>{activeQuote.client.address || 'Dirección por completar'}<br/>{activeQuote.client.phone} {activeQuote.client.email}</p><h4>Servicio</h4><p>{serviceLabels[activeQuote.service] || activeQuote.service}</p><h4>Alcance</h4><p className="billing-preserve">{activeQuote.scope}</p></div><div><h3>Acuerdos de la propuesta</h3><h4>Fechas</h4><p>Emisión: {activeQuote.issuedDate}<br/>Vigencia: {activeQuote.validUntil}</p><h4>Entrega</h4><p className="billing-preserve">{activeQuote.delivery || 'Por confirmar'}</p><h4>Condiciones</h4><p className="billing-preserve">{activeQuote.conditions || 'Ver condiciones de la plantilla PDF.'}</p><h4>Observaciones</h4><p className="billing-preserve">{activeQuote.observations || 'Sin observaciones'}</p></div></div><h4>Modalidad acordada</h4><p>{paymentModes[activeQuote.plan.mode].label} · Recargo {activeQuote.plan.rate}%</p><div className="billing-schedule-preview"><ol>{activeQuote.schedule.map(item => <li key={item.number}><span>{item.number}. {item.label} · {item.date}</span><strong>{amount(item.amountCents)}</strong></li>)}</ol></div></article>
+      </RecordDetail>}
+      {activeInstallment && <RecordDetail title={activeInstallment.number + '. ' + activeInstallment.label} subtitle={<>{data.contracts.find(c => c.id === activeInstallment.contractId)?.number} · {data.contracts.find(c => c.id === activeInstallment.contractId)?.client.name}</>} onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={activeInstallment.remainingCents > 0 && !['cancelado', 'finalizado'].includes(data.contracts.find(c => c.id === activeInstallment.contractId)?.status || '') ? <button className="platform-button" onClick={() => setEditor({ kind: 'payment', contractId: activeInstallment.contractId, installmentId: activeInstallment.id })}><Wallet size={17}/>Registrar pago</button> : undefined}>
+        {feedback()}
+        <div className="billing-metrics"><Metric label="Importe de la cuota" value={amount(activeInstallment.amountCents)}/><Metric label="Pagado" value={amount(activeInstallment.paidCents)}/><Metric label="Saldo" value={amount(activeInstallment.remainingCents)}/></div>
+        <dl className="billing-record-fields"><div><dt>Vencimiento</dt><dd>{activeInstallment.date}</dd></div><div><dt>Estado</dt><dd>{activeInstallment.status === 'pagada' ? 'Pagada' : activeInstallment.status === 'vencida' ? 'Vencida' : activeInstallment.paidCents ? 'Pago parcial' : 'Pendiente'}</dd></div>{activeInstallment.paidDate && <div><dt>Fecha de pago</dt><dd>{activeInstallment.paidDate}</dd></div>}</dl>
+      </RecordDetail>}
+      {activePayment && <RecordDetail title={'Pago de ' + amount(activePayment.amountCents)} subtitle={<>{data.contracts.find(c => c.id === activePayment.contractId)?.number} · {data.contracts.find(c => c.id === activePayment.contractId)?.client.name}</>} onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={<div className="billing-row-actions billing-detail-actions">{activePayment.receiptId && <button onClick={() => void downloadReceipt(activePayment)}>Descargar comprobante</button>}{!activePayment.voided && <button onClick={() => setEditor({ kind: 'void', payment: activePayment })}>Anular registro</button>}</div>}>
+        {feedback()}
+        <dl className="billing-record-fields"><div><dt>Fecha</dt><dd>{activePayment.date}</dd></div><div><dt>Monto</dt><dd>{amount(activePayment.amountCents)}</dd></div><div><dt>Método</dt><dd>{receiptMethods[activePayment.method]?.label || activePayment.method}</dd></div><div><dt>Referencia</dt><dd>{activePayment.reference || 'Sin referencia'}</dd></div><div><dt>Observación</dt><dd className="billing-preserve">{activePayment.observation || 'Sin observaciones'}</dd></div><div><dt>Estado</dt><dd>{activePayment.voided ? 'ANULADO' : 'Registrado'}</dd></div>{activePayment.voided && <div><dt>Motivo de anulación</dt><dd className="billing-preserve">{activePayment.voidReason}</dd></div>}</dl>
+      </RecordDetail>}
       {editor && (
         <Modal
           title={
@@ -1123,7 +795,8 @@ export function BillingWorkspace({
         </Modal>
       )}
       {pdf && (
-        <Modal
+        <RecordDetail
+          className="billing-workspace billing-record-detail billing-pdf-detail"
           title="Vista previa del documento PDF"
           onClose={() => {
             setPdf(null);
@@ -1141,7 +814,7 @@ export function BillingWorkspace({
             <span>Documento de fondo blanco, listo para compartir.</span>
           </div>
           <iframe title="Documento PDF TUKNEX" src={pdf.url} className="billing-pdf-frame" />
-        </Modal>
+        </RecordDetail>
       )}
     </section>
   );

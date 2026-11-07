@@ -1,8 +1,7 @@
 'use client';
 
-import { memo, useId, type CSSProperties } from 'react';
+import React, { memo, useId, type CSSProperties } from 'react';
 import {
-  ArrowLeft,
   ArrowUpRight,
   BookOpen,
   BriefcaseBusiness,
@@ -108,95 +107,125 @@ function PreviewArtwork({ model }: { model: SolutionPreviewModel }) {
   </div>;
 }
 
-function WebPreview({ model, state, onAction }: MockupProps) {
+function GalleryPreview({ model }: { model: SolutionPreviewModel }) {
+  const Icon = sectorIcons[model.sector];
+  return <section className="lp-gallery lp-gallery-page" aria-label="Galería de ejemplo">
+    <span className="lp-kicker">UNA MIRADA A NUESTRA PROPUESTA</span>
+    <h4>{model.sector === 'food' ? 'Un lugar para tus próximos favoritos.' : 'Detalles que cuentan nuestra historia.'}</h4>
+    <p>Un espacio visual para presentar {model.businessName} y lo que ofrece.</p>
+    <div>{[1, 2, 3].map(number => <div key={number}>
+      <Icon size={42} strokeWidth={1.2} aria-hidden="true" />
+      <small>Imagen de ejemplo {number}</small>
+    </div>)}</div>
+    <p className="lp-gallery-note">Ilustraciones de referencia; se sustituirán por las imágenes del negocio.</p>
+  </section>;
+}
+
+function WebPreview({ model, state, onAction, expanded = false }: MockupProps) {
   const Icon = sectorIcons[model.sector];
   const section = state.section || model.sections[0]?.id;
+  const offerSection = model.kind === 'catalog' ? 'products' : 'services';
   if (section === 'bookings')
     return (
       <div className="lp-detail-view">
-        <button
-          type="button"
-          className="lp-text-button"
-          onClick={() => onAction({ type: 'section', id: 'inicio' })}
-        >
-          <ArrowLeft size={16} /> Volver al inicio de la maqueta
-        </button>
+        <span className="lp-kicker">COORDINA TU PRÓXIMO PASO</span>
+        <h4>Encuentra un momento para ti.</h4>
+        <p>Explora cómo se vería la selección de una fecha en {model.businessName}.</p>
         <CalendarPreview state={state} onAction={onAction} />
       </div>
     );
+  if (section === 'gallery') return <GalleryPreview model={model} />;
   if (section === 'contact')
     return (
       <div className="lp-contact-view">
-        <span className="lp-kicker">CONTACTO · EJEMPLO</span>
+        <span className="lp-kicker">HABLEMOS DE TU PRÓXIMO PASO</span>
         <h4>Una conversación puede ser un gran comienzo.</h4>
-        <p>Así podría verse un acceso claro para que tus clientes contacten a {model.businessName}.</p>
+        <p>Contacta con {model.businessName} para conocer más sobre su propuesta.</p>
         <div className="lp-contact-example">
           <MessageCircle size={30} />
           <strong>Cuéntanos lo que necesitas</strong>
-          <span>Formulario o canales de atención según el alcance.</span>
-          <button
-            type="button"
-            className="lp-primary"
-            onClick={() =>
-              onAction({
-                type: 'notice',
-                text: 'Consulta de ejemplo preparada. No se envió ningún mensaje ni se guardaron datos personales.',
-              })
-            }
-          >
-            Probar una consulta de ejemplo <ArrowUpRight size={17} />
+          <span>{model.featureFlags.contact ? 'Tu consulta, en un solo lugar.' : 'Continúa la conversación por WhatsApp.'}</span>
+          <button type="button" className="lp-primary" onClick={() => onAction({
+            type: 'notice', text: 'Consulta de ejemplo preparada. No se envió ningún mensaje ni se guardaron datos personales.',
+          })}>
+            {model.featureFlags.contact ? 'Probar una consulta' : 'Probar acceso a WhatsApp'} <ArrowUpRight size={17} />
           </button>
         </div>
       </div>
     );
-  if (section === 'services' || section === 'about')
+  if (section === 'about')
+    return <section className="lp-about-view">
+      <div className="lp-about-layout">
+        <div>
+          <span className="lp-kicker">CONOCE {model.businessName.toUpperCase()}</span>
+          <h4>Una propuesta con identidad propia.</h4>
+          <p>{model.hero.description}</p>
+          <button type="button" className="lp-text-button" onClick={() => onAction({ type: 'section', id: offerSection })}>
+            {model.kind === 'catalog' ? 'Explorar la selección' : 'Conocer nuestros servicios'} <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="lp-brand-card">
+          <Icon size={46} strokeWidth={1.2} aria-hidden="true" />
+          <strong>{model.businessName}</strong><span>{model.sectorName}</span>
+          <ul>{model.offerings.map(offering => <li key={offering}><Check size={15} />{offering}</li>)}</ul>
+        </div>
+      </div>
+      {model.featureFlags.gallery && <GalleryPreview model={model} />}
+    </section>;
+  if (section === 'services')
     return (
-      <div className="lp-services-view">
-        <span className="lp-kicker">{model.sectorName.toUpperCase()} · DEMOSTRACIÓN</span>
-        <h4>Lo que hace especial a {model.businessName}.</h4>
+      <section className="lp-services-view">
+        <span className="lp-kicker">{model.sectorName.toUpperCase()}</span>
+        <h4>{model.sector === 'food' ? 'Una propuesta para disfrutar.' : 'Encuentra lo que necesitas.'}</h4>
         <p>{model.hero.description}</p>
         <div className="lp-service-cards">
           {model.offerings.map((offering, index) => (
             <article key={offering}>
-              <span>0{index + 1}</span>
-              <Icon size={25} />
+              <span>0{index + 1}</span><Icon size={25} />
               <h5>{offering}</h5>
-              <button
-                type="button"
-                className="lp-text-button"
-                onClick={() =>
-                  onAction({
-                    type: 'notice',
-                    text:
-                      offering +
-                      ': aquí podrías presentar sus detalles y el siguiente paso. Es contenido orientativo.',
-                  })
-                }
-              >
-                Explorar ejemplo <ChevronRight size={16} />
-              </button>
+              <button type="button" className="lp-text-button" onClick={() => onAction({
+                type: 'notice', text: offering + ': aquí podrías presentar sus detalles y el siguiente paso. Es contenido orientativo.',
+              })}>Explorar ejemplo <ChevronRight size={16} /></button>
             </article>
           ))}
         </div>
-      </div>
+      </section>
     );
-  return (
+  return <>
     <section className="lp-web-hero">
       <div className="lp-hero-copy">
         <span className="lp-kicker">{model.hero.eyebrow}</span>
-        <h4>{model.hero.title}</h4>
-        <p>{model.hero.description}</p>
-        <button
-          type="button"
-          className="lp-primary"
-          onClick={() => onAction({ type: 'section', id: model.hero.action })}
-        >
+        <h4>{model.hero.title}</h4><p>{model.hero.description}</p>
+        <button type="button" className="lp-primary" onClick={() => onAction({ type: 'section', id: model.hero.action })}>
           {model.hero.cta} <ArrowUpRight size={17} />
         </button>
       </div>
       <PreviewArtwork model={model} />
     </section>
-  );
+    {expanded && <>
+      <section className="lp-home-offering">
+        <div className="lp-section-heading"><div><span className="lp-kicker">HECHO PARA TI</span>
+          <h4>{model.kind === 'catalog' ? 'Descubre tu próximo favorito.' : 'Una propuesta que merece conocerse.'}</h4></div>
+          <button type="button" className="lp-text-button" onClick={() => onAction({ type: 'section', id: offerSection })}>Ver todo <ArrowUpRight size={17} /></button>
+        </div>
+        <div className="lp-offering-strip">{model.offerings.map((offering, index) => <button type="button" key={offering}
+          onClick={() => onAction({ type: 'section', id: offerSection })}>
+          <span>0{index + 1}</span><Icon size={26} aria-hidden="true" /><strong>{offering}</strong><ChevronRight size={17} />
+        </button>)}</div>
+      </section>
+      <section className="lp-home-about"><span className="lp-kicker">{model.sectorName.toUpperCase()}</span>
+        <h4>Conoce {model.businessName}.</h4><p>{model.hero.description}</p>
+        <button type="button" className="lp-text-button" onClick={() => onAction({ type: 'section', id: 'about' })}>Nuestra propuesta <ArrowUpRight size={17} /></button>
+      </section>
+      {model.featureFlags.gallery && <GalleryPreview model={model} />}
+      {model.sections.some(item => item.id === 'contact' || item.id === 'bookings') && <section className="lp-home-next">
+        <span className="lp-kicker">EL SIGUIENTE PASO</span><h4>{model.featureFlags.bookings ? 'Hagamos espacio para tu próxima visita.' : 'Tu próxima idea empieza conversando.'}</h4>
+        <button type="button" className="lp-primary" onClick={() => onAction({ type: 'section', id: model.featureFlags.bookings ? 'bookings' : 'contact' })}>
+          {model.featureFlags.bookings ? 'Explorar fechas' : 'Conversemos'} <ArrowUpRight size={17} />
+        </button>
+      </section>}
+    </>}
+  </>;
 }
 
 function CatalogPreview({ model, state, onAction, expanded = false }: MockupProps) {
@@ -211,7 +240,7 @@ function CatalogPreview({ model, state, onAction, expanded = false }: MockupProp
       <header className="lp-catalog-hero">
         <div className="lp-hero-copy">
           <span className="lp-kicker">{model.hero.eyebrow}</span>
-          <h4>{model.hero.title}</h4>
+          <h4>{model.sector === 'food' ? 'Explora nuestra carta.' : 'Una selección para descubrir.'}</h4>
           <p>{model.hero.description}</p>
           <span className="lp-catalog-caption">{model.sector === 'food' ? 'Una carta a tu manera' : 'Una colección con tu identidad'} · ejemplo</span>
         </div>
@@ -439,11 +468,11 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
   expanded = false,
 }: MockupProps) {
   const Icon = model.kind === 'system' ? LayoutDashboard : sectorIcons[model.sector];
-  const section = state.section === 'bookings' && model.featureFlags.bookings ? 'bookings' : model.sections.some((item) => item.id === state.section)
-    ? state.section
-    : model.sections[0]?.id;
+  const viewId = useId();
+  const section = model.sections.some((item) => item.id === state.section)
+    ? state.section : model.sections[0]?.id;
   const effectiveState = section === state.section ? state : { ...state, section: section ?? '' };
-  const commonPage = model.kind !== 'system' && ['contact', 'about', 'bookings'].includes(section ?? '');
+  const activeLabel = model.sections.find(item => item.id === section)?.label ?? 'Inicio';
   const style = {
     '--lp-accent': model.palette.accent,
     '--lp-on-accent': model.palette.onAccent,
@@ -488,39 +517,27 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
         <span className="lp-demo-badge">MAQUETA</span>
       </header>
       <nav className="lp-site-nav" aria-label="Secciones del prototipo">
-        {model.sections.map((item) => (
+        {model.sections.map((item, index) => (
           <button
             type="button"
             key={item.id}
             aria-pressed={section === item.id}
+            aria-controls={viewId}
             onClick={() => onAction({ type: 'section', id: item.id })}
           >
-            {item.label}
+            <span className="lp-nav-index" aria-hidden="true">0{index + 1}</span>{item.label}
           </button>
         ))}
       </nav>
-      {model.kind === 'system' ? (
-        <SystemPreview model={model} state={effectiveState} onAction={onAction} />
-      ) : commonPage || model.kind === 'web' ? (
-        <WebPreview model={model} state={effectiveState} onAction={onAction} />
-      ) : (
-        <CatalogPreview model={model} state={effectiveState} onAction={onAction} expanded={expanded} />
-      )}
-      {model.featureFlags.gallery && model.kind === 'web' && !commonPage && section !== 'services' && (
-        <section className="lp-gallery" aria-label="Galería de ejemplo">
-          <span>ESPACIOS PARA TUS IMÁGENES</span>
-          <div>
-            {[1, 2, 3].map((number) => (
-              <div key={number} aria-label={'Imagen orientativa ' + number}>
-                <Icon size={25} strokeWidth={1.2} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-      {expanded && model.featureFlags.bookings && section !== 'bookings' && model.kind !== 'system' && (
-        <CalendarPreview state={effectiveState} onAction={onAction} />
-      )}
+      <div id={viewId} className="lp-page-content" role="region" aria-label={activeLabel}>
+        {model.kind === 'system' ? (
+          <SystemPreview model={model} state={effectiveState} onAction={onAction} />
+        ) : section === 'products' ? (
+          <CatalogPreview model={model} state={effectiveState} onAction={onAction} expanded={expanded} />
+        ) : (
+          <WebPreview model={model} state={effectiveState} onAction={onAction} expanded={expanded} />
+        )}
+      </div>
       {model.featureFlags.whatsapp && model.kind !== 'system' && (
         <button
           type="button"
@@ -539,6 +556,10 @@ export const SolutionPreviewMockup = memo(function SolutionPreviewMockup({
           <ArrowUpRight size={17} />
         </button>
       )}
+      {expanded && model.kind !== 'system' && <footer className="lp-site-footer">
+        <strong>{model.businessName}<i>.</i></strong><span>{model.sectorName}</span>
+        <small>Diseño de referencia · navegación de ejemplo</small>
+      </footer>}
       <div className="lp-interaction-status" role="status" aria-live="polite">
         {state.notice || 'Puedes probar los controles. Todo lo que ves es una demostración.'}
       </div>

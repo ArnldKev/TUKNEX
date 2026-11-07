@@ -47,3 +47,18 @@ Cancelar, salir de etapa, ocultar la pestaña, cerrar el apartado del campo o de
 Las rutas anteriores de transcripción y organización de texto, las revisiones de borradores remotos autorizados y los contratos de documentos se conservan para compatibilidad v1. No son el flujo público actual ni justifican nuevas actualizaciones remotas. Las consultas sobre registros históricos se atienden desde Contacto; no prometer botones públicos de pausar o borrar que ya no se muestran.
 
 NEXI generativo solicita autorización vigente independiente para cada consulta. Su informe no fija precio, viabilidad ni contrato y no se guarda como informe. Las sugerencias aceptadas pasan al proyecto e historial local; la administración puede analizar registros autorizados desde sus rutas privadas. IA o dictado no disponibles no bloquean escritura, cálculo ni navegación.
+
+## Cuentas del equipo (27 de octubre de 2026)
+El registro público crea clientes. El titular crea y desactiva subadministradores de forma privada, asigna solicitudes y consulta actividad global. El desarrollador entra a /equipo y solo accede a sus asignaciones; cotizaciones y contratos pueden enviarse sin aprobación previa del titular. Enviar habilita su consulta por el cliente, no representa entrega automática de correo ni firma remota. Desactivar cierra sesiones; reasignar retira acceso al anterior responsable conservando documentos e historial. No se modifica el seguimiento previo al envío del cotizador.
+
+## Atención desde una cuenta del equipo
+Un administrador o subadministrador puede completar y guardar el cuestionario en nombre de la persona atendida. Guardar crea una solicitud pendiente de cliente y conserva el actor real. La vinculación posterior requiere seleccionar una cuenta cliente activa del directorio acotado, con búsqueda por nombre, DNI o correo, comprobar sus datos y confirmar; no se infiere identidad a partir de los contactos escritos en el formulario. La vinculación conserva autoría e historial y no permite transferir documentos ya vinculados a otra persona. El cliente solo accede después de la vinculación y dentro de las reglas existentes de publicación de documentos. Los privilegios y la responsabilidad se comprueban en el servidor.
+
+
+## Refinamiento autorizado del 30-10-2026
+
+El aviso de atención de administrador/subadministrador se sitúa antes del grid; no participa como columna. El formulario principal y el boceto se alinean en escritorio y se apilan en móvil. La navegación de la maqueta tiene destinos con contenido distinto y conserva exclusivamente los módulos funcionales elegidos. Seleccionar un estilo inicializa letras, espaciado, portada y fondo con aviso previo; color, escala y orden se conservan.
+
+Tras cerrar o finalizar la bienvenida automática inicial, un visitante sin sesión entra al cotizador. Abrir el propósito manualmente no fuerza navegación; las cuentas identificadas mantienen su acceso. No se añade seguimiento remoto.
+
+Las listas privadas muestran Asignar cliente para solicitudes de equipo sin cuenta, con selector de cuentas activas, búsqueda por nombre/DNI/correo y confirmación; autoría y permisos siguen siendo del servidor. La vista PDF opcional `?preview=current` deriva un boceto imprimible de respuestas y estimación guardadas sin reprecificar ni modificar bytes históricos. La descarga original sin query se conserva. Detalle: [docs/COTIZADOR_STUDIO.md](docs/COTIZADOR_STUDIO.md).

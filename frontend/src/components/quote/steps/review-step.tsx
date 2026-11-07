@@ -9,7 +9,7 @@ import {QuotePreviewFeedback} from '../preview-feedback';
 import {QuoteSummary} from './summary';
 import {QuoteCheckboxField,QuoteDetails,QuoteSelectField,QuoteTextField} from './shared';
 const styles={modern:'Moderno',elegant:'Elegante',minimal:'Sencillo',corporate:'Profesional',bold:'Llamativo',unsure:'Por definir con TUKNEX'};
-export function QuoteReviewStep({onEdit,prices}:{onEdit:(step:number)=>void;prices:Record<string,number>}){
+export function QuoteReviewStep({onEdit,prices,staff=false}:{onEdit:(step:number)=>void;prices:Record<string,number>;staff?:boolean}){
  const {control}=useFormContext<QuoteFormValues>();
  const values=useWatch({control}) as QuoteFormValues;
  const estimate=useMemo(()=>estimateQuote(values,prices),[values,prices]);
@@ -36,14 +36,14 @@ export function QuoteReviewStep({onEdit,prices}:{onEdit:(step:number)=>void;pric
   <section className="quote-separate-costs"><h3>Costos separados</h3><ul>{estimate.thirdPartyCosts.map(item=><li key={item}>{item}</li>)}</ul><p>{estimate.conditions}</p><p>El presupuesto indicado ayuda a priorizar; no modifica el cálculo. El plazo se acuerda con el alcance y los materiales listos.</p></section>
   <QuoteSelectField name="paymentPreference" label="¿Con qué frecuencia prefieres pagar? (opcional)" help="Es una preferencia para conversar. Las cuotas, fechas y condiciones se acuerdan contigo en la propuesta final.">{Object.entries(paymentPreferenceLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</QuoteSelectField>
   <QuoteDetails title="Mi opinión del boceto (opcional)"><QuotePreviewFeedback/></QuoteDetails>
-  <QuoteDetails title="Datos para contactarme sobre esta propuesta (opcional)">
-   <p>Para enviar la solicitud accederás con tu cuenta de cliente. Puedes indicar un contacto para este proyecto; si lo dejas vacío, usaremos el de tu cuenta.</p>
-   <QuoteTextField name="name" label="Tu nombre" placeholder="Nombre para esta solicitud"/>
+  <QuoteDetails title={staff?"Datos del cliente atendido (opcional)":"Datos para contactarme sobre esta propuesta (opcional)"}>
+   <p>{staff?"Anota los datos que el cliente facilite para esta propuesta. Todavía no crean una cuenta ni la vinculan; podrás hacerlo desde el panel cuando el cliente se registre.":"Para enviar la solicitud accederás con tu cuenta de cliente. Puedes indicar un contacto para este proyecto; si lo dejas vacío, usaremos el de tu cuenta."}</p>
+   <QuoteTextField name="name" label={staff?"Nombre del cliente":"Tu nombre"} placeholder="Nombre para esta solicitud"/>
    <QuoteTextField name="email" label="Correo electrónico" type="email" placeholder="tucorreo@ejemplo.com"/>
    <QuoteTextField name="phone" label="WhatsApp" type="tel" placeholder="+51 …"/>
    <QuoteCheckboxField name="marketingConsent">Opcional: deseo recibir contacto comercial sobre este proyecto.</QuoteCheckboxField>
   </QuoteDetails>
-  <div className="quote-demo-note"><ShieldCheck size={20} aria-hidden="true"/><span>Al enviar, tus respuestas y el boceto quedarán asociados a tu cuenta para que TUKNEX revise la solicitud. La estimación se comprobará con las tarifas del servidor. <a href="/privacidad">Uso de tus datos</a>.</span></div>
-  <QuoteCheckboxField name="privacyAcknowledged">Entiendo que al enviar compartiré mis respuestas con TUKNEX para gestionar esta solicitud.</QuoteCheckboxField>
+  <div className="quote-demo-note"><ShieldCheck size={20} aria-hidden="true"/><span>{staff?"Al guardar, las respuestas y el boceto quedarán registrados a cargo del equipo, pendientes de vincular a la cuenta del cliente.":"Al enviar, tus respuestas y el boceto quedarán asociados a tu cuenta para que TUKNEX revise la solicitud."} La estimación se comprobará con las tarifas del servidor. <a href="/privacidad">Uso de tus datos</a>.</span></div>
+  <QuoteCheckboxField name="privacyAcknowledged">{staff?"He informado al cliente de que guardaré estas respuestas en TUKNEX para gestionar su solicitud.":"Entiendo que al enviar compartiré mis respuestas con TUKNEX para gestionar esta solicitud."}</QuoteCheckboxField>
  </>;
 }

@@ -100,6 +100,7 @@ export const LiveSolutionPreview = memo(
           </span>
           <span>{model.styleName}</span>
         </div>
+        <p className="lp-style-description">{model.styleDescription}</p>
         <button
           ref={expandRef}
           type="button"

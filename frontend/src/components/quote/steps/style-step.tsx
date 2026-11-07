@@ -1,20 +1,47 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { Check } from 'lucide-react';
 import { money } from '@/lib/pricing';
 import type { QuoteFormValues } from '@/lib/quote/form';
+import { resolvePreviewPalette } from '@/lib/quote/preview';
+import { resolveVisualPreferences, type VisualPreferences } from '@/lib/quote/visual';
 import { QuoteVisualEditor } from '../visual-editor';
 import { QuoteDetails, QuoteSelectField, QuoteStepHelp, QuoteTextField, type QuoteStepProps } from './shared';
+import './style-step.css';
 
 const styles = [
-  { id: 'modern' as const, name: 'Moderno', detail: 'Claro, actual y con personalidad.' },
-  { id: 'elegant' as const, name: 'Elegante', detail: 'Sobrio y cuidado.' },
-  { id: 'minimal' as const, name: 'Sencillo', detail: 'Lo esencial, fácil de recorrer.' },
-  { id: 'bold' as const, name: 'Llamativo', detail: 'Color y energía para destacar.' },
-  { id: 'corporate' as const, name: 'Profesional', detail: 'Orden y confianza para tu negocio.' },
-  { id: 'unsure' as const, name: 'No estoy seguro', detail: 'Quiero orientación para elegir.' },
+  { id: 'modern' as const, name: 'Moderno', detail: 'Portada asimétrica, tarjetas suaves y letras claras. Una imagen actual y cercana.', title: 'Ideas que avanzan.', badge: 'TU PRÓXIMO PASO' },
+  { id: 'elegant' as const, name: 'Elegante', detail: 'Letras con serifas, líneas finas y una portada editorial. Un ritmo sereno y cuidado.', title: 'Cada detalle cuenta.', badge: 'HECHO CON CUIDADO' },
+  { id: 'minimal' as const, name: 'Sencillo', detail: 'Pocos elementos, mucho espacio y un mensaje directo. Lo importante se encuentra fácil.', title: 'Solo lo esencial.', badge: 'MENOS, MEJOR' },
+  { id: 'bold' as const, name: 'Llamativo', detail: 'Títulos grandes, formas con carácter y contraste. Tu mensaje toma el protagonismo.', title: 'Hazte notar.', badge: 'UNA IDEA CON FUERZA' },
+  { id: 'corporate' as const, name: 'Profesional', detail: 'Bloques ordenados, geometría recta y datos claros. Una presentación formal y confiable.', title: 'Todo en su lugar.', badge: 'CLARIDAD Y CONFIANZA' },
+  { id: 'unsure' as const, name: 'No estoy seguro', detail: 'Conservamos tus preferencias y definimos la dirección visual contigo.', title: 'Lo decidimos juntos.', badge: 'TU IDEA, A TU MANERA' },
 ];
+const directionPresets = {
+  modern: {font:'sans',spacing:'airy',hero:'split',surface:'tinted'},
+  elegant: {font:'editorial',spacing:'airy',hero:'split',surface:'paper'},
+  minimal: {font:'sans',spacing:'airy',hero:'centered',surface:'paper'},
+  bold: {font:'sans',spacing:'compact',hero:'split',surface:'tinted'},
+  corporate: {font:'sans',spacing:'compact',hero:'split',surface:'tinted'},
+} as const;
+/** Explicit style choice supplies a starting direction; independent controls can override it later. */
+export function styleDirectionPreferences(style:QuoteFormValues['stylePreference'],current:VisualPreferences):VisualPreferences {
+  return style==='unsure'?current:{...current,...directionPresets[style]};
+}
+function StyleSample({item,colors}:{item:typeof styles[number];colors:string}) {
+  const palette=resolvePreviewPalette(colors,item.id);
+  const variables={
+    '--qstyle-accent':palette.accent,'--qstyle-on-accent':palette.onAccent,
+    '--qstyle-tint':palette.surface,'--qstyle-ink':palette.ink,
+  } as CSSProperties;
+  return <span className={'qstyle-preview qstyle-preview-'+item.id} style={variables} aria-hidden="true">
+    <span className="qstyle-mini-bar"><i/><span/><i/></span>
+    <span className="qstyle-mini-hero"><span className="qstyle-mini-copy"><span>{item.badge}</span><b>{item.title}</b><i/><em/></span><span className="qstyle-mini-art"><i/><i/><i/></span></span>
+    <span className="qstyle-mini-bottom"><i/><i/><i/></span>
+  </span>;
+}
 const palettes = [
   { id: 'turquesa', name: 'Turquesa', color: '#00b9ae' },
   { id: 'azul', name: 'Azul', color: '#176ac6' },
@@ -23,15 +50,21 @@ const palettes = [
 ];
 export function QuoteStyleStep({ prices }: QuoteStepProps) {
   const { control, setValue } = useFormContext<QuoteFormValues>();
-  const [style, colors, materials] = useWatch({ control, name: ['stylePreference', 'colorsLiked', 'materials'], exact: true });
+  const [style, colors, materials, rawVisual] = useWatch({ control, name: ['stylePreference', 'colorsLiked', 'materials', 'visualPreferences'], exact: true });
+  const preferences=resolveVisualPreferences(rawVisual);
+  function chooseStyle(next:QuoteFormValues['stylePreference']) {
+    setValue('stylePreference',next,{shouldDirty:true});
+    if(next!=='unsure')setValue('visualPreferences',styleDirectionPreferences(next,preferences),{shouldDirty:true});
+  }
   return <>
+    <p className="qstyle-intro">Elige la forma de presentar tu idea. Cada estilo aplica letras, espacio, portada y fondo de partida. Conservamos los colores que hayas elegido; después puedes personalizarlo.</p>
     <div className="quote-style-grid" role="group" aria-label="¿Cómo te gustaría que se vea?">
-      {styles.map(item => <button type="button" key={item.id}
-        className={`quote-style-option style-${item.id} ${style === item.id ? 'selected' : ''}`}
-        aria-pressed={style === item.id} onClick={() => setValue('stylePreference', item.id, { shouldDirty: true })}>
-        <span className="quote-style-sample" aria-hidden="true"><i /><i /><i /></span>
-        <strong>{item.name}</strong><small>{item.detail}</small>
-        {style === item.id && <Check size={18} aria-hidden="true" />}
+      {styles.map(item => <button type="button" key={item.id} data-style={item.id}
+        className={`quote-style-option qstyle-card style-${item.id} ${style === item.id ? 'selected' : ''}`}
+        aria-pressed={style === item.id} onClick={() => chooseStyle(item.id)}>
+        <StyleSample item={item} colors={colors}/>
+        <span className="qstyle-copy"><strong>{item.name}</strong><small>{item.detail}</small></span>
+        <span className="qstyle-choice">{style === item.id?<><Check size={16} aria-hidden="true"/>Elegido</>:<>Elegir esta dirección<span aria-hidden="true">↗</span></>}</span>
       </button>)}
     </div>
     <fieldset className="quote-palette-group">

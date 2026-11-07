@@ -1,0 +1,88 @@
+'use client';
+import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
+import Link from 'next/link';
+import {RoleGate,useDemoAuth} from '@/lib/platform/auth';
+import {AccountShell} from '@/components/auth/account-shell';
+import {billingRequest,pdfBlob,savePdf} from '@/lib/billing/api';
+import {DocumentEditor} from '@/components/billing/document-forms';
+import {statusLabels,paymentModes,type BillingData,type BillingQuote,type Contract} from '@/lib/billing/types';
+import {amount} from '@/lib/billing/finance';
+import {quoteAnswers} from '@/lib/quote/presentation';
+import {QuoteTeamNexiAi} from '@/components/quote/nexi-ai';
+import {StatusBadge} from '@/components/ui/status-badge';
+import '@/components/billing/billing.css';
+import './team.css';
+import {RecordList} from '@/components/records/record-list';
+import {RecordDetail} from '@/components/records/record-detail';
+import {QuoteRequestsPanel} from '@/components/quote/quote-requests-panel';
+import {QuoteClientAssignment} from '@/components/quote/quote-client-assignment';
+import type {SavedQuoteRequest} from '@/lib/quote/requests';
+import {TeamDocumentRecords,TeamDocumentDetail,type TeamDocumentSelection} from './team-document-records';
+type Member={id:string;name:string;email:string;role:'subadmin';active:boolean};
+type Work={id:string;requestId:string;clientId:string|null;title:string;assigneeId:string|null;assigneeName:string|null;revision:number;status:string};
+type Activity={cursor:string;projectId:string|null;id:string;actorName:string;actorRole:string|null;action:string;entityId:string;createdAt:string;data:Record<string,unknown>};
+type Dashboard={projects:Work[];members:Member[];unassignedRequests:{id:string;number:string;title:string}[];activity:Activity[]};
+type Detail={project:Work;request:SavedQuoteRequest|null;data:BillingData;activity:Activity[]};
+const stages:Record<string,string>={pending:'Por iniciar',working:'En desarrollo',review:'En revisión',completed:'Terminado'};
+const actions:Record<string,string>={proyecto_asignado:'Proyecto asignado',responsable_asignado:'Responsable cambiado',avance_proyecto:'Avance actualizado',subadministrador_creado:'Subadministrador creado',subadministrador_desactivado:'Acceso desactivado',subadministrador_activado:'Acceso reactivado',cotizacion_guardada:'Cotización guardada',contrato_creado:'Contrato creado',contrato_editado:'Contrato editado',estado_contrato:'Estado de contrato actualizado',revision_estado_contrato:'Revisión del contrato',solicitud_cotizacion_guardada:'Solicitud enviada por cliente',cliente_guardado:'Datos de cliente actualizados',aceptacion_registrada:'Aceptación registrada',pago_registrado:'Pago registrado',pago_anulado:'Pago anulado',solicitud_equipo_creada:'Cotización preparada por el equipo',solicitud_cliente_vinculado:'Cliente vinculado a la cotización'};
+const errorText=(e:unknown)=>e instanceof Error?e.message:'No pudimos completar la operación.';
+function ActivityList({items,projects,projectId}:{items:Activity[];projects:Work[];projectId?:string}){
+ const [older,setOlder]=useState<Activity[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[more,setMore]=useState(items.length===150);
+ const all=[...items,...older];
+ async function loadOlder(){const last=all[all.length-1];if(!last)return;setBusy(true);setError('');try{const next=await billingRequest<Activity[]>('team/activity?cursor='+encodeURIComponent(last.cursor)+(projectId?'&projectId='+projectId:''));setOlder(old=>[...old,...next]);setMore(next.length===150);}catch(e){setError(errorText(e));}finally{setBusy(false);}}
+ return <section className="portal-panel team-activity" id="team-activity"><h2>Historial de actividad</h2><p>Los registros anteriores a esta función pueden no identificar al autor.</p>{!all.length?<p>Aún no hay actividad registrada.</p>:<ol>{all.map(e=><li key={e.id}><div><strong>{actions[e.action]||e.action.replaceAll('_',' ')}</strong><time dateTime={e.createdAt}>{new Date(e.createdAt).toLocaleString('es-PE',{timeZone:'America/Lima'})}</time></div><p>{e.projectId&&<strong>{projects.find(p=>p.id===e.projectId)?.title||'Proyecto'} · </strong>}{e.actorName}{e.actorRole==='subadmin'?' · Subadministrador':e.actorRole==='admin'?' · Administrador principal':e.actorRole==='client'?' · Cliente':''}</p><Revision data={e.data}/></li>)}</ol>}{error&&<p role="alert">{error}</p>}{more&&<button className="platform-secondary" disabled={busy} onClick={()=>void loadOlder()}>{busy?'Cargando…':'Ver actividad anterior'}</button>}</section>;
+}
+function paymentDescription(value:object){const p=value as {mode:string;rate:number;count:number;firstDueDate:string};return (paymentModes[p.mode as keyof typeof paymentModes]?.label||p.mode)+' · '+p.count+' cuota(s) · recargo '+p.rate+'% · desde '+p.firstDueDate;}
+function Revision({data}:{data:Record<string,unknown>}){
+ const before=data.before,after=data.after;
+ if(!after||typeof after!=='object')return null;
+ const fields:Record<string,string>={projectName:'Proyecto',scope:'Alcance',conditions:'Condiciones',observations:'Observaciones',delivery:'Plazo',baseCents:'Precio base',status:'Estado',version:'Versión',startDate:'Inicio',deliveryDate:'Entrega',totalCents:'Importe total',plan:'Forma de pago'};
+ const previous=before&&typeof before==='object'?before as Record<string,unknown>:{},next=after as Record<string,unknown>;
+ const changed=Object.keys(fields).filter(k=>next[k]!==undefined&&JSON.stringify(next[k])!==JSON.stringify(previous[k]));
+ const display=(k:string,v:unknown)=>v===undefined?'Sin versión anterior':k.endsWith('Cents')?amount(Number(v)):k==='plan'&&v&&typeof v==='object'?paymentDescription(v):k==='status'?(statusLabels[v as keyof typeof statusLabels]||String(v)):String(v);
+ return changed.length?<details><summary>Ver cambios de esta revisión</summary>{changed.map(k=><div className="team-change" key={k}><h4>{fields[k]}</h4><p><b>Antes:</b> {display(k,previous[k])}</p><p><b>Después:</b> {display(k,next[k])}</p></div>)}</details>:null;
+}
+export function TeamWorkspace({owner=false}:{owner?:boolean}){
+ const {user}=useDemoAuth();
+ return <RoleGate allowed={owner?['admin']:['subadmin']}><AccountShell admin={owner} team={!owner} title={owner?'Equipo y supervisión':'Mis proyectos asignados'}><Workspace key={user?.id} owner={owner}/></AccountShell></RoleGate>;
+}
+function Workspace({owner}:{owner:boolean}){
+ const [dash,setDash]=useState<Dashboard|null>(null),[detail,setDetail]=useState<Detail|null>(null),[selected,setSelected]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [documentSelection,setDocumentSelection]=useState<TeamDocumentSelection|null>(null);
+ const [editor,setEditor]=useState<{kind:'quote'|'contract';initial?:BillingQuote|Contract}|null>(null),[epoch,setEpoch]=useState(0);
+ const projectHeading=useRef<HTMLHeadingElement>(null),editorHeading=useRef<HTMLHeadingElement>(null),returnFocus=useRef<HTMLElement|null>(null),runId=useRef(0);
+ const reload=useCallback(async()=>{const run=++runId.current;setLoading(true);try{const next=await billingRequest<Dashboard>('team/dashboard');if(run!==runId.current)return;setDash(next);setSelected(old=>next.projects.some(p=>p.id===old)?old:'');setEpoch(e=>e+1);}catch(e){if(run===runId.current)setError(errorText(e));}finally{if(run===runId.current)setLoading(false);}},[]);
+ useEffect(()=>{void reload();return()=>{runId.current++;};},[reload]);
+ useEffect(()=>{setDetail(null);setEditor(null);setDocumentSelection(null);if(!selected)return;const controller=new AbortController();void billingRequest<Detail>('team/projects/'+selected,{signal:controller.signal}).then(next=>{if(!controller.signal.aborted)setDetail(next);}).catch(e=>{if(!controller.signal.aborted)setError(errorText(e));});return()=>controller.abort();},[selected,epoch]);
+ useEffect(()=>{if(editor){editorHeading.current?.focus();}},[editor]);
+ async function act(path:string,body:unknown,method='POST',success='Cambios guardados.'){
+  setBusy(true);setError('');setNotice('');try{await billingRequest(path,{method,body:JSON.stringify(body)});setNotice(success);await reload();return true;}catch(e){setError(errorText(e));return false;}finally{setBusy(false);}
+ }
+ async function member(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=e.currentTarget,f=new FormData(form);if(await act('team/members',{name:f.get('name'),email:f.get('email'),password:f.get('password')},'POST','Subadministrador creado. Entrará desde el acceso habitual.'))form.reset();}
+ async function assign(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);await act('team/projects',{requestId:f.get('requestId'),assigneeId:f.get('assigneeId')||null});}
+ async function pdf(kind:'quotes'|'contracts',id:string){setBusy(true);setError('');try{const d=await pdfBlob('team/projects/'+selected+'/'+kind+'/'+id+'/pdf');savePdf(d.blob,d.filename);}catch(e){setError(errorText(e));}finally{setBusy(false);}}
+ function openEditor(kind:'quote'|'contract',target:HTMLElement,initial?:BillingQuote|Contract){setDocumentSelection(null);returnFocus.current=target;setEditor({kind,initial});}
+ function closeEditor(){setEditor(null);if(returnFocus.current?.isConnected)returnFocus.current.focus();else projectHeading.current?.focus();}
+ return <div className="team-workspace">
+  <div className="portal-page-heading"><div><p className="platform-kicker">{owner?'TU EQUIPO, CON VISIÓN COMPLETA':'ESPACIO DEL DESARROLLADOR'}</p><h1>{owner?'Equipo y proyectos':'Tus próximos proyectos'}</h1><p>{owner?'Supervisa responsables, alcances, precios, contratos y cambios.':'Prepara y envía propuestas de tus proyectos. El administrador principal puede revisar toda la actividad.'}</p></div><button className="platform-secondary" disabled={loading||busy} onClick={()=>void reload()}>Actualizar</button></div>
+  <div className="team-actions"><Link className="platform-button" href="/cotizar">Cotizar para un cliente</Link></div>
+  <div aria-live="polite">{notice&&<p className="platform-info">{notice}</p>}</div>{error&&<p className="platform-error" role="alert">{error}</p>}
+  {owner&&<details className="portal-panel"><summary>Gestionar subadministradores</summary><p>Solo tú creas estas cuentas. No tienen acceso a precios globales, cobros ni proyectos de otros desarrolladores.</p><form onSubmit={member} className="billing-form team-member-form"><label>Nombre<input name="name" required minLength={2} maxLength={100} autoComplete="off"/></label><label>Correo de acceso<input name="email" type="email" required autoComplete="off"/></label><label>Contraseña inicial<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password"/></label><button className="platform-button" disabled={busy}>Crear subadministrador</button></form>{dash?.members.map(m=><div className="team-member" key={m.id}><div><strong>{m.name}</strong><p>{m.email} · {m.active?'Activo':'Sin acceso'}</p></div><button className="platform-secondary" disabled={busy} onClick={()=>void act('team/members/'+m.id,{active:!m.active},'PATCH',m.active?'Acceso desactivado y sesiones cerradas.':'Acceso reactivado.')}>{m.active?'Desactivar acceso':'Reactivar acceso'}</button></div>)}</details>}
+  {owner&&<section className="portal-panel"><h2>Asignar una solicitud</h2>{dash?.unassignedRequests.length?<form onSubmit={assign} className="billing-form"><label>Solicitud pendiente<select name="requestId" required>{dash.unassignedRequests.map(r=><option key={r.id} value={r.id}>{r.number} · {r.title}</option>)}</select></label><label>Responsable<select name="assigneeId"><option value="">Sin asignar por ahora</option>{dash.members.filter(m=>m.active).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><button className="platform-button" disabled={busy}>Crear proyecto y asignar</button></form>:<p>No hay solicitudes pendientes de asignación. Las nuevas solicitudes enviadas aparecerán aquí.</p>}<Link href="/admin/solicitudes">Consultar todas las solicitudes</Link></section>}
+  {!owner&&<section id="team-requests"><QuoteRequestsPanel staff/></section>}
+  <section className="portal-panel" id="project-work"><h2>{owner?'Proyectos del equipo':'Proyectos asignados'}</h2>{loading&&!dash?<p role="status">Cargando proyectos…</p>:<RecordList items={dash?.projects||[]} getKey={project=>project.id} getSearchText={project=>[project.title,project.assigneeName,stages[project.status],project.clientId?'Cliente vinculado':'Pendiente de cliente'].join(' ')} searchLabel="Buscar proyectos" emptyMessage={owner?'Guarda una cotización o asigna una solicitud para comenzar.':'Todavía no tienes proyectos asignados.'} renderItem={project=><div className="team-record-row"><div><strong>{project.title}</strong><span>{project.assigneeName||'Sin responsable'} · {project.clientId?'Cliente vinculado':'Pendiente de cliente'}</span></div><StatusBadge status={project.status} label={stages[project.status]}/><button type="button" className="platform-secondary" onClick={()=>{setSelected(project.id);setError('');}}>Ver detalles<span className="sr-only"> de {project.title}</span></button></div>}/>}</section>
+  {selected&&<RecordDetail title={detail?.project.title||'Detalle del proyecto'} onClose={()=>{setSelected('');setEditor(null);setDocumentSelection(null);}}><div className="team-workspace">{notice&&<p className="platform-info" role="status">{notice}</p>}{error&&<p className="platform-error" role="alert">{error}</p>}{!detail?(error?<button className="platform-secondary" type="button" onClick={()=>{setError('');setEpoch(value=>value+1);}}>Volver a cargar el proyecto</button>:<p role="status">Cargando el proyecto seleccionado…</p>):<>
+<section className="portal-panel"><div className="team-card-heading"><div><p className="platform-kicker">PROYECTO SELECCIONADO</p><h2 ref={projectHeading} tabIndex={-1}>{detail.project.title}</h2><p>{detail.project.clientId?<>Cliente: {detail.data.clients[0]?.name} · {detail.data.clients[0]?.email}</>:'Pendiente de vincular a una cuenta de cliente'}</p></div><StatusBadge status={detail.project.status} label={stages[detail.project.status]}/></div>
+   {detail.request&&<QuoteClientAssignment key={detail.request.id} request={detail.request} disabled={busy} onLinked={async()=>{await reload();}}/>}
+   {owner&&<form className="team-inline-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void act('team/projects/'+selected+'/assignment',{assigneeId:f.get('assigneeId')||null,revision:detail.project.revision},'PATCH');}}><label>Responsable<select name="assigneeId" key={selected+':'+detail.project.revision} defaultValue={detail.project.assigneeId||''}><option value="">Sin asignar</option>{dash?.members.filter(m=>m.active||m.id===detail.project.assigneeId).map(m=><option key={m.id} value={m.id} disabled={!m.active}>{m.name}{!m.active?' (sin acceso)':''}</option>)}</select></label><button className="platform-secondary" disabled={busy}>Cambiar responsable</button></form>}
+   <form className="team-inline-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void act('team/projects/'+selected+'/progress',{status:f.get('status'),revision:detail.project.revision},'PATCH');}}><label>Avance del proyecto<select name="status" key={selected+':progress:'+detail.project.revision} defaultValue={detail.project.status}>{Object.entries(stages).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><button className="platform-secondary" disabled={busy}>Guardar avance</button></form>
+   {detail.request&&<details><summary>Respuestas originales del cliente · {detail.request.number}</summary><dl className="team-answers">{quoteAnswers(detail.request.values).map((a,i)=><div key={i}><dt>{a.question}</dt><dd>{a.value||'Sin indicar'}</dd></div>)}</dl></details>}
+  </section>
+  {detail.request&&<QuoteTeamNexiAi key={detail.project.id} workId={detail.project.id} requestId={detail.request.id} values={detail.request.values} disabled={busy}/>}
+  <TeamDocumentRecords quotes={detail.data.quotes} contracts={detail.data.contracts} busy={busy} canCreate={!!detail.project.clientId} onCreate={openEditor} onOpen={setDocumentSelection}/>
+  {documentSelection&&<TeamDocumentDetail selection={documentSelection} quotes={detail.data.quotes} contracts={detail.data.contracts} busy={busy} error={error} notice={notice} onClose={()=>setDocumentSelection(null)} onEdit={openEditor} onPdf={(kind,id)=>void pdf(kind,id)} onConvert={id=>void act('team/projects/'+selected+'/quotes/'+id+'/contract',{})} onStatus={(contract,status)=>void act('team/projects/'+selected+'/contracts/'+contract.id+'/status',{status,version:contract.version})}/>}
+  {editor&&detail.project.clientId&&<section className="portal-panel team-editor"><div className="team-card-heading"><h2 tabIndex={-1} ref={editorHeading}>{editor.initial?'Editar':'Preparar'} {editor.kind==='quote'?'cotización':'contrato'}</h2><button className="platform-secondary" onClick={closeEditor}>Cerrar editor</button></div><DocumentEditor key={selected+editor.kind+(editor.initial?.id||'new')} kind={editor.kind} initial={editor.initial} data={detail.data} apiPath={'team/projects/'+selected} onDone={()=>{closeEditor();setNotice('Documento guardado. Puedes revisar su PDF.');void reload();}}/></section>}
+  {!owner&&<ActivityList key={selected+':'+epoch} items={detail.activity} projects={[detail.project]} projectId={selected}/>}</>}</div></RecordDetail>}
+  {owner&&dash&&<ActivityList key={epoch} items={dash.activity} projects={dash.projects}/>}
+ </div>;
+}

@@ -63,6 +63,7 @@ export interface SolutionPreviewModel {
   sectorName: string;
   style: PreviewStyle;
   styleName: string;
+  styleDescription: string;
   design: QuoteInput['design'];
   palette: PreviewPalette;
   presentation: VisualPreferences;
@@ -304,11 +305,12 @@ export function buildSolutionPreview(
   const name = clean(businessName, 72) || 'Tu negocio';
   const offering = clean(context.offering, 145);
   const topic = normalize(name + ' ' + offering);
-  const sector: PreviewSector = /deport|sport|zapatilla|entrenamiento/.test(topic)
-    ? 'sports'
-    : context.sector && Object.prototype.hasOwnProperty.call(sectors, context.sector)
-      ? (context.sector as PreviewSector)
-      : 'other';
+  const chosenSector = context.sector && Object.prototype.hasOwnProperty.call(sectors, context.sector)
+    ? context.sector as PreviewSector : undefined;
+  // Sports specializes a general commerce/other choice; it cannot override an explicit clinic or school.
+  const sports = (!chosenSector || chosenSector === 'commerce' || chosenSector === 'other') &&
+    /deport|sport|zapatilla|entrenamiento/.test(topic);
+  const sector: PreviewSector = sports ? 'sports' : chosenSector ?? 'other';
   const copy = sectors[sector];
   const style: PreviewStyle = ['modern', 'minimal', 'elegant', 'corporate', 'bold'].includes(
     context.stylePreference ?? '',
@@ -339,22 +341,26 @@ export function buildSolutionPreview(
   }));
   const presentation = resolveVisualPreferences(context.visualPreferences);
   const customTitle = clean(context.firstImpression, 100);
-  const sections: PreviewSection[] =
-    kind === 'system'
-      ? modules.map((module) => ({ id: module.id, label: module.label }))
-      : kind === 'catalog'
-        ? [
-            { id: 'products', label: sector === 'food' ? 'La carta' : 'Colección' },
-            { id: 'about', label: 'Nuestra propuesta' },
-          ]
-        : [
-            { id: 'inicio', label: 'Inicio' },
-            { id: 'services', label: sector === 'food' ? 'Nuestra propuesta' : 'Servicios' },
-          ];
-  if (kind !== 'system' && featureFlags.contact) sections.push({ id: 'contact', label: 'Contacto' });
-  if (kind !== 'system' && presentation.sectionOrder === 'contact' && featureFlags.contact) {
-    const contactIndex = sections.findIndex(section => section.id === 'contact');
-    sections.splice(1, 0, ...sections.splice(contactIndex, 1));
+  // Navigation describes the selected scope. Informational pages do not add paid modules.
+  const offeringLabel = kind === 'catalog'
+    ? sector === 'food' ? 'La carta' : sector === 'education' ? 'Programas' : 'Colección'
+    : sector === 'food' ? 'La propuesta' : sector === 'education' ? 'Programas' : 'Servicios';
+  const sections: PreviewSection[] = kind === 'system'
+    ? modules.map((module) => ({ id: module.id, label: module.label }))
+    : [
+        { id: 'inicio', label: 'Inicio' },
+        { id: kind === 'catalog' ? 'products' : 'services', label: offeringLabel },
+        { id: 'about', label: sector === 'food' ? 'El negocio' : 'Nosotros' },
+      ];
+  if (kind !== 'system') {
+    if (featureFlags.contact || featureFlags.whatsapp) sections.push({ id: 'contact', label: 'Contacto' });
+    if (featureFlags.bookings) sections.push({ id: 'bookings', label: 'Reservas' });
+    // A sixth menu item is unnecessary: gallery is then part of the business page.
+    if (featureFlags.gallery && sections.length < 5) sections.push({ id: 'gallery', label: 'Galería' });
+    if (presentation.sectionOrder === 'contact') {
+      const contactIndex = sections.findIndex(section => section.id === 'contact');
+      if (contactIndex > 0) sections.splice(1, 0, ...sections.splice(contactIndex, 1));
+    }
   }
   let action: SolutionPreviewModel['hero']['action'] =
     kind === 'catalog'
@@ -363,7 +369,7 @@ export function buildSolutionPreview(
         ? 'create'
         : featureFlags.bookings
           ? 'bookings'
-          : featureFlags.contact
+          : featureFlags.contact || featureFlags.whatsapp
             ? 'contact'
             : 'services';
   let cta =
@@ -375,10 +381,10 @@ export function buildSolutionPreview(
           : 'Explorar productos'
         : featureFlags.bookings
           ? 'Explorar fechas'
-          : context.goal === 'orders'
-            ? 'Preparar una consulta'
+          : featureFlags.contact || featureFlags.whatsapp
+            ? context.goal === 'orders' ? 'Preparar una consulta' : 'Conversemos'
             : 'Conoce nuestra propuesta';
-  if (kind === 'web' && context.goal === 'visibility' && !featureFlags.contact && !featureFlags.bookings) {
+  if (kind === 'web' && context.goal === 'visibility' && !featureFlags.contact && !featureFlags.whatsapp && !featureFlags.bookings) {
     action = 'services';
     cta = 'Descubre lo que hacemos';
   }
@@ -408,6 +414,13 @@ export function buildSolutionPreview(
       elegant: 'Elegante',
       corporate: 'Corporativo',
       bold: 'Con personalidad',
+    }[style],
+    styleDescription: {
+      modern: 'Composición dinámica, tarjetas suaves y acentos de marca.',
+      minimal: 'Más espacio, líneas discretas y contenido como protagonista.',
+      elegant: 'Ritmo editorial, marcos finos y detalles cuidados.',
+      corporate: 'Estructura ordenada, geometría recta y jerarquía clara.',
+      bold: 'Titulares contundentes, contraste y formas con carácter.',
     }[style],
     design: input.design,
     palette: resolvePreviewPalette(context.colorsLiked, style),

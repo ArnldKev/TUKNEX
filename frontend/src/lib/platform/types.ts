@@ -1,5 +1,5 @@
 export interface RegistrationInput {name:string;email:string;password:string;phone:string;dni:string;privacyConsent:boolean}
-export type UserRole = 'client' | 'admin';
+export type UserRole = 'client' | 'admin' | 'subadmin';
 export interface User {
   id: string;
   role: UserRole;

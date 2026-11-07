@@ -19,7 +19,7 @@ npm run admin:create -- --connection-file .env.admin.local
 5. Introduce nombre, correo y contraseña de al menos 12 caracteres. La contraseña y su confirmación se ocultan; no se pasan como argumentos ni se escriben en archivos.
 6. Inicia sesión en `https://tuknex.netlify.app/acceder` con esos datos.
 
-Para otro administrador, repite el comando con un correo diferente. Si un correo ya existe, el comando lo rechaza: no convierte clientes en administradores ni cambia contraseñas. El acceso privado a PostgreSQL es la autorización para operar este comando. No expongas este comando mediante un endpoint ni lo uses como comando de arranque de Render.
+Solo puede existir un administrador principal. Para incorporar desarrolladores, entra en /admin/equipo y crea cuentas de subadministrador. El comando rechaza un segundo titular. Consulta ../docs/SUBADMINISTRADORES.md antes de migrar si existen varias cuentas administradoras históricas. Si un correo ya existe, el comando lo rechaza: no convierte clientes en administradores ni cambia contraseñas. El acceso privado a PostgreSQL es la autorización para operar este comando. No expongas este comando mediante un endpoint ni lo uses como comando de arranque de Render.
 
 El archivo `.env.admin.local` queda excluido por `.gitignore`. No lo subas a GitHub, no compartas su contenido y elimínalo cuando termines si no necesitas conservarlo. Este procedimiento no copia las cuentas/cotizaciones de PostgreSQL local a Neon.
 

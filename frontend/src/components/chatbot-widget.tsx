@@ -428,7 +428,7 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
           aria-label={
             open
               ? `Minimizar ${brand.assistantName}`
-              : `Hablar con ${brand.assistantName}, tu compañero digital`
+              : `${brand.assistantSubtitle}. Habla con ${brand.assistantName}`
           }
           aria-expanded={open}
           whileHover={{ y: -2 }}

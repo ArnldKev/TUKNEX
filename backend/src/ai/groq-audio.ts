@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {cancelProviderBody} from './provider-response';
 import {AUDIO_MAX_BYTES,AUDIO_MAX_SECONDS,audioTranscriptSchema,audioRewriteSchema,validateAudioRewrite,AUDIO_FIELDS,type AudioField} from '../domain/quote/audio';
 import {AI_MODELS,AiProviderError} from './groq';
 import {redactAiText} from '../domain/quote/ai';
@@ -28,11 +29,11 @@ async function provider(path:string,body:FormData|string,signal:AbortSignal){
  try{
   if(controller.signal.aborted)throw Error('cancelled');
   const response=await fetch('https://api.groq.com/openai/v1/'+path,{method:'POST',signal:controller.signal,headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,...(typeof body==='string'?{'Content-Type':'application/json'}:{})},body});
-  if(response.status===429)throw new AiProviderError(429,'La cuota gratuita de audio está ocupada. Puedes escribir y volver más tarde.');
-  if(!response.ok)throw new AiProviderError(503,'No pudimos procesar el audio. Puedes continuar escribiendo.');
-  if(Number(response.headers.get('content-length')||0)>16384||!response.body)throw new AiProviderError(502,'La respuesta de audio no es válida.');
+  if(response.status===429){await cancelProviderBody(response.body);throw new AiProviderError(429,'La cuota gratuita de audio está ocupada. Puedes escribir y volver más tarde.');}
+  if(!response.ok){await cancelProviderBody(response.body);throw new AiProviderError(503,'No pudimos procesar el audio. Puedes continuar escribiendo.');}
+  if(Number(response.headers.get('content-length')||0)>16384||!response.body){await cancelProviderBody(response.body);throw new AiProviderError(502,'La respuesta de audio no es válida.');}
   const reader=response.body.getReader(),chunks:Uint8Array[]=[];let size=0;
-  try{while(true){const item=await reader.read();if(item.done)break;size+=item.value.length;if(size>16384){await reader.cancel();throw new AiProviderError(502,'La respuesta de audio es demasiado extensa.');}chunks.push(item.value);}}finally{reader.releaseLock();}
+  try{while(true){const item=await reader.read();if(item.done)break;size+=item.value.length;if(size>16384){await cancelProviderBody(reader);throw new AiProviderError(502,'La respuesta de audio es demasiado extensa.');}chunks.push(item.value);}}finally{reader.releaseLock();}
   try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new AiProviderError(502,'No recibimos una respuesta de audio válida.');}
  }catch(e){if(e instanceof AiProviderError)throw e;throw new AiProviderError(503,controller.signal.aborted?'Se canceló o agotó el tiempo de audio. Puedes seguir escribiendo.':'El servicio de audio no está disponible. Puedes seguir escribiendo.');}
  finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);}
@@ -43,7 +44,9 @@ export async function transcribeAudio(file:Express.Multer.File,signal:AbortSigna
  body.append('model',AUDIO_MODEL);body.append('language','es');body.append('response_format','verbose_json');body.append('temperature','0');
  const raw=await provider('audio/transcriptions',body,signal);
  const parsed=audioTranscriptSchema.safeParse({text:raw?.text,duration:raw?.duration});
- if(!parsed.success||Array.isArray(raw?.segments)&&raw.segments.length&&raw.segments.every((s:{no_speech_prob?:number})=>(s.no_speech_prob??0)>0.8))
+ const segments=z.array(z.object({no_speech_prob:z.number().min(0).max(1).nullish()}).passthrough()).nullish().safeParse(raw?.segments);
+ if(!segments.success)throw new AiProviderError(502,'La respuesta de transcripción no es válida.');
+ if(!parsed.success||segments.data?.length&&segments.data.every(segment=>(segment.no_speech_prob??0)>0.8))
   throw new AiProviderError(422,'No se reconoció una respuesta clara de hasta '+AUDIO_MAX_SECONDS+' segundos. Revisa el audio o vuelve a grabar.');
  return parsed.data;
 }

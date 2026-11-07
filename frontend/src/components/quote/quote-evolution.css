@@ -1,0 +1,276 @@
+/* FUTURE CONNECTED: presentation only. Tokens remain owned by quote-redesign.css. */
+.experience.future-connected .quote-workshop {
+  --qe-tint: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  --qe-shadow: 0 12px 36px color-mix(in srgb, var(--foreground) 5%, transparent);
+  --qe-sticky-top: calc(var(--fc-header-height, 84px) + 8px);
+  color-scheme: light;
+  padding-block: clamp(32px, 5vw, 64px) 80px;
+  background: var(--background);
+}
+
+.experience.future-connected .quote-workshop .quote-route-intro {
+  margin-bottom: 32px;
+  border-left: 1px solid var(--primary);
+  padding-left: 22px;
+}
+.experience.future-connected .quote-workshop .quote-route-intro > span {
+  color: var(--primary);
+  font-size: .75rem;
+  font-weight: 750;
+  letter-spacing: .14em;
+}
+.experience.future-connected .quote-workshop .quote-route-intro h1 {
+  max-width: 24ch;
+  margin-block: 12px;
+  font-size: clamp(1.9rem, 3.6vw, 2.8rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.experience.future-connected .quote-workshop .quote-route-intro p {
+  max-width: 66ch;
+  color: var(--secondary);
+}
+.experience.future-connected .quote-workshop .quote-guided { gap: 28px; }
+.experience.future-connected .quote-workshop .quote-layout {
+  border-color: var(--line);
+  box-shadow: var(--qe-shadow);
+  background: var(--surface);
+}
+.experience.future-connected .quote-workshop .quote-sidebar {
+  padding: 14px;
+  border-radius: 18px 18px 0 0;
+  background: var(--surface);
+}
+.experience.future-connected .quote-workshop .quote-steps { gap: 4px; }
+.experience.future-connected .quote-workshop .quote-steps li button {
+  min-height: 76px;
+  padding: 8px 4px;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: .75rem;
+  line-height: 1.4;
+  color: var(--secondary);
+  transition: background .15s, border-color .15s;
+}
+.experience.future-connected .quote-workshop .quote-steps li button:not(:disabled):hover {
+  background: var(--surface-raised);
+  border-color: var(--line);
+}
+.experience.future-connected .quote-workshop .quote-steps li.active button {
+  background: var(--qe-tint);
+  border-color: var(--line);
+  color: var(--primary);
+  font-weight: 700;
+}
+.experience.future-connected .quote-workshop .quote-step-number {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  font-variant-numeric: tabular-nums;
+}
+.experience.future-connected .quote-workshop .quote-progress-shell {
+  top: var(--qe-sticky-top);
+  padding: 16px 28px;
+  background: var(--surface);
+  border-block: 1px solid var(--line);
+  scroll-margin-top: var(--qe-sticky-top);
+}
+.experience.future-connected .quote-workshop .quote-v4-progress > span { font-weight: 600; }
+.experience.future-connected .quote-workshop .quote-v4-progress > strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+.experience.future-connected .quote-workshop .quote-v4-progress > div {
+  height: 7px;
+  margin-top: 4px;
+  background: var(--surface-raised);
+}
+.experience.future-connected .quote-workshop .quote-v4-progress i { background: var(--primary); }
+.experience.future-connected .quote-workshop .quote-main { padding: clamp(22px, 2.5vw, 34px); }
+.experience.future-connected .quote-workshop #quote-question {
+  scroll-margin-top: calc(var(--qe-sticky-top) + 96px);
+  font-weight: 650;
+}
+.experience.future-connected .quote-workshop .quote-step-description { max-width: 64ch; }
+.experience.future-connected .quote-workshop .quote-recommendation > button { color: var(--primary); }
+.experience.future-connected .quote-workshop .quote-recommendation > button:hover { color: var(--foreground); }
+.experience.future-connected .quote-workshop .quote-step-help > p { color: var(--secondary); }
+.experience.future-connected .quote-workshop .quote-project-card.selected { background: var(--qe-tint); border-color: var(--primary); }
+.experience.future-connected .quote-workshop .quote-project-card.selected small,
+.experience.future-connected .quote-workshop .quote-project-card.selected > svg { color: var(--primary); }
+.experience.future-connected .quote-workshop :is(.quote-objective, .quote-feature, .quote-style-option, .quote-timing-option) {
+  border-radius: 12px;
+  transform: none;
+}
+.experience.future-connected .quote-workshop :is(.quote-objective, .quote-feature, .quote-style-option, .quote-timing-option).selected {
+  border-color: var(--primary);
+  background: var(--qe-tint);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.experience.future-connected .quote-workshop .quote-radio > span { background: currentColor; }
+.experience.future-connected .quote-workshop .selected .quote-radio > span { background: var(--surface); }
+.experience.future-connected .quote-workshop :is(.quote-objective, .quote-feature) strong {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.experience.future-connected .quote-workshop :is(.quote-objective, .quote-feature) small { line-height: 1.65; }
+.experience.future-connected .quote-workshop :is(.quote-recommendation, .quote-review-price, .quote-preview-intro) {
+  background: var(--qe-tint);
+  border-color: var(--line);
+}
+.experience.future-connected .quote-workshop .quote-fields { gap: 24px; }
+.experience.future-connected .quote-workshop .quote-field :is(input, select, textarea) {
+  min-width: 0;
+  min-height: 48px;
+  font-size: 16px !important;
+  line-height: 1.6;
+  border-radius: 9px;
+  border-color: color-mix(in srgb, var(--secondary) 75%, var(--surface));
+  color: var(--foreground);
+  background: var(--surface);
+}
+.experience.future-connected .quote-workshop .quote-field :is(input, textarea)::placeholder {
+  color: var(--secondary);
+  opacity: .9;
+}
+.experience.future-connected .quote-workshop :where(button, summary, input:not([type=checkbox]):not([type=radio]), select) {
+  min-height: var(--touch-target, 44px);
+}
+.experience.future-connected .quote-workshop :is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.experience.future-connected .quote-workshop :is(button, a) { transform: none; }
+.experience.future-connected .quote-workshop .qfd-actions { gap: 8px; margin-top: 8px; }
+.experience.future-connected .quote-workshop .qfd-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.experience.future-connected .quote-workshop .qfd-actions button:not([aria-pressed=true]) {
+  background: var(--surface-raised);
+  color: var(--primary);
+}
+.experience.future-connected .quote-workshop .qfd-actions button:not(:disabled):not([aria-pressed=true]):hover {
+  background: var(--qe-tint);
+  border-color: var(--primary);
+}
+.experience.future-connected .quote-workshop .qfd-mic[aria-pressed=true] {
+  border-width: 2px;
+  border-color: currentColor;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.experience.future-connected .quote-workshop .qfd-status:not(:empty) {
+  margin-top: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--primary);
+}
+.experience.future-connected .quote-workshop :is(.qfd-notice, .quote-local-note) {
+  font-size: .875rem;
+  line-height: 1.7;
+}
+.experience.future-connected .quote-workshop .quote-form-footer {
+  gap: 12px;
+  padding-block: 18px 10px;
+  background: var(--surface);
+}
+.experience.future-connected .quote-workshop .quote-form-footer .quote-primary { min-width: 148px; }
+.experience.future-connected .quote-workshop .quote-preview-column {
+  top: calc(var(--qe-sticky-top) + 12px);
+  min-width: 0;
+}
+.experience.future-connected .quote-workshop :is(.live-solution-preview, .quote-preview-intro, .quote-live-price) {
+  border-radius: 18px;
+  box-shadow: var(--qe-shadow);
+}
+.experience.future-connected .quote-workshop .live-solution-preview {
+  padding: 20px;
+  border-top: 3px solid var(--primary);
+}
+.experience.future-connected .quote-workshop .lp-panel-heading h3 { font-size: 1.125rem; }
+.experience.future-connected .quote-workshop :is(.lp-panel-description, .lp-panel-disclaimer) {
+  font-size: .875rem;
+  line-height: 1.65;
+}
+.experience.future-connected .quote-workshop .lp-stage {
+  margin-block: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.experience.future-connected .quote-workshop .lp-expand-button {
+  min-height: 48px;
+  border-radius: 9px;
+}
+.experience.future-connected .quote-workshop .quote-live-price {
+  padding: 22px;
+  background: var(--surface);
+}
+.experience.future-connected .quote-workshop .quote-live-price > strong {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.experience.future-connected .quote-workshop .nexi-ai { border-radius: 12px; }
+.experience.future-connected .quote-workshop .nexi-ai > summary { padding-block: 14px; }
+
+@media (max-width: 1023px) {
+  .experience.future-connected .quote-workshop .quote-guided { gap: 22px; }
+  .experience.future-connected .quote-workshop .quote-preview-column { position: static; }
+}
+@media (max-width: 767px) {
+  .experience.future-connected .quote-workshop .quote-route-intro { margin-inline: 20px; padding-inline: 16px 0; }
+  .experience.future-connected .quote-workshop .quote-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .experience.future-connected .quote-workshop .quote-steps li button {
+    min-height: 58px;
+    flex-direction: row;
+    padding: 8px;
+    gap: 7px;
+    text-align: left;
+    font-size: .75rem;
+  }
+  .experience.future-connected .quote-workshop .quote-steps li button > span:last-child { display: block; }
+  .experience.future-connected .quote-workshop .quote-progress-shell { padding: 14px 20px; }
+  .experience.future-connected .quote-workshop .quote-preview-column { display: block; }
+  .experience.future-connected .quote-workshop .quote-live-price { margin-top: 16px; }
+}
+@media (max-width: 479px) {
+  .experience.future-connected .quote-workshop { padding-block: 28px 52px; }
+  .experience.future-connected .quote-workshop .xp-container { padding-inline: 12px; }
+  .experience.future-connected .quote-workshop .quote-main { padding: 22px 18px; }
+  .experience.future-connected .quote-workshop .quote-sidebar { padding: 8px; }
+  .experience.future-connected .quote-workshop .quote-steps li button { padding: 7px 4px; gap: 5px; }
+  .experience.future-connected .quote-workshop .quote-step-number { width: 26px; height: 26px; flex-basis: 26px; }
+  .experience.future-connected .quote-workshop .quote-v4-progress { row-gap: 7px; }
+  .experience.future-connected .quote-workshop .quote-v4-progress > strong { font-size: .75rem; }
+  .experience.future-connected .quote-workshop :is(.quote-objective-grid, .quote-features-grid) { grid-template-columns: minmax(0, 1fr); }
+  .experience.future-connected .quote-workshop .quote-style-grid { gap: 8px; }
+  .experience.future-connected .quote-workshop .quote-style-option { padding: 12px; }
+  .experience.future-connected .quote-workshop .quote-style-option > strong { font-size: 1rem; }
+  .experience.future-connected .quote-workshop .quote-form-footer .quote-primary { min-width: 138px; padding-inline: 14px; }
+  .experience.future-connected .quote-workshop .quote-live-price { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .experience.future-connected .quote-workshop *,
+  .experience.future-connected .quote-workshop *::before,
+  .experience.future-connected .quote-workshop *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  .experience.future-connected .quote-workshop .selected { outline: 2px solid Highlight; outline-offset: 2px; }
+  .experience.future-connected .quote-workshop .quote-v4-progress i { background: Highlight; }
+}
+@media print {
+  .experience.future-connected .quote-workshop { padding: 0; }
+  .experience.future-connected .quote-workshop :is(.quote-layout, .live-solution-preview, .quote-live-price) { box-shadow: none; }
+  .experience.future-connected .quote-workshop .quote-form-footer { position: static; }
+}

@@ -80,6 +80,6 @@ class AdminQuoteAiController{
   return this.ai.analyze(req,snapshot.project,res);
  }
 }
-@Module({imports:[AuthModule,QuoteDraftsModule],providers:[QuoteAiService],controllers:[QuoteAiController,AdminQuoteAiController]})
+@Module({imports:[AuthModule,QuoteDraftsModule],providers:[QuoteAiService],controllers:[QuoteAiController,AdminQuoteAiController],exports:[QuoteAiService]})
 export class QuoteAiModule{}
 

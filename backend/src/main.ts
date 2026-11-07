@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { json } from 'express';
 import { assertProductionConfig } from './config/production';
+import { activityContext } from './auth/activity-context';
 import { AppModule } from './app.module';
 import { BillingService } from './billing/billing.service';
 @Catch()
@@ -48,6 +49,7 @@ export async function createApp() {
   if (origins.includes('*')) throw new Error('Configura orígenes CORS explícitos, sin asterisco.');
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.getHttpAdapter().getInstance().set('trust proxy',Number(process.env.TRUST_PROXY_HOPS||0));
+  app.use((_req:any,_res:any,next:any)=>activityContext.run({},next));
   app.use('/api',(_req:any,res:any,next:any)=>{res.set('Cache-Control','no-store');next();});
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.enableCors({

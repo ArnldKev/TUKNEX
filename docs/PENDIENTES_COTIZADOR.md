@@ -1,10 +1,10 @@
 # Pendientes del cotizador visual con NEXI
 
-Actualizado: 25 de octubre de 2026.
+Actualizado: 30 de octubre de 2026. Estado operativo y evidencia: [revisión previa al lanzamiento](REVISION_PRELANZAMIENTO.md).
 Base de trabajo: [alcance y recorrido](COTIZADOR_GENERATIVO.md).
 Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 
-«Definido» significa documentado; «implementado» requiere código y validación. El avance actual completa la definición COT-00, el modelo e historial local COT-01 y el cotizador visual escrito COT-02. COT-03 incorpora borradores compartidos y acceso privado, implementados y verificados localmente. El usuario confirmó COT-04 funcional con Groq en producción. COT-05 añade audio revisable localmente; publicación y evaluación con voz real pendientes. Avisos de correo y firma siguen pendientes. La activación en producción del guardado remoto requiere la configuración de privacidad descrita en su guía.
+«Definido» significa documentado; «implementado» requiere código y validación. El flujo vigente conserva los avances sin enviar únicamente en el navegador, según la decisión posterior del usuario. Hay guardado explícito, cuentas de cliente/equipo y cotizaciones/contratos financieros. IA de texto y transcripción respondieron con datos sintéticos en el servicio publicado; siguen pendientes evaluación con voz física, avisos de correo, informe final persistente y anexo visual. Las secciones inferiores conservan el plan de cada entrega; la tabla siguiente y el informe enlazado distinguen el código actual de los objetivos todavía pendientes.
 
 ## Orden de entrega
 
@@ -13,16 +13,16 @@ Caso de revisión: [ejemplo de restaurante](EJEMPLO_COTIZADOR.md).
 | COT-00 | Alcance, recorrido y pendientes | Definición completada; continuidad autorizada | Documentos y ejemplo coherente de principio a fin |
 | COT-01 | Modelo común del proyecto e historial local | Implementado y verificado localmente | Respuestas, boceto y requisitos relacionados, con revisiones |
 | COT-02 | Prototipo escrito y controles visuales | Implementado y verificado localmente | Cliente cambia diseño, compara y deshace |
-| COT-03 | Guardado remoto y borradores en administración | Implementado y verificado localmente | Avances autorizados visibles aunque no se envíen |
-| COT-04 | IA para interpretar y sugerir | Funcional en producción según confirmación del usuario; evaluación semántica ampliada pendiente | NEXI transforma lenguaje natural en propuestas revisables |
-| COT-05 | Respuestas por audio | Implementado localmente; publicación y voz real pendientes | Grabar, transcribir, ordenar y confirmar |
-| COT-06 | Estimación explicada y coherente con el boceto | Pendiente | Rango calculado con catálogo y evaluación de lo complejo |
-| COT-07 | Orientación, envío, asignación y correos | Pendiente | Solicitud persistida, aviso y responsable asignado |
-| COT-08 | Editor e informe del administrador | Pendiente | Revisar alcance, restricciones, diseño y precio |
-| COT-09 | Expediente descargable | Pendiente | Información y capturas de una misma versión |
-| COT-10 | Contrato y anexo visual | Pendiente | PDF revisado con alcance, diseño y precio acordados |
-| COT-11 | Aceptación remota / firma elegida | Pendiente de decisión legal y técnica | Evidencias vinculadas al documento exacto |
-| COT-12 | Validación integral y publicación gradual | Pendiente | Recorrido probado, monitorizado y publicado por etapas |
+| COT-03 | Guardado y acceso privado | Implementado; borrador vigente solo en navegador hasta enviar | Solicitud explícita, registros de equipo y vínculo posterior con cliente |
+| COT-04 | IA para interpretar y sugerir | HTTP 201 real con ejemplo sintético; evaluación ampliada pendiente | Propuestas revisables; no modifica automáticamente el diseño ni fija precios |
+| COT-05 | Respuestas por audio | Dictado por campo implementado; ASR real sintético comprobado | Transcribir, añadir al campo, editar y deshacer; prueba física pendiente |
+| COT-06 | Estimación preliminar | Motor de reglas y rango implementados | Estimación orientativa; alcance e importe final revisados por responsable |
+| COT-07 | Orientación, envío, asignación y correos | Parcial: guardado y equipo existen; avisos email pendientes | Atender solicitudes desde administración; correo aún no se envía |
+| COT-08 | Editor e informe del administrador | Parcial: documentos editables y análisis IA interno; informe unificado pendiente | Revisar alcance y propuestas, sin informe IA final persistido |
+| COT-09 | Expediente descargable | Parcial: PDF de propuesta/documentos; expediente visual pendiente | Falta reunir capturas y decisiones de una misma versión aprobada |
+| COT-10 | Contrato y anexo visual | Contrato financiero PDF implementado; anexo visual pendiente | Fechas, condiciones y cuotas; diseño aprobado aún no integrado |
+| COT-11 | Aceptación remota / firma elegida | Estados de firma externa; mecanismo remoto pendiente | No hay firma electrónica por DNI/audio implementada |
+| COT-12 | Validación integral y publicación gradual | Auditoría local y proveedor sintético; piloto público pendiente | Ver evidencia, límites y pasos operativos en el informe |
 
 El orden representa dependencias de entrega, no una obligación de terminar todas las categorías de diseño antes de probar un primer caso. Las comprobaciones se realizan en cada etapa; COT-12 integra lo ya verificado.
 
@@ -82,7 +82,7 @@ Terminado cuando: se obtienen sugerencias útiles y trazables sin inventar requi
 
 ## COT-05 — Audio
 
-Implementación y evidencia: [audio revisable](AUDIO_COTIZADOR.md); [plan y límites](COT-05_AUDIO_PLAN.md). Activación y pruebas reales: [guía de audio](../deploy/NEXI_AUDIO.md). La comprobación local usa audios sintéticos y proveedor simulado; no acredita precisión con voz peruana.
+Implementación y evidencia: [audio revisable](AUDIO_COTIZADOR.md); [plan y límites](COT-05_AUDIO_PLAN.md). Activación y pruebas reales: [guía de audio](../deploy/NEXI_AUDIO.md). La revisión del 30 de octubre distingue pruebas simuladas y una transcripción real de voz sintética. No acredita micrófono físico, ruido ni precisión con voz peruana.
 
 - Control grabar/detener/cancelar, permiso explícito y alternativa escrita.
 - Límites de duración/formato/tamaño y número de grabaciones.
@@ -160,3 +160,6 @@ Terminado cuando: el mecanismo elegido funciona y está revisado; las evidencias
 El prototipo local no requiere contratar servicios. Antes de integraciones reales se necesitan: presupuesto IA/audio; privacidad/retención; catálogo de tarifas; remitente y destinatarios de avisos; ejecución de trabajos pendientes; revisión contractual y elección de firma.
 
 No se necesitan copias del DNI, claves privadas ni datos reales de clientes para revisar los primeros prototipos.
+
+## Actualización de equipo (27 de octubre de 2026)
+Se implementó el tercer rol y la asignación de solicitudes a desarrolladores, con envío directo autorizado por el titular y supervisión global. Guía: SUBADMINISTRADORES.md. COT-07 cuenta ahora con asignación/reasignación por el titular y actividad atribuida; siguen pendientes la petición específica de orientación y los avisos por correo con reintentos durables. El análisis administrativo de NEXI y los borradores comerciales existentes se reutilizan: el expediente visual y la firma remota siguen siendo entregas posteriores. Permanece vigente Solo navegador hasta el envío; no reactivar seguimiento remoto de avances nuevos.

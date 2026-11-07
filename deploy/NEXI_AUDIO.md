@@ -1,62 +1,69 @@
-# COT-05: activar respuestas por audio
-Implementación local; publicación y prueba con voz real pendientes. Continúa COT-04, que el usuario confirmó funcional.
+# Activar y comprobar el dictado del cotizador
 
-## Publicar
-Desde PowerShell copia solo las líneas del bloque:
-```powershell
-cd D:\TUKNEX
-git add backend frontend docs deploy DESIGN.md UX-CONTRACT.md
-git commit -m "Agregar respuestas por audio revisables al cotizador"
-git push
-```
-La .dockerignore preexistente queda fuera del cambio. No se añade una migración nueva: se reutilizan los contadores de la migración 008. Render y Netlify deben publicar este commit antes de activar el audio.
+Esta guía describe el flujo actual: **Dictar** en cada respuesta de texto. No existe un panel público para subir/escuchar archivos y ordenar la transcripción. El dictado añade texto literal; la ayuda generativa de NEXI requiere otra consulta y autorización. [Capacidades y evidencia](../docs/AUDIO_COTIZADOR.md).
 
-## Render
-Servicio tuknex-backend → Environment → Environment Variables:
-| KEY | VALUE |
-| --- | --- |
+## Configuración requerida
+
+Referencia del backend; esta auditoría no cambia variables ni publica versiones:
+
+| Variable | Valor requerido |
+|---|---|
+| NEXI_AI_ENABLED | true |
+| NEXI_AI_PROVIDER | groq |
+| NEXI_AI_MODEL | openai/gpt-oss-120b o openai/gpt-oss-20b |
 | NEXI_AUDIO_ENABLED | true |
 | NEXI_AUDIO_MODEL | whisper-large-v3-turbo |
+| GROQ_API_KEY | Clave privada de la cuenta Groq, solo en backend |
 
-Mantener NEXI_AI_ENABLED=true, NEXI_AI_PROVIDER=groq, NEXI_AI_MODEL y GROQ_API_KEY ya funcionales. Se reutiliza la clave privada; no agregar claves al frontend ni a Netlify. Guardar y desplegar. Usar la cuenta Free de Groq; no habilitar Developer, facturación ni otro proveedor para esta prueba. La disponibilidad exacta depende de la cuenta.
+La API comprueba flags, proveedor/modelo permitido y clave no vacía para devolver `enabled:true`. Eso no valida por sí solo la clave contra Groq ni garantiza cuota disponible. No colocar claves en `NEXT_PUBLIC_*`, capturas o Git. La aplicación no habilita facturación ni cambia de proveedor automáticamente; las condiciones de uso corresponden a la cuenta de la clave.
 
-Abrir [configuración pública de audio](https://tuknex.netlify.app/api/quote-ai/audio/config). Debe mostrar enabled true y límites, sin credenciales. No hace falta cambiar Neon, DATABASE_URL, usuarios o contratos. Para desactivar nuevas consultas, NEXI_AUDIO_ENABLED=false y volver a desplegar; lo ya confirmado permanece.
+En Render las variables pertenecen al servicio backend. La configuración local es independiente y se carga desde `backend/.env`. El frontend necesita apuntar a la API correcta mediante `NEXT_PUBLIC_API_URL`; en desarrollo local normal usa `http://127.0.0.1:4000`. Mantener el mismo hostname en frontend y backend y su origen incluido en `CORS_ORIGINS`.
 
-## Prueba del cliente
-1. En el cotizador, abrir «Prefiero contarlo por audio».
-2. Elegir qué respuesta dictar. Pulsar Grabar y aceptar el permiso del micrófono, o subir un audio corto.
-3. Hablar, detener y escuchar. Máximo un minuto / 4 MB. Cancelar no envía una grabación.
-4. Autorizar el envío a Groq y pulsar Transcribir audio. Todavía no cambia el cuestionario.
-5. Corregir la transcripción. Opcionalmente autorizar el envío del texto y pulsar Ordenar texto con NEXI.
-6. Comparar el original, las correcciones y la propuesta. Confirmar una versión con Usar mi transcripción o Usar texto ordenado. Reemplaza únicamente la respuesta elegida y permite Deshacer.
-7. Comprobar que el boceto refleja la respuesta. Si editas el cuestionario mientras revisas el audio, no se permite aplicar un resultado antiguo.
+Para revisar localmente con la configuración y base local ya preparadas, se necesitan ambas terminales:
 
-Ejemplo ficticio: «Tengo una pollería. Quiero mostrar 25 platos y que me escriban por WhatsApp. No quiero pagos en línea. El negocio se llama El Gringo». Verificar nombres, cifra 25 y la negación tanto en transcripción como en redacción propuesta. No usar datos reales de clientes para la primera prueba.
+```powershell
+cd D:\TUKNEX\backend
+npm run dev
+```
 
-## Micrófono y navegadores
-Se usa MediaRecorder en HTTPS (o localhost de pruebas), escogiendo un formato soportado por el navegador. No se usa reconocimiento de voz del sistema ni se activa el micrófono al cargar la página. Permitir micrófono solo en la pestaña del cotizador que tú abras.
+```powershell
+cd D:\TUKNEX\frontend
+npm run dev
+```
 
-Matriz pendiente de prueba física: Chrome/Edge de escritorio y Android; Safari/iPhone con MP4. Si la grabación no está soportada, quedan subir audio y escribir. No se ha confirmado compatibilidad real en todos esos dispositivos. En archivos, formatos de esta entrega: WebM, MP4/M4A, Ogg y WAV; MP3 todavía no se admite.
+No ejecutar de nuevo setup ni crear otra base solo para activar audio. Tras cambiar variables, reiniciar el servidor correspondiente y recargar el cotizador. Para una API local, comprobar `http://127.0.0.1:4000/api/quote-ai/audio/dictation-config`.
 
-La parada automática deja aproximadamente un segundo de margen antes del límite del proveedor. Detener libera el micrófono al finalizar el evento de grabación. Cancelar, cerrar el apartado, salir del paso o desmontar libera recursos y descarta el audio no confirmado. Al ocultar la pestaña se detiene la captura para revisión; no se transcribe automáticamente. Revisa permisos del navegador si se denegó el acceso.
+Para el sitio publicado, comprobar [dictation-config](https://tuknex.netlify.app/api/quote-ai/audio/dictation-config). Debe responder 200, `enabled:true`, la política compatible y los límites, sin credenciales. La URL antigua `audio/config` corresponde al panel de compatibilidad y muestra otros límites.
 
-## Datos y límites
-- La voz se envía a Groq solo tras autorizar y transcribir. Esta función no anonimiza la voz antes de enviarla; evita dictar datos personales o confidenciales.
-- TUKNEX no escribe archivos de audio en disco, base de datos ni almacenamiento del navegador. El audio y los textos en revisión viven temporalmente en la página/memoria del servidor; cerrar o descartar elimina las referencias locales. No supone borrado instantáneo garantizado de memoria o del proveedor.
-- Para ordenar se envía solo el campo elegido y el texto corregido. Se ocultan correos, enlaces y números reconocibles según las reglas existentes; comprueba que no se haya eliminado una cantidad importante. La transcripción original queda visible en la página mientras la revisas.
-- Solo la versión textual que confirmes pasa al historial, borrador compartido autorizado y eventual solicitud. El administrador ve el texto confirmado; no hay archivo de audio, transcripciones rechazadas o informe IA persistente.
-- La conservación por Groq se rige por sus controles. No conserva inferencia por defecto, con excepciones de fiabilidad/abuso; revisar Data Controls y Zero Data Retention según las necesidades del servicio. [Política oficial de datos](https://console.groq.com/docs/your-data).
-- Por acción (transcribir / ordenar): 20 intentos globales al día UTC, 2 por minuto; visitante 5 al día y 1 por minuto. El identificador por conexión y día es HMAC; conexiones compartidas pueden compartir límite. Los intentos fallidos/cancelados consumen reserva; no hay reintentos automáticos.
-- Tamaño multipart máximo 4 MB, un archivo, tres campos de permiso; inspección básica de cabecera y MIME. El proveedor valida el medio. La duración de archivos se comprueba con la respuesta del proveedor: un archivo manipulado puede alcanzar el proveedor antes de ser rechazado por durar más de un minuto.
-- Tiempo de consulta: 25 segundos servidor / 30 navegador; respuesta máxima 16 KB. La cancelación intenta abortar, sin garantizar reversión del consumo remoto.
-- No crea contratos ni fija precios ni transforma dictado en aceptación contractual. La estimación explicada es COT-06.
+La vista estática de auditoría `http://127.0.0.1:3305` usa un fixture que desactiva las operaciones de audio a propósito. No demuestra una avería del micrófono ni queda conectada al backend real por iniciar el puerto 4000.
 
-## Evaluación antes de darlo por validado en producción
-Probar voz peruana con y sin ruido, nombres de negocios, números (25, 250, 2,500), fechas y «no quiero». Comparar ambas versiones antes de confirmar; no hay garantía automática de equivalencia semántica. Probar permiso denegado, cancelar durante permiso, grabación vacía, salir de paso, archivo largo, cuota agotada y red caída. Confirmar que escribir siempre sigue disponible.
+## Primera prueba del usuario
 
-Referencias verificadas el 25-10-2026:
+1. Abrir el cotizador en su dominio HTTPS o en el entorno local compatible. La aplicación exige contexto seguro, `getUserMedia` y `MediaRecorder`; el micrófono no se activa al cargar.
+2. Ir a una pregunta de texto y leer «Límites y uso de tu voz». Pulsar **Dictar** y permitir el micrófono en el navegador.
+3. Decir una respuesta ficticia corta. Pulsar **Detener**, o esperar el límite. Esa captura se envía para transcribirla; no hay un segundo botón «Transcribir audio».
+4. Verificar que el texto se añadió al campo conservando lo anterior. Revisar nombres, cantidades y negaciones. Corregir o pulsar **Deshacer dictado** si el campo no se modificó después.
+5. Para pedir un resumen o ideas visuales, abrir aparte el panel generativo NEXI, autorizar la consulta y analizar. Revisar las sugerencias antes de aplicar una al boceto. El dictado por sí solo no ordena la idea con un segundo modelo.
+
+Caso sintético: «Tengo una pollería. Quiero mostrar 25 platos y recibir pedidos por WhatsApp. No quiero pagos en línea». Comprobar especialmente 25 y la negación. No usar datos reales de clientes en una primera prueba.
+
+Si aparece «No pudimos comprobar el dictado», verificar que la API responde y usar **Volver a comprobar dictado**; un servidor que está arrancando puede superar los 8 segundos de la comprobación inicial. Si `enabled:false`, revisar la configuración del backend y recargar después de habilitarla. Si el permiso está bloqueado, el dispositivo está ocupado o el navegador no puede grabar, la aplicación informa el motivo y permite escribir.
+
+## Límites y tratamiento
+
+- Máximo 60 segundos y 4 MB; el formulario ofrece dictado en 20 campos. No admite subir un archivo como alternativa visible actual.
+- Por conexión: 20 intentos diarios UTC y 4 por minuto. Global: 60 diarios y 6 por minuto. Una red compartida puede compartir límite. El proveedor puede rechazar antes; una operación fallida/cancelada puede consumir cuota.
+- Captura, audio y reintento permanecen temporalmente en memoria; no se guarda una grabación en disco, base o sessionStorage. La voz se envía a Groq y no se anonimiza. La conservación externa depende de los controles vigentes del proveedor.
+- Cancelar, ocultar la pestaña, cambiar de etapa, cerrar el apartado o desmontar invalida la captura/consulta. No se incorporan resultados tardíos. Un fallo no borra respuestas escritas y permite reintentar explícitamente o descartar.
+- Solo se envía el audio al transcriptor, sin texto anterior ni proyecto completo. El texto incorporado sigue las reglas del formulario/historial local y del guardado explícito de solicitud; dictar no envía una solicitud, crea contratos ni acepta pagos.
+- Servidor: hasta 25 segundos y respuesta máxima 16 KB; navegador: espera de hasta 30 segundos para transcripción. Cancelar intenta abortar la llamada, sin garantizar devolución de consumo externo.
+
+## Evidencia y pendientes
+
+La auditoría comprobó una consulta generativa real HTTP 201 (~4.6 s) y una transcripción real HTTP 201 de voz sintética Windows Sabina: 8.59 s/~275 KB; conservó pollería, 25 platos, WhatsApp y «No quiero pagos en línea». La operación completa de audio tardó 25.1 s, incluyendo arranque/red. No repetir esos ensayos automáticamente ni presentarlos como prueba de micrófono físico o de todos los acentos/navegadores.
+
+Pendientes antes de declarar completa la experiencia de voz: micrófono físico y permisos, ruido, acento peruano, nombres/cifras/fechas, móvil, cancelar durante permiso, salida de etapa y cuota agotada. La narración automática revisable y persistente sería una función futura distinta, con confirmación explícita; no se activó en esta revisión.
+
+Referencias oficiales consultadas para compatibilidad:
 - [Transcripción y modelos Groq](https://console.groq.com/docs/speech-to-text).
-- [Límites del proveedor](https://console.groq.com/docs/rate-limits).
-- [Captura de micrófono y requisitos de contexto seguro](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
-- [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder).
-
+- [Respuestas estructuradas y modelos compatibles](https://console.groq.com/docs/structured-outputs).

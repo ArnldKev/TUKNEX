@@ -18,7 +18,7 @@ export async function provisionAdmin(db: Pick<Database, 'transaction'>, value: u
       );
     });
   } catch (error: any) {
-    if (error.code === '23505') throw new ConflictException('Ese correo ya tiene una cuenta. No se ha cambiado su rol ni su contraseña.');
+    if (error.code === '23505') throw new ConflictException('Ya existe una cuenta con ese correo o un administrador principal. No se ha cambiado ninguna cuenta.');
     throw error;
   }
   return { id, name: input.name, email: input.email, role: 'admin' as const, clientId: null, isDemo: false as const, createdAt };

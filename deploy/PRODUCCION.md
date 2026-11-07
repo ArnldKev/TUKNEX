@@ -1,5 +1,7 @@
 # TUKNEX: preparación del lanzamiento
 
+Para el alojamiento actual de TUKNEX, usa la [guía vigente de Render + Netlify + Neon](RENDER_NETLIFY.md). La plantilla Docker de este documento es una alternativa.
+
 El proyecto existente sigue en `D:\TUKNEX\frontend` y `D:\TUKNEX\backend`. No se ha publicado ni contratado ningún servicio. El envío real de correo/SMS requiere configurar proveedores y comprobar la recepción con contactos propios antes de abrir el registro al público.
 
 ## Qué funciona

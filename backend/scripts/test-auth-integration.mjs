@@ -48,6 +48,8 @@ try{
   await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'Weak password',email:'weak@example.test',password:'1234'},'',400);
   const a=await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'QA Client A',email:'CLIENTA@example.test',password:secret});
   const userA=(await a.json()).user;
+  const normalizedLogin=await call('auth/login',{email:'  CLIENTA@EXAMPLE.TEST  ',password:secret});
+  check((await normalizedLogin.json()).user.id===userA.id,'login normalizes surrounding spaces before validating email');
   const b=await call('auth/register',{phone:'+51900000001',dni:'00000001',privacyConsent:true,name:'QA Client B',email:'clientb@example.test',password:secret});
   const userB=(await b.json()).user;
   check(userA.role==='client' && userA.email==='clienta@example.test' && userA.clientId!==userB.clientId,'registered clients have distinct, normalized identities');
@@ -114,14 +116,14 @@ try{
   check(Buffer.from(await cPdf.res.arrayBuffer()).subarray(0,5).toString()==='%PDF-','own contract PDF is available');
   await call('account/contracts/'+contract.id+'/pdf',undefined,b.cookie,404);
   await call('auth/admins',{name:'Second QA Admin',email:'admin2@example.test',password:secret},owner.cookie,404);
-  const admin=await provisionAdmin(app.get(Database),{name:'Second QA Admin',email:'ADMIN2@example.test',password:secret});
-  check(admin.role==='admin' && admin.email==='admin2@example.test' && !admin.password_hash,'private backend provisioning creates a normalized administrator');
+  await assert.rejects(provisionAdmin(app.get(Database),{name:'Second QA Admin',email:'ADMIN2@example.test',password:secret}));checks++;
+  check((await app.get(Database).query("SELECT id FROM usuarios WHERE rol='admin'")).rows.length===1,'there is only one principal administrator');
   await assert.rejects(provisionAdmin(app.get(Database),{name:'Overwrite client',email:userA.email,password:secret}));checks++;
   check((await app.get(Database).query('SELECT rol FROM usuarios WHERE id=$1',[userA.id])).rows[0].rol==='client','private provisioning never promotes an existing client');
-  const adminLogin=await call('auth/login',{email:admin.email,password:secret});
+  const adminLogin=await call('auth/login',{email:'owner@example.test',password:secret});
   check((await(await call('auth/me',undefined,adminLogin.cookie)).json()).role==='admin','privately created administrator can log in');
   const users=await(await call('auth/users',undefined,owner.cookie)).json();
-  check(users.length===4 && users.every(u=>!u.password_hash),'user listing excludes password hashes');
+  check(users.length===3 && users.every(u=>!u.password_hash),'user listing excludes password hashes');
   const stored=(await app.get(Database).query('SELECT password_hash FROM usuarios WHERE id=$1',[userA.id])).rows[0];
   check(stored.password_hash.startsWith('scrypt-v1$')&&!stored.password_hash.includes(secret),'only salted password hashes are stored');
   const rawCookie=a.cookie.split('=')[1];

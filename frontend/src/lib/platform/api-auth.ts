@@ -17,6 +17,6 @@ export class ApiAuthService implements AuthService {
   }
   async logout() {await billingLogout();this.user=null;}
   async resetPassword(): Promise<string> {throw new Error('La recuperación por correo aún no está configurada. Contacta con TUKNEX para recuperar tu acceso.');}
-  hasRole(role:'client'|'admin') {return this.user?.role===role;}
+  hasRole(role:'client'|'admin'|'subadmin') {return this.user?.role===role;}
 }
 export const apiAuthService=new ApiAuthService();

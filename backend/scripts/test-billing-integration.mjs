@@ -88,6 +88,9 @@ try {
     validUntil: '2099-01-31',
     isDemo: true,
   };
+  await call('billing/quotes', {...quoteBody,plan:{...quoteBody.plan,rate:0.001}},400);
+  await call('billing/quotes', {...quoteBody,plan:{...quoteBody.plan,mode:'custom',custom:[{label:'Única',date:'2026-01-31',amountCents:1}]}},400);
+  await call('billing/contracts', {clientId:client.id,projectName:quoteBody.projectName,service:quoteBody.service,scope:quoteBody.scope,observations:'',conditions:'Prueba aislada.',issuedDate:today,startDate:today,deliveryDate:'2099-01-31',baseCents:25000,isDemo:true,plan:{...quoteBody.plan,rate:0.001}},400);
   const quote = await (await call('billing/quotes', quoteBody, 201)).json();
   check(quote.totalCents === 27000, 'single surcharge');
   await call('billing/quotes/' + quote.id + '/contract', {}, 409);

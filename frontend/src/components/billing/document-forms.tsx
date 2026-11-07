@@ -102,7 +102,9 @@ export function DocumentEditor({
   data,
   initial,
   onDone,
+  apiPath = 'billing',
 }: {
+  apiPath?: string;
   kind: 'quote' | 'contract';
   data: BillingData;
   initial?: BillingQuote | Contract;
@@ -195,8 +197,8 @@ export function DocumentEditor({
             });
       const path = kind === 'quote' ? 'quotes' : 'contracts';
       const saved = await billingRequest<{ id: string }>(
-        'billing/' + path + (initial ? '/' + initial.id : ''),
-        { method: initial ? 'PATCH' : 'POST', body: JSON.stringify(body) },
+        apiPath + '/' + path + (initial ? '/' + initial.id : ''),
+        { method: initial ? 'PATCH' : 'POST', body: JSON.stringify(apiPath!=='billing'&&kind==='quote'&&initial?{...body,expectedVersion:initial.version}:body) },
       );
       onDone(saved.id);
     } catch (e) {

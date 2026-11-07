@@ -78,7 +78,7 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
     ['Responsable de aprobar', values.approver || 'Por definir'],
     [
       'Consentimiento comercial opcional',
-      values.marketingConsent ? 'Aceptado para esta sesión demo' : 'No otorgado',
+      values.marketingConsent ? 'Autorizado para contacto comercial sobre este proyecto' : 'No otorgado',
     ],
   ];
   return pairs.map(([question, value]) => ({ question, value }));

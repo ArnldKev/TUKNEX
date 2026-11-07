@@ -1,4 +1,5 @@
 'use client';
+import './evolution-pages.css';
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Check, ExternalLink, Monitor, Smartphone, ChevronDown } from 'lucide-react';

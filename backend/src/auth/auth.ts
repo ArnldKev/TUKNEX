@@ -9,13 +9,14 @@ import { z } from 'zod';
 import { parse } from '../billing/dto';
 import { credentials, clientRegistration } from './account-fields';
 import { VerificationService } from './verification';
+import { activityContext } from './activity-context';
 import { derivePassword as derive, hashPassword as passwordHash } from './passwords';
 
-type Role = 'admin' | 'client';
+type Role = 'admin' | 'client' | 'subadmin';
 export interface Account { id: string; name: string; email: string; role: Role; clientId: string | null; isDemo: false; createdAt: string; phone?: string; emailVerified?: boolean; phoneVerified?: boolean; profileComplete?: boolean }
 type AuthRequest = Request & { account?: Account };
 const registration = credentials;
-const loginSchema = z.object({ email: z.email().trim().toLowerCase().max(254), password: z.string().min(1).max(128) }).strict();
+const loginSchema = z.object({ email: credentials.shape.email, password: z.string().min(1).max(128) }).strict();
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const cookieName = 'tuknex_session';
 function account(row: Record<string, any>): Account {
@@ -92,6 +93,7 @@ export class SessionGuard implements CanActivate {
     const user=await this.auth.validate(requestToken(req));
     if(!user) throw new UnauthorizedException('Inicia sesión para continuar.');
     req.account=user;
+    const activity=activityContext.getStore();if(activity)activity.actor=user;
     return true;
   }
 }
@@ -101,6 +103,15 @@ export class AdminGuard extends SessionGuard {
   async canActivate(context: any) {
     await super.canActivate(context);
     if(context.switchToHttp().getRequest().account.role!=='admin') throw new ForbiddenException('Esta operación requiere una cuenta administradora.');
+    return true;
+  }
+}
+@Injectable()
+export class TeamGuard extends SessionGuard {
+  constructor(@Inject(AuthService) auth: AuthService) {super(auth);}
+  async canActivate(context:any) {
+    await super.canActivate(context);
+    if(!['admin','subadmin'].includes(context.switchToHttp().getRequest().account.role))throw new ForbiddenException('Esta operación requiere una cuenta del equipo.');
     return true;
   }
 }

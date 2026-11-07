@@ -7,8 +7,8 @@ import { paymentPreferenceLabels, type QuoteFormValues } from '@/lib/quote/form'
 import type { QuoteResult } from '@/lib/quote/contracts';
 import '@/components/billing/billing.css';
 
-export function QuotePdfDownload({ values, result, savedId, onPreferenceChange }: {
-  values: QuoteFormValues; result: QuoteResult; savedId?: string;
+export function QuotePdfDownload({ values, result, savedId, savedEndpoint='account/quote-requests', onPreferenceChange }: {
+  values: QuoteFormValues; result: QuoteResult; savedId?: string; savedEndpoint?: 'account/quote-requests'|'team/quote-requests';
   onPreferenceChange: (value: NonNullable<QuoteFormValues['paymentPreference']>) => void;
 }) {
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -16,7 +16,7 @@ export function QuotePdfDownload({ values, result, savedId, onPreferenceChange }
     setBusy(true);setError('');
     try {
       const doc=saved&&savedId
-        ? await pdfBlob('account/quote-requests/'+savedId+'/pdf')
+        ? await pdfBlob(savedEndpoint+'/'+savedId+'/pdf?preview=current')
         : await pdfBlob('public/quote-pdf',{values,expectedMinCents:Math.round(result.min*100)});
       savePdf(doc.blob,doc.filename);
     } catch(error) {setError(error instanceof Error?error.message:'No se pudo descargar la propuesta.');}
@@ -32,7 +32,7 @@ export function QuotePdfDownload({ values, result, savedId, onPreferenceChange }
     </label>
     <p>Es una preferencia para conversar con TUKNEX. El importe de las cuotas, las fechas y las condiciones de pago se acuerdan contigo antes de emitir la cotización final.</p>
     {savedId&&<p>Tu preferencia quedó incluida en la propuesta guardada. Puedes preparar otra cotización si necesitas cambiarla.</p>}
-    <p>PDF con logo, alcance, estimación e imagen referencial del servicio. Al descargarlo, envías tus respuestas al servidor de TUKNEX para generar el documento; esta descarga no envía una solicitud al equipo.</p>
+    <p>PDF con logo, alcance, estimación y una representación imprimible de tu boceto, con las respuestas y decisiones visuales de esta propuesta. Al descargarlo, envías tus respuestas al servidor de TUKNEX para generar el documento; esta descarga no envía una solicitud al equipo.</p>
     {error&&<p className="billing-error" role="alert">{error}</p>}
     <button type="button" className="quote-primary" disabled={busy} onClick={()=>void download(!!savedId&&!DEMO_MODE)}>
       <Download size={18}/>{busy?'Preparando PDF…':savedId&&!DEMO_MODE?'Descargar propuesta guardada':'Descargar propuesta PDF'}

@@ -157,7 +157,7 @@ export function ExpandedSolutionPreviewModal({
             <span>VISTA PREVIA EN VIVO</span>
             <h2 id={titleId}>{model.businessName}</h2>
             <p id={descriptionId}>
-              Maqueta orientativa. Explora el concepto; el diseño y alcance final se definirán contigo.
+              Maqueta orientativa. Explora las secciones del menú; el diseño y alcance final se definirán contigo.
             </p>
           </div>
           <div className="lp-modal-tools">
@@ -165,13 +165,14 @@ export function ExpandedSolutionPreviewModal({
               <div className="lp-device-controls" role="group" aria-label="Ancho de la presentación">
                 <button
                   type="button"
+                  aria-label="Vista previa amplia"
                   aria-pressed={device === 'desktop'}
                   onClick={() => setDevice('desktop')}
                 >
                   <Monitor size={17} />
                   <span>Amplia</span>
                 </button>
-                <button type="button" aria-pressed={device === 'tablet'} onClick={() => setDevice('tablet')}>
+                <button type="button" aria-label="Vista previa de tablet" aria-pressed={device === 'tablet'} onClick={() => setDevice('tablet')}>
                   <Tablet size={17} />
                   <span>Tablet</span>
                 </button>

@@ -1,0 +1,83 @@
+/* Direction cards are local to the guided quote, not finished website templates. */
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-intro {margin:0 0 18px;color:var(--secondary);font-size:.9375rem;line-height:1.7;}
+.experience.future-connected .quote-workshop .quote-v4 .quote-style-grid {align-items:stretch;gap:16px;}
+.experience.future-connected .quote-workshop .quote-v4 .quote-style-option.qstyle-card {display:flex;flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;text-align:left;min-width:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-card .qstyle-copy {display:block;padding:18px 18px 12px;flex:1;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-copy strong {display:block;font-size:1.0625rem;line-height:1.4;color:var(--foreground);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-copy small {display:block;margin-top:7px;font-size:.875rem;line-height:1.65;color:var(--secondary);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-choice {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin:0 18px 12px;border-top:1px solid var(--line);padding-top:9px;color:var(--primary);font-size:.8125rem;font-weight:650;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-choice svg {flex:0 0 auto;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-card[aria-pressed=true] .qstyle-choice {justify-content:flex-start;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview {display:block;position:relative;isolation:isolate;overflow:hidden;min-width:0;height:174px;padding:12px;background:var(--qstyle-tint);color:var(--qstyle-ink);border-bottom:1px solid var(--line);pointer-events:none;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-bar {display:flex;align-items:center;justify-content:space-between;height:17px;gap:7px;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb,var(--qstyle-accent) 22%,transparent);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-bar>i:first-child {width:20px;height:5px;background:var(--qstyle-accent);border-radius:2px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-bar>span {width:35%;height:2px;margin-left:auto;background:currentColor;opacity:.35;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-bar>i:last-child {width:12px;height:5px;border:1px solid var(--qstyle-accent);border-radius:1px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-hero {display:flex;align-items:center;justify-content:space-between;gap:10px;height:108px;padding-block:12px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-copy {display:block;position:relative;z-index:1;width:63%;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-copy>span {display:block;font-size:6px;line-height:1.5;letter-spacing:.09em;font-weight:700;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-copy>b {display:block;margin:5px 0 7px;max-width:12ch;font-family:'Segoe UI',Arial,sans-serif;font-size:20px;line-height:1.05;font-weight:750;color:inherit;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-copy>i {display:block;width:82%;height:3px;background:currentColor;opacity:.2;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-copy>em {display:block;width:34px;height:9px;border-radius:3px;margin-top:10px;background:var(--qstyle-accent);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-art {position:relative;display:block;flex:0 0 30%;height:70px;border-radius:40% 40% 28% 28%;background:var(--qstyle-accent);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-art>i {position:absolute;display:block;background:var(--qstyle-tint);border:1px solid var(--qstyle-accent);width:70%;height:25px;right:-5px;top:10px;border-radius:7px;transform:rotate(-8deg);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-art>i:nth-child(2) {top:37px;right:7px;transform:rotate(6deg);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-art>i:nth-child(3) {width:20px;height:20px;right:40%;top:-8px;border-radius:50%;background:var(--qstyle-tint);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-bottom {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-bottom>i {height:18px;border-radius:5px;background:var(--surface);border:1px solid color-mix(in srgb,var(--qstyle-accent) 25%,transparent);}
+/* Editorial: serif headline, fine frame and a tall portrait-shaped element. */
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant {background:color-mix(in srgb,var(--qstyle-tint) 40%,#fffdf9);padding:14px 16px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-bar {border-bottom-style:double;border-bottom-width:3px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-copy>b {font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:22px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-copy>em {height:1px;border-radius:0;width:40px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-art {height:82px;border-radius:48% 48% 0 0;background:transparent;border:1px solid var(--qstyle-accent);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-art>i {width:70%;height:60%;inset:auto 15% 10%;border-radius:48% 48% 0 0;background:color-mix(in srgb,var(--qstyle-accent) 16%,transparent);transform:none;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-art>i~i {display:none;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-elegant .qstyle-mini-bottom>i {height:10px;background:transparent;border:0;border-top:1px solid var(--qstyle-accent);border-radius:0;}
+/* Minimal: the message stands alone, with a quiet outline and generous empty space. */
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal {background:var(--surface);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-hero {justify-content:center;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-copy {width:100%;text-align:center;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-copy>b {max-width:none;font-weight:450;font-size:21px;letter-spacing:-.04em;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-copy>i {width:45%;margin-inline:auto;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-copy>em {width:28px;height:8px;background:transparent;border:1px solid currentColor;border-radius:0;margin-inline:auto;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-art {display:none;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-bottom {margin-inline:15%;gap:16px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-minimal .qstyle-mini-bottom>i {height:8px;background:transparent;border:0;border-top:1px solid currentColor;border-radius:0;opacity:.3;}
+/* Bold: one strong field of color, a heavy headline and offset geometry. */
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold {background:var(--qstyle-accent);color:var(--qstyle-on-accent);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-bar {border-color:currentColor;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-bar>i {background:currentColor;border-color:currentColor;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-copy>b {font-size:28px;line-height:.95;font-weight:900;letter-spacing:-.06em;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-copy>em {background:currentColor;border-radius:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-art {height:60px;border-radius:0;border:3px solid currentColor;background:transparent;transform:rotate(-12deg);box-shadow:6px 6px 0 currentColor;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-art>i {display:none;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-bold .qstyle-mini-bottom>i {height:16px;border:1px solid currentColor;background:transparent;border-radius:0;}
+/* Professional: brand band, aligned information blocks and a compact data chart. */
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate {background:var(--surface);padding-top:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-bar {height:28px;margin-inline:-12px;padding:7px 12px;background:var(--qstyle-accent);color:var(--qstyle-on-accent);border:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-bar>i {background:currentColor;border-color:currentColor;border-radius:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-copy>b {font-size:20px;font-weight:750;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-copy>em {border-radius:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-art {display:flex;align-items:end;gap:5px;height:60px;border:0;border-bottom:1px solid var(--qstyle-accent);background:transparent;border-radius:0;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-art>i {position:static;width:24%;height:38%;border:0;border-radius:0;background:var(--qstyle-accent);transform:none;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-art>i:nth-child(2) {height:70%;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-art>i:nth-child(3) {height:95%;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-corporate .qstyle-mini-bottom>i {border-radius:0;background:var(--qstyle-tint);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-unsure {background:var(--surface-raised);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-unsure .qstyle-mini-copy>b {font-size:19px;font-weight:500;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-unsure .qstyle-mini-art {background:transparent;border:1px dashed var(--qstyle-accent);border-radius:8px;}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-unsure .qstyle-mini-art>i {height:22px;top:12px;background:var(--surface);transform:rotate(-8deg);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-unsure .qstyle-mini-art>i:nth-child(2) {top:35px;transform:rotate(8deg);}
+.experience.future-connected .quote-workshop .quote-v4 .qstyle-preview-unsure .qstyle-mini-art>i:nth-child(3) {display:none;}
+@media(max-width:519px) {
+ .experience.future-connected .quote-workshop .quote-v4 .quote-style-grid {grid-template-columns:minmax(0,1fr);gap:14px;}
+ .experience.future-connected .quote-workshop .quote-v4 .qstyle-preview {height:168px;}
+ .experience.future-connected .quote-workshop .quote-v4 .qstyle-card .qstyle-copy {padding:16px 16px 10px;}
+ .experience.future-connected .quote-workshop .quote-v4 .qstyle-choice {margin-inline:16px;}
+}
+@media(forced-colors:active) {
+ .experience.future-connected .quote-workshop .quote-v4 .qstyle-preview {border:1px solid CanvasText;}
+ .experience.future-connected .quote-workshop .quote-v4 .qstyle-mini-art {outline:1px solid CanvasText;}
+ .experience.future-connected .quote-workshop .quote-v4 .qstyle-card[aria-pressed=true] {outline:2px solid Highlight;outline-offset:2px;}
+}

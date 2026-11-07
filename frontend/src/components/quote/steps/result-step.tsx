@@ -23,6 +23,7 @@ export function QuoteResultStep({
   busy,
   savedId,
   authenticated,
+  staffRole,
   proposal,
   onEdit,
   onRequest,
@@ -34,6 +35,7 @@ export function QuoteResultStep({
   busy: boolean;
   savedId: string;
   authenticated: boolean;
+  staffRole?: 'admin'|'subadmin';
   proposal: string;
   onEdit: (step: number) => void;
   onRequest: () => void;
@@ -132,14 +134,14 @@ export function QuoteResultStep({
         presupuesto orienta las prioridades y no modifica el cálculo.
       </p>
       <div className="quote-demo-note">
-        <ShieldCheck size={22}/><span>{savedId && !DEMO_MODE ? <><strong>Guardada en tu cuenta.</strong> TUKNEX ya puede consultar tus respuestas y tu propuesta.</> : DEMO_MODE ? 'Propuesta de demostración: no se envía a TUKNEX.' : authenticated ? 'Elige tu frecuencia de pago preferida y envía la solicitud al equipo.' : 'Puedes consultar la estimación sin registrarte. Al guardar podrás iniciar sesión o crear tu cuenta aquí mismo, sin perder tus respuestas.'}</span>
+        <ShieldCheck size={22}/><span>{savedId && !DEMO_MODE ? <><strong>{staffRole?"Guardada por el equipo.":"Guardada en tu cuenta."}</strong> {staffRole?"Está pendiente de vincular a la cuenta del cliente desde el panel.":"TUKNEX ya puede consultar tus respuestas y tu propuesta."}</> : DEMO_MODE ? 'Propuesta de demostración: no se envía a TUKNEX.' : staffRole ? 'Guarda la cotización y luego vincúlala a la cuenta del cliente desde el panel.' : authenticated ? 'Elige tu frecuencia de pago preferida y envía la solicitud al equipo.' : 'Puedes consultar la estimación sin registrarte. Al guardar podrás iniciar sesión o crear tu cuenta aquí mismo, sin perder tus respuestas.'}</span>
       </div>
-      <QuotePdfDownload values={values} result={result} savedId={savedId} onPreferenceChange={onPreferenceChange} />
+      <QuotePdfDownload values={values} result={result} savedId={savedId} savedEndpoint={staffRole?'team/quote-requests':undefined} onPreferenceChange={onPreferenceChange} />
       <div className="quote-result-actions">
         <button type="button" className="quote-primary" onClick={onRequest} disabled={!!savedId || busy}>
-          {busy ? 'Guardando…' : savedId ? <><Check size={18}/> {DEMO_MODE?'En la sesión demo':'Cotización guardada'}</> : <>Enviar solicitud <ArrowRight size={18}/></>}
+          {busy ? 'Guardando…' : savedId ? <><Check size={18}/> {DEMO_MODE?'En la sesión demo':'Cotización guardada'}</> : <>{staffRole?'Guardar cotización del cliente':'Enviar solicitud'} <ArrowRight size={18}/></>}
         </button>
-        {savedId && !DEMO_MODE && <Link className="quote-outline" href="/mi-cuenta/cotizaciones">Ver mis cotizaciones <ArrowRight size={18}/></Link>}
+        {savedId && !DEMO_MODE && <Link className="quote-outline" href={staffRole==='admin'?'/admin/mis-cotizaciones':staffRole?'/equipo/mis-cotizaciones':'/mi-cuenta/cotizaciones'}>{staffRole?'Gestionar cotización y cliente':'Ver mis cotizaciones'} <ArrowRight size={18}/></Link>}
         <button type="button" className="quote-outline" onClick={onWhatsApp}><MessageCircle size={18}/> Enviar a WhatsApp</button>
       </div>
       <button type="button" className="quote-back" onClick={() => onEdit(0)}>

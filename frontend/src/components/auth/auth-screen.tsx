@@ -20,7 +20,7 @@ export function AuthScreen({mode='login',embedded=false,onModeChange,onComplete}
       if(mode==='register' && password!==confirm) throw new Error('Las contraseñas no coinciden.');
       if(mode==='register' && !consent) throw new Error('Confirma que aceptas el tratamiento de tus datos para gestionar tu cuenta.');
       const user=mode==='login' ? await auth.login(email,password) : await auth.register({name,email,password,phone,dni,privacyConsent:consent});
-      setPassword('');setConfirm('');if(onComplete)await onComplete(user);else router.replace(user.role==='admin'?'/admin':'/mi-cuenta');
+      setPassword('');setConfirm('');if(onComplete)await onComplete(user);else router.replace(user.role==='admin'?'/admin':user.role==='subadmin'?'/equipo':'/mi-cuenta');
     } catch(error) {setError(error instanceof Error?error.message:'No pudimos completar la operación. Comprueba que el backend esté encendido.');}
     finally {setBusy(false);}
   }

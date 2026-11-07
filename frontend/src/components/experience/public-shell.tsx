@@ -11,6 +11,7 @@ import { ChatbotWidget } from '@/components/chatbot-widget';
 import './experience.css';
 import './future.css';
 import './account-projects.css';
+import './evolution.css';
 
 export const openNexi = () => window.dispatchEvent(new Event('open-tuknex-chat'));
 export function OfficialBrand() {
@@ -31,9 +32,9 @@ const links = [
 export function PublicShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { user, logout } = useDemoAuth();
+  const { user, logout, ready } = useDemoAuth();
   return (
-    <div className="experience">
+    <div className="experience future-connected">
       <a className="skip-link" href="#experiencia">
         Saltar al contenido
       </a>
@@ -51,16 +52,19 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                 {label}
               </Link>
             ))}
+            <Link className="fc-mobile-quote" href="/cotizar" onClick={() => setOpen(false)}>
+              Cotizar <ArrowUpRight size={16} />
+            </Link>
           </nav>
           <div className="xp-nav-actions">
-            <button className="xp-nexi-button" onClick={openNexi}>
+            <button className="xp-nexi-button" aria-label="NEXI" onClick={openNexi}>
               <MessageCircle size={17} />
               <span>NEXI</span>
               <i />
             </button>
             <Link
               className={"xp-account"+(user?" xp-account-signed":"")}
-              href={user ? (user.role === 'admin' ? '/admin' : '/mi-cuenta') : '/acceder'}
+              href={user ? (user.role === 'admin' ? '/admin' : user.role === 'subadmin' ? '/equipo' : '/mi-cuenta') : '/acceder'}
               aria-label={user ? 'Ir al panel de '+user.name : 'Acceder'}
               title={user?.name}
             >
@@ -124,7 +128,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </footer>
-      <WelcomeIntro autoOpen={pathname==='/'}/>
+      <WelcomeIntro autoOpen={ready&&pathname==='/'&&!user}/>
       <ChatbotWidget />
     </div>
   );

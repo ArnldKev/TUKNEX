@@ -1,3 +1,4 @@
+import {TeamWorkspace} from '@/components/team/team-workspace';
 import { ReviewsAdmin } from '@/components/reviews/real-reviews';
 import { ContactInbox } from '@/components/admin/contact-inbox';
 import { QuoteRequestsAdmin } from '@/components/quote/quote-requests-panel';
@@ -25,12 +26,14 @@ const expanded: Record<string, PlatformAdminSection> = {
   faq: 'faq',
 };
 export function generateStaticParams() {
-  return [...Object.keys(legacy), ...Object.keys(expanded), 'contratos', 'pagos', 'mensajes'].map((section) => ({
+  return [...Object.keys(legacy), ...Object.keys(expanded), 'contratos', 'pagos', 'mensajes', 'equipo', 'mis-cotizaciones'].map((section) => ({
     section,
   }));
 }
 export default async function AdminSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
+  if(section === 'equipo') return <TeamWorkspace owner/>;
+  if(section === 'mis-cotizaciones') return <QuoteRequestsAdmin origin="mine"/>;
   if (!DEMO_MODE) {
     if(section === 'resenas') return <ReviewsAdmin />;
     if(section === 'mensajes') return <ContactInbox />;

@@ -17,11 +17,15 @@ import {
   type Issuer,
   type PlanInput,
 } from '../domain/billing/types';
-import { paymentPreferenceLabels, quoteFormSchema } from '../domain/quote/form';
+import { paymentPreferenceLabels, quoteFormSchema, type QuoteFormValues } from '../domain/quote/form';
+import {buildSolutionPreview,type SolutionPreviewModel} from '../domain/quote/preview';
+import {drawProjectPreview} from './project-preview';
 import { estimateQuote } from '../domain/pricing';
 import { parse } from '../billing/dto';
 import { documentTerms, referenceImages } from './templates';
 import { z } from 'zod';
+type PreliminaryEstimate = Pick<ReturnType<typeof estimateQuote>,'min'|'custom'|'scope'|'duration'|'conditions'|'thirdPartyCosts'|'exclusions'|'validityDays'>;
+const savedEstimateSchema=z.object({min:z.number().finite().nonnegative(),custom:z.boolean(),scope:z.array(z.string()),duration:z.string(),conditions:z.string(),thirdPartyCosts:z.array(z.string()),exclusions:z.array(z.string()),validityDays:z.number().int().positive()});
 const navy = rgb(0.06, 0.15, 0.23),
   teal = rgb(0.02, 0.48, 0.48),
   muted = rgb(0.32, 0.39, 0.44),
@@ -116,10 +120,10 @@ class Layout {
     });
     this.y -= 14;
   }
-  field(label: string, value: string) {
+  field(label: string, value: string, size = 10) {
     this.ensure(32);
     this.text(label.toUpperCase(), 8, this.bold, muted);
-    this.text(value || 'Por completar', 10);
+    this.text(value || 'Por completar', size);
     this.y -= 4;
   }
   pair(leftLabel: string, left: string, rightLabel: string, right: string) {
@@ -269,7 +273,7 @@ export class PdfService {
     @Inject(Database) private db: Database,
     @Inject(BillingService) private billing: BillingService,
   ) {}
-  async quotePdf(q: BillingQuote, preliminary = false, custom = false, preference = 'Por acordar') {
+  async quotePdf(q: BillingQuote, preliminary = false, custom = false, preference = 'Por acordar', preview?:SolutionPreviewModel) {
     const l = await Layout.create('Cotización', q.number);
     await l.header(
       preliminary ? 'Propuesta preliminar' : 'Cotización de servicios digitales',
@@ -284,21 +288,30 @@ export class PdfService {
     l.heading('La solución que proponemos');
     l.text(serviceLabels[q.service] || q.service, 14, l.bold);
     l.y -= 8;
-    const image = await l.doc.embedPng(
-      await readFile(
-        resolve(BACKEND_ROOT, 'assets/document-references', (referenceImages[q.service] || 'maintenance') + '.png'),
-      ),
-    );
-    const h = (l.contentWidth * image.height) / image.width;
-    l.ensure(h + 30);
-    l.page.drawImage(image, { x: l.margin, y: l.y - h, width: l.contentWidth, height: h });
-    l.y -= h + 8;
-    l.text(
-      'Imagen referencial del tipo de solución. No representa el diseño final ni amplía el alcance.',
-      8,
-      l.font,
-      muted,
-    );
+    if(preview){
+      l.ensure(332);
+      const height=await drawProjectPreview(l.doc,l.page,l.margin,l.y,l.contentWidth,preview,l.font,l.bold);
+      l.y-=height+8;
+      l.text(preliminary?'Boceto personalizado de tus respuestas y decisiones visuales. Representación imprimible; no es el diseño final ni amplía el alcance.':'Boceto del cuestionario de origen. Revisa esta representación junto al alcance y las condiciones de la cotización.',8,l.font,muted);
+      l.field('Dirección visual',preview.styleName+' / '+preview.palette.name+' / '+preview.sectorName);
+      l.field('Navegación de la maqueta',preview.sections.map(section=>section.label).join(' / '));
+    }else{
+      const image = await l.doc.embedPng(
+        await readFile(
+          resolve(BACKEND_ROOT, 'assets/document-references', (referenceImages[q.service] || 'maintenance') + '.png'),
+        ),
+      );
+      const h = (l.contentWidth * image.height) / image.width;
+      l.ensure(h + 30);
+      l.page.drawImage(image, { x: l.margin, y: l.y - h, width: l.contentWidth, height: h });
+      l.y -= h + 8;
+      l.text(
+        'Imagen referencial del tipo de solución. No representa el diseño final ni amplía el alcance.',
+        8,
+        l.font,
+        muted,
+      );
+      }
     l.heading('Resumen y alcance');
     l.text(q.scope);
     l.field('Plazo estimado', q.delivery);
@@ -323,7 +336,7 @@ export class PdfService {
     }
     l.heading('Condiciones');
     l.text(q.conditions || documentTerms.exclusions);
-    if (q.observations) l.field('Observaciones', q.observations);
+    if (q.observations) l.field('Observaciones', q.observations, preliminary ? 9 : 10);
     if (preliminary)
       l.text(
         'Estimación orientativa, sujeta a validación de requisitos, impuestos y condiciones finales. No constituye un contrato ni una aceptación automática.',
@@ -331,6 +344,8 @@ export class PdfService {
         l.font,
         muted,
       );
+    const issuerContact=[q.issuer.taxId ? 'DNI / RUC: ' + q.issuer.taxId : '', q.issuer.phone, q.issuer.email, q.issuer.address].filter(Boolean).join(' / ');
+    l.ensure(36+l.lines(q.issuer.name).length*15+l.lines(issuerContact,l.font,9).length*13.5);
     l.heading('Tu contacto en TUKNEX');
     l.text(q.issuer.name);
     l.text(
@@ -427,12 +442,18 @@ export class PdfService {
   }
   async document(kind: 'quote' | 'contract', id: string) {
     const table = kind === 'quote' ? 'cotizaciones' : 'contratos';
-    const row = (await this.db.query('SELECT datos FROM ' + table + ' WHERE id=$1', [id])).rows[0];
+    const row = (await this.db.query('SELECT datos'+(kind==='quote'?',equipo_proyecto_id':'')+' FROM ' + table + ' WHERE id=$1', [id])).rows[0];
     if (!row) throw new NotFoundException('Documento no encontrado.');
     const entity = row.datos as Contract | BillingQuote;
+    let preview:SolutionPreviewModel|undefined;
+    if(kind==='quote'&&row.equipo_proyecto_id){
+      const source=(await this.db.query('SELECT s.respuestas FROM equipo_proyectos p JOIN solicitudes_cotizacion s ON s.id=p.solicitud_id WHERE p.id=$1 AND p.cliente_id=$2 AND s.cliente_id=$2',[row.equipo_proyecto_id,entity.clientId])).rows[0];
+      const values=quoteFormSchema.safeParse(source?.respuestas);
+      if(values.success)preview=buildSolutionPreview(values.data,values.data.businessName,values.data);
+    }
     const bytes =
       kind === 'quote'
-        ? await this.quotePdf(entity as BillingQuote)
+        ? await this.quotePdf(entity as BillingQuote,false,false,'Por acordar',preview)
         : await this.contractPdf(entity as Contract);
     const docId = randomUUID();
     await this.db.query(
@@ -460,6 +481,15 @@ export class PdfService {
       throw new BadRequestException(
         'Las tarifas cambiaron. Vuelve a preparar la propuesta antes de descargar el PDF.',
       );
+    return this.renderPreliminary(values,estimate,settings,reference,today);
+  }
+  async savedPreliminary(rawValues:unknown,rawEstimate:unknown,reference:string,createdAt:Date|string){
+    const values=parse(quoteFormSchema,rawValues),estimate=parse(savedEstimateSchema,rawEstimate);
+    const issued=todayLima(new Date(createdAt));
+    // Only the issuer is current. Amount, scope and validity come from the saved estimate, never current tariffs.
+    return this.renderPreliminary(values,estimate,await this.billing.settings(),reference,issued);
+  }
+  private async renderPreliminary(values:QuoteFormValues,estimate:PreliminaryEstimate,settings:Awaited<ReturnType<BillingService['settings']>>,reference:string|undefined,today:string){
     // Public preferences never authorize a financial agreement, even for legacy callers.
     const plan: PlanInput = { mode:'cash', rate:0, count:1, firstDueDate:today };
     const calculation = buildPlan(Math.max(1, Math.round(estimate.min * 100)), plan);
@@ -502,6 +532,6 @@ export class PdfService {
       isDemo: false,
       version: 1,
     };
-    return { bytes: await this.quotePdf(quote, true, estimate.custom, paymentPreferenceLabels[values.paymentPreference||'unsure']), filename: quote.number + '.pdf' };
+    return { bytes: await this.quotePdf(quote, true, estimate.custom, paymentPreferenceLabels[values.paymentPreference||'unsure'],buildSolutionPreview(values,values.businessName,values)), filename: quote.number + '.pdf' };
   }
 }

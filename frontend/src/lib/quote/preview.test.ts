@@ -155,3 +155,68 @@ test('interaction identity resets for structural changes while text and theme pr
   assert.notEqual(initial.key, removedBooking.key);
   assert.notEqual(initial.key, changedType.key);
 });
+
+
+test('an explicit professional sector wins over incidental sports words in free text', () => {
+  for (const sector of ['health', 'education', 'food', 'tourism', 'services'] as const) {
+    const model=buildSolutionPreview(base,'Centro de entrenamiento',{sector,offering:'Orientación para deportistas y profesionales.'});
+    assert.equal(model.sector,sector);
+    assert.equal(model.products.some(product=>/zapatilla/i.test(product.name)),false);
+  }
+  for (const sector of [undefined,'commerce','other']) {
+    assert.equal(buildSolutionPreview(base,'Tienda Sport',{sector,offering:'Ropa deportiva'}).sector,'sports');
+  }
+});
+
+
+test('site navigation starts at home, offers separate business content and only adds selected functional destinations', () => {
+  for (const projectType of ['landing', 'business', 'catalog', 'store', 'redesign'] as const) {
+    const basic = buildSolutionPreview({ ...base, projectType, features: ['information'] });
+    assert.deepEqual(basic.sections.map(section => section.id), ['inicio', basic.kind === 'catalog' ? 'products' : 'services', 'about']);
+    assert.equal(basic.sections.some(section => /contact|bookings|gallery|login|payment/.test(section.id)), false);
+    for (let mask = 0; mask < 8; mask++) {
+      const features = ['contact', 'bookings', 'gallery'].filter((_, index) => mask & (1 << index));
+      const model = buildSolutionPreview({ ...base, projectType, features });
+      const ids = model.sections.map(section => section.id);
+      assert.equal(new Set(ids).size, ids.length);
+      assert.ok(ids.length >= 3 && ids.length <= 5);
+      assert.equal(ids[0], 'inicio');
+      assert.equal(ids.includes('contact'), features.includes('contact'));
+      assert.equal(ids.includes('bookings'), features.includes('bookings'));
+      if (!features.includes('gallery')) assert.equal(ids.includes('gallery'), false);
+      assert.ok(ids.includes(model.hero.action));
+    }
+  }
+});
+
+test('WhatsApp can supply a contact destination without inventing a contact form or online payments', () => {
+  const model = buildSolutionPreview({ ...base, features: ['information', 'whatsapp'] });
+  assert.ok(model.sections.some(section => section.id === 'contact'));
+  assert.equal(model.featureFlags.contact, false);
+  assert.equal(model.featureFlags.whatsapp, true);
+  assert.equal(model.sections.some(section => /payment|login|cart/.test(section.id)), false);
+});
+
+test('navigation preference moves the real contact page but never manufactures one', () => {
+  const visualPreferences = { font: 'sans' as const, scale: 'balanced' as const, spacing: 'airy' as const, hero: 'split' as const, surface: 'tinted' as const, sectionOrder: 'contact' as const };
+  const contact = buildSolutionPreview(base, '', { visualPreferences });
+  assert.deepEqual(contact.sections.slice(0, 2).map(section => section.id), ['inicio', 'contact']);
+  const none = buildSolutionPreview({ ...base, features: [] }, '', { visualPreferences });
+  assert.equal(none.sections.some(section => section.id === 'contact'), false);
+  const system = buildSolutionPreview({ ...base, projectType: 'system', features: ['clients', 'inventory', 'reports', 'orders', 'bookings'] });
+  assert.deepEqual(system.sections.map(section => section.id), ['clients', 'inventory', 'reports', 'orders', 'bookings']);
+  assert.equal(system.sections.some(section => section.id === 'about' || section.id === 'contact'), false);
+});
+
+test('all five visual languages retain the chosen color, custom presentation and functional scope', () => {
+  const visualPreferences = { font: 'editorial' as const, scale: 'large' as const, spacing: 'compact' as const, hero: 'centered' as const, surface: 'paper' as const, sectionOrder: 'content' as const };
+  const models = ['modern', 'minimal', 'elegant', 'corporate', 'bold'].map(stylePreference => buildSolutionPreview(base, 'Mi negocio', { stylePreference, colorsLiked: '#c14d2e', visualPreferences }));
+  assert.equal(new Set(models.map(model => model.styleDescription)).size, 5);
+  for (const model of models) {
+    assert.equal(model.palette.accent, '#c14d2e');
+    assert.deepEqual(model.presentation, visualPreferences);
+    assert.deepEqual(model.sections, models[0].sections);
+    assert.deepEqual(model.featureFlags, models[0].featureFlags);
+    assert.equal(model.key, models[0].key);
+  }
+});

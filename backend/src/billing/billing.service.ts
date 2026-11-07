@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { activityContext } from '../auth/activity-context';
 import { randomUUID, createHash } from 'node:crypto';
 import { DEFAULT_PRICES } from '../domain/pricing';
 import { z } from 'zod';
@@ -134,11 +135,13 @@ export class BillingService {
     return updated.prices;
   }
   async audit(tx: Sql, action: string, id: string, data: unknown = {}) {
-    await tx.query('INSERT INTO auditoria(id,accion,entidad_id,datos) VALUES($1,$2,$3,$4)', [
+    const context=activityContext.getStore();
+    const linked=context?.projectId||((await tx.query('SELECT equipo_proyecto_id FROM cotizaciones WHERE id::text=$1 UNION ALL SELECT equipo_proyecto_id FROM contratos WHERE id::text=$1 LIMIT 1',[id])).rows[0]?.equipo_proyecto_id)||null;
+    await tx.query('INSERT INTO auditoria(id,accion,entidad_id,datos,actor_id,actor_nombre,actor_rol,equipo_proyecto_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [
       randomUUID(),
       action,
       id,
-      json(data),
+      json(data),context?.actor?.id||null,context?.actor?.name||null,context?.actor?.role||null,linked,
     ]);
   }
   async number(tx: Sql, prefix: string) {
@@ -188,9 +191,13 @@ export class BillingService {
       return client;
     });
   }
+  private calculatePlan(baseCents: number, plan: PlanInput) {
+    try { return buildPlan(baseCents, plan); }
+    catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'Revisa el plan de pagos.'); }
+  }
   async createQuote(body: unknown, existingId?: string): Promise<BillingQuote> {
     const input = parse(quoteDto, body);
-    const calculated = buildPlan(input.baseCents, input.plan);
+    const calculated = this.calculatePlan(input.baseCents, input.plan);
     if (input.validUntil < input.issuedDate)
       throw new BadRequestException('La vigencia debe ser posterior a la emisión.');
     const settings = await this.settings();
@@ -200,10 +207,15 @@ export class BillingService {
           .rows[0];
         if (found) return found.datos;
       }
-      const previous = existingId
-        ? ((await queryOne(tx, 'SELECT datos,estado FROM cotizaciones WHERE id=$1 FOR UPDATE', [existingId]))
-            .datos as BillingQuote)
+      const previousRow = existingId
+        ? await queryOne(tx, 'SELECT datos,estado,equipo_proyecto_id FROM cotizaciones WHERE id=$1 FOR UPDATE', [existingId])
         : undefined;
+      const previous = previousRow?.datos as BillingQuote | undefined;
+      if (previousRow?.equipo_proyecto_id) {
+        const project = await queryOne(tx, 'SELECT cliente_id FROM equipo_proyectos WHERE id=$1', [previousRow.equipo_proyecto_id]);
+        if (project.cliente_id !== input.clientId)
+          throw new ConflictException('La cotización pertenece a un proyecto del equipo. Conserva su cliente.');
+      }
       if (previous && (previous.status === 'accepted' || previous.status === 'rejected'))
         throw new ConflictException(
           'La cotización aceptada/rechazada queda conservada. Crea una nueva versión como otra cotización.',
@@ -248,7 +260,7 @@ export class BillingService {
             json(quote),
           ],
         );
-      await this.audit(tx, 'cotizacion_guardada', quote.id, { status: quote.status });
+      await this.audit(tx, 'cotizacion_guardada', quote.id, { status: quote.status, before: previous||null, after: quote });
       return quote;
     });
   }
@@ -291,9 +303,11 @@ export class BillingService {
       let source = input;
       let projectId = input.projectId,
         quote: BillingQuote | undefined;
+      let teamProjectId: string | null = null;
       if (input.quoteId) {
-        quote = (await queryOne(tx, 'SELECT datos FROM cotizaciones WHERE id=$1 FOR UPDATE', [input.quoteId]))
-          .datos as BillingQuote;
+        const quoteRow = await queryOne(tx, 'SELECT datos,equipo_proyecto_id FROM cotizaciones WHERE id=$1 FOR UPDATE', [input.quoteId]);
+        quote = quoteRow.datos as BillingQuote;
+        teamProjectId = quoteRow.equipo_proyecto_id || null;
         if (quote.status !== 'accepted')
           throw new ConflictException('Acepta la cotización antes de generar un contrato.');
         const prior = (await tx.query('SELECT datos FROM contratos WHERE cotizacion_id=$1', [input.quoteId]))
@@ -342,7 +356,7 @@ export class BillingService {
         if (project.cliente_id !== source.clientId)
           throw new BadRequestException('El proyecto no pertenece al cliente seleccionado.');
       }
-      const calculated = buildPlan(source.baseCents, source.plan);
+      const calculated = this.calculatePlan(source.baseCents, source.plan);
       if (!projectId) {
         projectId = randomUUID();
         await tx.query('INSERT INTO proyectos(id,cliente_id,nombre) VALUES($1,$2,$3)', [
@@ -398,13 +412,15 @@ export class BillingService {
             ')',
           args,
         );
+      if (!previous && teamProjectId)
+        await tx.query('UPDATE contratos SET equipo_proyecto_id=$2 WHERE id=$1', [contract.id, teamProjectId]);
       for (const item of calculated.installments)
         await tx.query(
           'INSERT INTO cuotas(id,contrato_id,numero_cuota,concepto,fecha_vencimiento,monto) VALUES($1,$2,$3,$4,$5,$6)',
           [randomUUID(), contract.id, item.number, item.label, item.date, item.amountCents],
         );
       await this.audit(tx, previous ? 'contrato_editado' : 'contrato_creado', contract.id, {
-        quoteId: source.quoteId || null,
+        quoteId: source.quoteId || null, before: previous||null, after: contract,
       });
       return contract;
     });

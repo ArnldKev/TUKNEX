@@ -16,12 +16,16 @@ export function QuoteRequestNexiAi({id,values,disabled=false}:{id:string;values:
  const project=useMemo(()=>createQuoteProject(values,id),[id,values]);
  return <NexiAiPanel project={project} draft={{id,version:1,source:'request'}} disabled={disabled}/>;
 }
+export function QuoteTeamNexiAi({workId,requestId,values,disabled=false}:{workId:string;requestId:string;values:QuoteFormValues;disabled?:boolean}){
+ const project=useMemo(()=>createQuoteProject(values,requestId),[requestId,values]);
+ return <NexiAiPanel project={project} draft={{id:workId,version:1,source:'team'}} disabled={disabled}/>;
+}
 export function NexiAiPanel({project,draft,disabled=false,onAccept}:{
- project:QuoteProject;draft?:{id:string;version:number;source?:'request'};disabled?:boolean;onAccept?:(suggestion:ProjectSuggestion)=>boolean;
+ project:QuoteProject;draft?:{id:string;version:number;source?:'request'|'team'};disabled?:boolean;onAccept?:(suggestion:ProjectSuggestion)=>boolean;
 }){
  const id=useId(),[config,setConfig]=useState<AiConfig|null>(null),[configError,setConfigError]=useState(''),[checking,setChecking]=useState(true);
  const [consent,setConsent]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
- const [result,setResult]=useState<AiEnvelope|null>(null),[dismissed,setDismissed]=useState<number[]>([]),[configAttempt,setConfigAttempt]=useState(0);
+ const [result,setResult]=useState<AiEnvelope|null>(null),[dismissed,setDismissed]=useState<number[]>([]),[applied,setApplied]=useState<number|null>(null),[configAttempt,setConfigAttempt]=useState(0);
  const run=useRef(0),request=useRef<AbortController|null>(null),timeout=useRef<ReturnType<typeof setTimeout>|null>(null);
  const key=project.id+':'+project.revision+':'+(draft?.version??'client'),latest=useRef(key);latest.current=key;
  const current=!!result&&isCurrentAiResult(result,project);
@@ -48,7 +52,7 @@ export function NexiAiPanel({project,draft,disabled=false,onAccept}:{
   try{
    const next=await analyzeAiProject(project,controller.signal,draft);
    if(run.current!==sequence||controller.signal.aborted||latest.current!==captured)return;
-   setResult(next);setNotice(draft?'Análisis listo para revisión interna. La idea original no cambió.':'Análisis listo. Revisa las sugerencias antes de aplicarlas.');
+   setResult(next);setApplied(null);setNotice(draft?'Análisis listo para revisión interna. La idea original no cambió.':'Análisis listo. Revisa las sugerencias antes de aplicarlas.');
   }catch(e){
    if(run.current===sequence)setError(controller.signal.aborted?'NEXI agotó el tiempo de espera. Puedes continuar sin IA y volver a intentarlo.':e instanceof Error?e.message:'No pudimos analizar la idea.');
   }finally{if(run.current===sequence){if(timeout.current)clearTimeout(timeout.current);request.current=null;setBusy(false);setConsent(false);}}
@@ -57,7 +61,7 @@ export function NexiAiPanel({project,draft,disabled=false,onAccept}:{
   if(!result||!current||!onAccept||disabled)return;
   try{
    const suggestion=aiSuggestion(project,result.report.suggestions[index]);
-   if(onAccept(suggestion))setNotice('Sugerencia aplicada. El boceto y el historial se actualizaron; puedes deshacerla. Solicita otro análisis para seguir.');
+   if(onAccept(suggestion)){setApplied(index);setNotice('Sugerencia aplicada. El boceto y el historial se actualizaron; puedes deshacerla. Solicita otro análisis para seguir.');}
    else setError('Tu idea cambió antes de aplicar la sugerencia. Solicita un análisis nuevo.');
   }catch{setError('No se pudo aplicar esta sugerencia. Conservamos tus decisiones.');}
  }
@@ -67,7 +71,7 @@ export function NexiAiPanel({project,draft,disabled=false,onAccept}:{
   {title:'Preguntas por resolver',items:report.questions},{title:'Dependencias y riesgos',items:report.risks},
   {title:'Cómo comprobar el resultado',items:report.acceptanceCriteria},
  ]:[];
- return <details className="nexi-ai" open={draft&&draft.source!=='request'?true:undefined}>
+ return <details className="nexi-ai" open={draft&&!draft.source?true:undefined}>
   <summary><Sparkles size={20} aria-hidden="true"/><span><strong>{draft?'NEXI · análisis para el equipo':'NEXI · dale forma a tu idea'}</strong><small>{draft?'Alcance y decisiones para revisar':'Sugerencias opcionales con IA'}</small></span><span className="nai-tag">IA opcional</span><ChevronDown className="nai-chevron" size={18} aria-hidden="true"/></summary>
   <div className="nai-body">
    <p>{draft?'Analiza esta revisión sin modificar la idea original. El resultado es una propuesta interna para revisar.':'Cuéntanos qué ofreces o qué quieres mejorar. NEXI puede ordenar tu idea y sugerir funciones y decisiones visuales; tú eliges cuáles aplicar.'}</p>
@@ -95,7 +99,7 @@ export function NexiAiPanel({project,draft,disabled=false,onAccept}:{
     {onAccept&&<div className="nai-suggestions"><h4>Decisiones que puedes probar</h4>
      {!report.suggestions.length&&<p>NEXI no propuso cambios concretos. Revisa las preguntas para precisar tu idea.</p>}
      {report.suggestions.map((item,index)=>!dismissed.includes(index)&&<article key={index}>
-      <span className="nai-tag">Sugerencia · no aplicada</span><h5>{item.title}</h5><p>{item.reason}</p><strong>{aiSuggestionLabel(item)}</strong>
+      <span className="nai-tag">{applied===index?'Aplicada en una revisión anterior':'Sugerencia · no aplicada'}</span><h5>{item.title}</h5><p>{item.reason}</p><strong>{aiSuggestionLabel(item)}</strong>
       <p className="nai-evidence">Se apoya en: {item.evidenceFields.map(field=>AI_EVIDENCE_LABELS[field]).join(', ')}.</p>
       <div className="nai-actions"><button type="button" disabled={!current||busy||disabled} onClick={()=>accept(index)}><Check size={16} aria-hidden="true"/>Aplicar sugerencia</button><button type="button" disabled={busy} onClick={()=>setDismissed(values=>[...values,index])}><X size={16} aria-hidden="true"/>Descartar sugerencia</button></div>
      </article>)}

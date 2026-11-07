@@ -62,7 +62,8 @@ test('navigation reorders only selected sections while preserving demo interacti
   const base = { projectType: 'landing' as const, design: 'essential' as const, features: ['information', 'contact'] };
   const original = buildSolutionPreview(base);
   const reordered = buildSolutionPreview(base, '', { visualPreferences: preferences });
-  assert.deepEqual(reordered.sections.map(s => s.id), ['inicio', 'contact', 'services']);
+  assert.deepEqual(reordered.sections.map(s => s.id), ['inicio', 'contact', 'services', 'about']);
+  assert.deepEqual(new Set(reordered.sections.map(s=>s.id)),new Set(original.sections.map(s=>s.id)),'ordering cannot create or remove navigation destinations');
   assert.equal(original.key, reordered.key);
   const without = buildSolutionPreview({ ...base, features: ['information'] }, '', { visualPreferences: preferences });
   assert.equal(without.sections.some(s => s.id === 'contact'), false);

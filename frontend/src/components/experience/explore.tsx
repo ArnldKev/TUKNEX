@@ -22,6 +22,7 @@ import { money } from '@/lib/pricing';
 import { services, serviceFromSearch } from '@/data/services';
 import { PublicShell, PageIntro, openNexi } from './public-shell';
 import { SolutionPreview, type SolutionKind } from './solution-preview';
+import './evolution-pages.css';
 
 const icons = {
   landing: LayoutTemplate,
@@ -106,6 +107,7 @@ export function ExploreExperience() {
         </div>
         <div
           className="v5-service-showcase"
+          data-solution={kind}
           id="service-panel"
           role="tabpanel"
           aria-labelledby={'service-tab-' + kind}

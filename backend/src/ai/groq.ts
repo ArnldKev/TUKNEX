@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {cancelProviderBody} from './provider-response';
 import {aiContext,aiReportSchema,validateAiReport,type AiReport} from '../domain/quote/ai';
 import {FEATURES} from '../domain/pricing';
 import type {QuoteProject} from '../domain/quote/project';
@@ -39,12 +40,12 @@ export async function requestGroqReport(project:QuoteProject,signal?:AbortSignal
     response_format:{type:'json_schema',json_schema:{name:'tuknex_quote_analysis',strict:true,schema:z.toJSONSchema(aiReportSchema)}},
    }),
   });
-  if(res.status===429)throw new AiProviderError(429,'La cuota gratuita de NEXI está ocupada. Puedes seguir respondiendo y probar más tarde.');
-  if(!res.ok)throw new AiProviderError(503,'NEXI no pudo consultar la IA. Conservamos tus respuestas; puedes seguir con el cuestionario.');
-  if(Number(res.headers.get('content-length')||0)>32768)throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa. Puedes intentarlo de nuevo.');
+  if(res.status===429){await cancelProviderBody(res.body);throw new AiProviderError(429,'La cuota gratuita de NEXI está ocupada. Puedes seguir respondiendo y probar más tarde.');}
+  if(!res.ok){await cancelProviderBody(res.body);throw new AiProviderError(503,'NEXI no pudo consultar la IA. Conservamos tus respuestas; puedes seguir con el cuestionario.');}
+  if(Number(res.headers.get('content-length')||0)>32768){await cancelProviderBody(res.body);throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa. Puedes intentarlo de nuevo.');}
   if(!res.body)throw new AiProviderError(502,'La IA no devolvió un análisis válido.');
   const reader=res.body.getReader(),chunks:Uint8Array[]=[];let size=0;
-  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await reader.cancel();throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa.');}chunks.push(value);}}
+  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await cancelProviderBody(reader);throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa.');}chunks.push(value);}}
   finally{reader.releaseLock();}
   try{
    const data=JSON.parse(Buffer.concat(chunks).toString('utf8'));

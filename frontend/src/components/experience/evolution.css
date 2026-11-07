@@ -1,0 +1,129 @@
+/* FUTURE CONNECTED — public visual layer. Syne: self-hosted, SIL OFL 1.1. */
+@font-face {font-family:"Tuknex Display";src:url("/fonts/tuknex-display.woff2") format("woff2");font-style:normal;font-weight:400 800;font-display:optional;}
+.experience.future-connected {
+  --fc-bg:#070c18; --fc-panel:#101b2d; --fc-raised:#15243b;
+  --fc-ink:#edf5ff; --fc-muted:#a5b6cd; --fc-accent:#43dce0; --fc-focus:#73e8e3;
+  --fc-line:#26394a; --fc-paper:#edf4f4; --fc-paper-ink:#132a3e;
+  --fc-form-error:#9b2336;
+  --fc-display:"Tuknex Display","Bahnschrift","Segoe UI Variable Display","Segoe UI",Arial,sans-serif;
+  --fc-body:"Segoe UI Variable","Segoe UI",Arial,sans-serif;
+  --fc-space-1:4px; --fc-space-2:8px; --fc-space-3:12px; --fc-space-4:16px;
+  --fc-space-6:24px; --fc-space-8:32px; --fc-space-12:48px; --fc-space-16:64px; --fc-space-24:96px;
+  --fc-radius-control:8px; --fc-radius-panel:16px; --fc-radius-scene:24px;
+  --fc-header-height:84px; --fc-ease:cubic-bezier(.22,.68,0,1); --fc-duration:180ms;
+  --fc-scroll-thumb:var(--fc-muted); --fc-scroll-track:var(--fc-bg);scrollbar-color:var(--fc-scroll-thumb) var(--fc-scroll-track);
+  --foreground:var(--fc-ink); --xp-muted:var(--fc-muted); --xp-line:var(--fc-line); --xp-cyan:var(--fc-accent); --xp-teal:var(--fc-focus);
+  background:var(--fc-bg); color:var(--fc-ink); font-family:var(--fc-body);
+}
+.experience.future-connected ::selection {background:var(--fc-accent);color:var(--fc-bg);}
+.experience.future-connected ::-webkit-scrollbar {width:10px;height:10px;}
+.experience.future-connected ::-webkit-scrollbar-track {background:var(--fc-scroll-track);}
+.experience.future-connected ::-webkit-scrollbar-thumb {background:var(--fc-scroll-thumb);border:2px solid var(--fc-scroll-track);border-radius:8px;}
+.experience.future-connected ::-webkit-scrollbar-thumb:hover {background:var(--fc-focus);}
+.experience.future-connected .quote-workshop {--fc-scroll-thumb:var(--secondary);--fc-scroll-track:var(--background);scrollbar-color:var(--fc-scroll-thumb) var(--fc-scroll-track);}
+.experience.future-connected .xp-container {width:min(1320px,calc(100% - 112px));margin-inline:auto;}
+.experience.future-connected :is(a,button,input,select,textarea,summary):focus-visible {outline:3px solid var(--fc-focus);outline-offset:4px;}
+.experience.future-connected .xp-contact-form :is(a,button,summary):focus-visible {outline-color:var(--fc-paper-ink);}
+.experience.future-connected :is(a,button) {transition:color var(--fc-duration),background var(--fc-duration),border-color var(--fc-duration),transform var(--fc-duration);}
+.experience.future-connected :is(button,a.button,summary) {touch-action:manipulation;}
+.experience.future-connected .button {min-height:52px;padding:14px 22px;border-radius:var(--fc-radius-control);font-size:.9375rem;font-weight:650;gap:14px;box-shadow:none;letter-spacing:0;}
+.experience.future-connected .button-primary {background:var(--fc-accent);color:var(--fc-bg);border:1px solid var(--fc-accent);box-shadow:none;}
+.experience.future-connected .button-primary svg {color:currentColor;}
+.experience.future-connected .button-primary:hover {background:var(--fc-focus);border-color:var(--fc-focus);color:var(--fc-bg);transform:translateY(-2px);}
+.experience.future-connected .button-outline {color:var(--fc-ink);background:transparent;border:1px solid var(--fc-line);}
+.experience.future-connected .button-outline:hover {background:var(--fc-panel);border-color:var(--fc-muted);color:var(--fc-ink);}
+.experience.future-connected .xp-text-link {display:inline-flex;align-items:center;gap:14px;min-height:44px;color:var(--fc-accent);font-size:1rem;}
+.experience.future-connected .xp-text-link:hover {color:var(--fc-ink);}
+.experience.future-connected .xp-eyebrow {font-size:.75rem;letter-spacing:.14em;font-weight:650;color:var(--fc-muted);}
+.experience.future-connected .xp-eyebrow>i {width:24px;background:var(--fc-accent);}
+.experience.future-connected .xp-header {height:var(--fc-header-height);background:color-mix(in srgb,var(--fc-bg) 96%,transparent);border-bottom:1px solid var(--fc-line);box-shadow:none;backdrop-filter:blur(10px);}
+.experience.future-connected .xp-nav {width:min(1320px,calc(100% - 80px));height:100%;margin:auto;display:flex;gap:24px;justify-content:space-between;}
+.experience.future-connected .xp-brand {width:174px;max-width:none;flex-shrink:0;}
+.experience.future-connected .xp-brand img {width:100%;height:auto;object-fit:contain;}
+.experience.future-connected .xp-links {gap:24px;white-space:nowrap;}
+.experience.future-connected .xp-links a {font-size:.875rem;color:var(--fc-muted);padding-block:12px;}
+.experience.future-connected .xp-links a:hover,.experience.future-connected .xp-links a[aria-current=page] {color:var(--fc-ink);}
+.experience.future-connected .xp-links a[aria-current=page]::after {height:2px;box-shadow:none;background:var(--fc-accent);}
+.experience.future-connected .xp-nav-actions {gap:14px;flex-shrink:0;}
+.experience.future-connected .xp-nav-actions .button {min-height:44px;padding:10px 17px;}
+.experience.future-connected .xp-account,.experience.future-connected .xp-menu,.experience.future-connected .xp-nexi-button {min-height:44px;min-width:44px;border-radius:8px;color:var(--fc-ink);}
+.experience.future-connected .xp-nexi-button {font-size:.8125rem;}
+.experience.future-connected .xp-account-signed {max-width:160px;}
+.experience.future-connected .xp-account-signed span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.experience.future-connected .xp-menu {display:none;}
+.experience.future-connected .fc-mobile-quote {display:none;}
+.experience.future-connected .xp-footer {border-top:1px solid var(--fc-line);background:var(--fc-bg);padding:64px 0 0;}
+.experience.future-connected .xp-footer-top {grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;padding-bottom:64px;}
+.experience.future-connected .xp-footer-top>div:first-child p {color:var(--fc-muted);font-size:.9375rem;margin-top:24px;line-height:1.7;}
+.experience.future-connected .xp-footer-top>div>span {font-size:.6875rem;letter-spacing:.12em;color:var(--fc-muted);}
+.experience.future-connected .xp-footer-top :is(a,button):not(.xp-brand) {font-size:.875rem;min-height:44px;color:var(--fc-ink);font-weight:400;}
+.experience.future-connected .xp-footer-top :is(a,button):hover {color:var(--fc-accent);}
+.experience.future-connected .xp-footer-bottom {border-color:var(--fc-line);padding-block:24px;color:var(--fc-muted);font-size:.6875rem;}
+.experience.future-connected .welcome-panel {border:1px solid var(--fc-line);background:var(--fc-panel);border-radius:20px;box-shadow:0 30px 100px color-mix(in srgb,var(--fc-bg) 80%,transparent);}
+.experience.future-connected .welcome-art {background:var(--fc-bg);border:1px solid var(--fc-line);border-radius:12px;overflow:hidden;}
+.experience.future-connected .welcome-art::after {content:"";position:absolute;inset:20% -10%;border-top:6px solid var(--fc-accent);border-bottom:1px solid var(--fc-line);transform:rotate(-15deg);pointer-events:none;}
+.experience.future-connected .welcome-orbit,.experience.future-connected .welcome-spark {display:none;}
+.experience.future-connected .welcome-brand {z-index:1;border-radius:8px;box-shadow:none;background:var(--fc-panel);border:1px solid var(--fc-line);}
+.experience.future-connected .welcome-close {min-width:44px;min-height:44px;}
+.experience.future-connected .welcome-steps button {min-height:44px;border-radius:6px;}
+.experience.future-connected .chat-launcher {border-radius:12px;border:1px solid var(--fc-line);background:var(--fc-panel);box-shadow:0 8px 30px color-mix(in srgb,var(--fc-bg) 40%,transparent);}
+.experience.future-connected .chat-panel {border:1px solid var(--fc-line);border-radius:16px;background:var(--fc-panel);}
+.experience.future-connected .xp-page-intro {padding-top:64px;padding-bottom:64px;position:relative;}
+.experience.future-connected .xp-page-intro .xp-back {min-height:44px;color:var(--fc-muted);font-size:.8125rem;margin-bottom:28px;}
+.experience.future-connected .xp-page-intro h1 {font-family:var(--fc-display);font-size:clamp(2.75rem,5.8vw,5.5rem);font-weight:600;line-height:1.04;letter-spacing:-.05em;max-width:1100px;margin-top:24px;margin-bottom:30px;}
+.experience.future-connected .xp-page-intro h1 span {color:var(--fc-accent);}
+.experience.future-connected .xp-page-intro>p {color:var(--fc-muted);max-width:720px;border-left:2px solid var(--fc-line);padding-left:24px;font-size:1.0625rem;line-height:1.75;}
+@media(max-width:1200px) {
+ .experience.future-connected .xp-container {width:calc(100% - 64px);}
+ .experience.future-connected .xp-nav {width:calc(100% - 48px);gap:16px;}
+ .experience.future-connected .xp-links {gap:18px;}
+ .experience.future-connected .xp-brand {width:154px;}
+}
+@media(max-width:1120px) {
+ .experience.future-connected .xp-menu {display:inline-flex;align-items:center;justify-content:center;}
+ .experience.future-connected .xp-links {display:none;position:absolute;left:24px;right:24px;top:calc(var(--fc-header-height) - 1px);padding:20px;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;background:var(--fc-panel);border:1px solid var(--fc-line);border-radius:0 0 12px 12px;box-shadow:0 20px 45px var(--fc-bg);}
+ .experience.future-connected .xp-links.open {display:grid;}
+ .experience.future-connected .xp-links a {min-height:48px;padding:12px;border-radius:6px;font-size:1rem;}
+ .experience.future-connected .xp-links a[aria-current=page] {background:var(--fc-raised);}
+ .experience.future-connected .xp-links a::after {display:none;}
+}
+@media(max-width:900px) {
+ .experience.future-connected .xp-footer-top {grid-template-columns:1.5fr 1fr;gap:40px;}
+}
+@media(max-width:600px) {
+ .experience.future-connected {--fc-header-height:76px;}
+ .experience.future-connected .xp-container {width:calc(100% - 40px);}
+ .experience.future-connected .xp-nav {width:calc(100% - 32px);gap:8px;}
+ .experience.future-connected .xp-brand {width:112px;}
+ .experience.future-connected .xp-nav-actions {gap:4px;}
+ .experience.future-connected .xp-nav-actions .button {display:none;}
+ .experience.future-connected .xp-account-signed {width:auto;max-width:96px;gap:5px;}
+ .experience.future-connected .xp-account-signed span {display:block;max-width:64px;font-size:.6875rem;}
+ .experience.future-connected .xp-nexi-button span,.experience.future-connected .xp-nexi-button i {display:none;}
+ .experience.future-connected .xp-links {left:16px;right:16px;grid-template-columns:1fr;padding:12px;}
+ .experience.future-connected .xp-links .fc-mobile-quote {display:flex;gap:12px;align-items:center;color:var(--fc-accent);}
+ .experience.future-connected .xp-footer {padding-top:48px;}
+ .experience.future-connected .xp-footer-top {grid-template-columns:1fr 1fr;gap:32px 20px;padding-bottom:40px;}
+ .experience.future-connected .xp-footer-top>div:first-child {grid-column:1/-1;}
+ .experience.future-connected .xp-footer-bottom {display:grid;gap:12px;padding-bottom:100px;line-height:1.7;}
+ .experience.future-connected .xp-page-intro {padding-top:28px;padding-bottom:40px;}
+ .experience.future-connected .xp-page-intro .xp-back {margin-bottom:20px;}
+ .experience.future-connected .xp-page-intro h1 {font-size:2.75rem;margin-block:20px 24px;}
+ .experience.future-connected .xp-page-intro>p {font-size:1rem;padding-left:16px;}
+}
+@supports(animation-timeline:view()) {
+ @media(prefers-reduced-motion:no-preference) {
+  .experience.future-connected :is(.fc-path-copy,.fc-work-heading,.xp-about-intro) {animation:fc-section-in linear both;animation-timeline:view();animation-range:entry 0% entry 85%;}
+ }
+}
+@keyframes fc-section-in {from {transform:translateY(16px);}to {transform:translateY(0);}}
+@media(max-width:375px) {
+ .experience.future-connected .xp-container {width:calc(100% - 32px);}
+}
+@media(prefers-reduced-motion:reduce) {
+ .experience.future-connected *, .experience.future-connected *::before, .experience.future-connected *::after {animation:none!important;scroll-behavior:auto!important;transition:none!important;}
+ .experience.future-connected .fc-project-card:hover .fc-project-screen,.experience.future-connected .button-primary:hover {transform:none;}
+}
+@media(forced-colors:active) {
+ .experience.future-connected :is(a,button,input,select,textarea,summary):focus-visible {outline-color:Highlight;}
+}

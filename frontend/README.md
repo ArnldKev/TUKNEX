@@ -23,11 +23,11 @@ Copia .env.example a .env.local sólo si necesitas configurar:
 - **NEXT_PUBLIC_SITE_URL**: URL pública para Open Graph. Sin configurar se usa localhost sólo en desarrollo; en producción se omite la imagen absoluta.
 - **NEXT_PUBLIC_DEMO_MODE**: false usa las cuentas y sesiones reales del backend (valor por defecto).
 
-Las variables NEXT_PUBLIC_* son públicas y se aplican al compilar. No incluyas secretos. PDFs y datos persistentes necesitan la API; el sitio público y la estimación local funcionan sin ella. El acceso de usuarios requiere el backend. Los clientes se registran en /registro; los administradores crean otros administradores en /admin/usuarios. Ejecuta npm run setup en backend para la primera configuración de PostgreSQL.
+Las variables NEXT_PUBLIC_* son públicas y se aplican al compilar. No incluyas secretos. PDFs y datos persistentes necesitan la API; el sitio público y la estimación local funcionan sin ella. El acceso de usuarios requiere el backend. Los clientes se registran en /registro; el administrador principal crea subadministradores desde /admin/equipo. Los desarrolladores acceden a /equipo y solo ven proyectos asignados. Ejecuta npm run setup en backend para la primera configuración de PostgreSQL.
 
-**Netlify:** Base directory: frontend · Build command: npm run build · Publish directory: out.
-Configura las URLs públicas antes del build. No se ha desplegado nada.
+**Netlify:** Base directory: frontend · Build command: npm run build:release · Publish directory: out.
+Configura las URLs públicas antes del build. Publicar los cambios locales requiere commit y despliegue; consulta ../deploy/RENDER_NETLIFY.md para Render + Netlify + Neon.
 
-Al finalizar el cotizador con una sesión de cliente, la propuesta se guarda en PostgreSQL mediante la API. Se consulta en /mi-cuenta/cotizaciones; el administrador ve todas en /admin/solicitudes y los clientes registrados en /admin/clientes. La pantalla confirma el guardado sólo cuando responde el servidor; si falla, conserva las respuestas y permite reintentar. Las simulaciones de pago y las cotizaciones formales siguen disponibles por separado.
+Al finalizar el cotizador con una sesión de cliente, la propuesta se guarda en PostgreSQL mediante la API. Se consulta en /mi-cuenta/cotizaciones; el administrador ve las enviadas por clientes en /admin/solicitudes y las propias en /admin/mis-cotizaciones y los clientes registrados en /admin/clientes. La pantalla confirma el guardado sólo cuando responde el servidor; si falla, conserva las respuestas y permite reintentar. Las simulaciones de pago y las cotizaciones formales siguen disponibles por separado.
 
 Para preparar el lanzamiento revisa ../deploy/PRODUCCION.md. Guardar como invitado abre el acceso dentro del cotizador y mantiene las respuestas. El nuevo registro solicita móvil y DNI; la verificación real necesita los proveedores del backend. /privacidad explica el uso de datos. /admin/mensajes muestra contactos recibidos.

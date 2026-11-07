@@ -15,6 +15,7 @@ import {useDemoAuth} from '@/lib/platform/auth';
 import {QUOTE_STEP_FIELDS,defaultFeatures,firstInvalidQuoteStep,quoteDefaults,quoteFormSchema,quotePrefillFromSearch,type QuoteFormValues} from '@/lib/quote/form';
 import {QUOTE_RECOVERY_KEY,initialQuoteFlow,advanceQuoteFlow,completeQuoteFlow,quoteProgress,serializeQuoteRecovery,parseQuoteRecovery,type QuoteFlowState} from '@/lib/quote/workflow';
 import {quoteService} from '@/lib/quote/service';
+import {saveStaffQuoteRequest} from '@/lib/quote/staff-requests';
 import {quoteAnswers,quoteProposalText} from '@/lib/quote/presentation';
 import type {QuoteResult} from '@/lib/quote/contracts';
 import {QuotePreviewPanel} from '@/components/quote/solution-preview';
@@ -30,6 +31,8 @@ import {QuoteEstimatePanel} from '@/components/quote/steps/estimate-panel';
 import './quote-chat.css';
 import './quote/quote-flow.css';
 import './quote/quote-redesign.css';
+import './quote/quote-evolution.css';
+import './quote/quote-client-assignment.css';
 export {QuoteSummary} from '@/components/quote/steps/summary';
 
 const steps=[
@@ -47,6 +50,7 @@ function QuoteDictationSession({children,step,disabled}:{children:React.ReactNod
 }
 export function QuoteStepperForm(){
  const auth=useDemoAuth();
+ const staffMode=!DEMO_MODE&&(auth.user?.role==='admin'||auth.user?.role==='subadmin');
  const form=useForm<QuoteFormValues>({resolver:zodResolver(quoteFormSchema),mode:'onTouched',defaultValues:startValues,shouldUnregister:false});
  const values=useWatch({control:form.control}) as QuoteFormValues;
  const [flow,setFlow]=useState<QuoteFlowState>(initialQuoteFlow),step=flow.step;
@@ -119,13 +123,14 @@ export function QuoteStepperForm(){
  }
  async function saveProposal(input:QuoteFormValues,estimate:QuoteResult){
   requestKey.current ||=crypto.randomUUID();
-  const saved=await quoteService.request({input,result:estimate,contact:{name:input.name,business:input.businessName,email:input.email,phone:input.phone,marketingConsent:input.marketingConsent},answers:quoteAnswers(input),demoClientId:auth.user?.role==='client'?auth.user.id:undefined,idempotencyKey:requestKey.current});
+  const staffSaved=staffMode?await saveStaffQuoteRequest(input,requestKey.current):null;
+  const saved=staffSaved?{id:staffSaved.id,number:staffSaved.number,result:staffSaved.result,mode:'persistent' as const}:await quoteService.request({input,result:estimate,contact:{name:input.name,business:input.businessName,email:input.email,phone:input.phone,marketingConsent:input.marketingConsent},answers:quoteAnswers(input),demoClientId:auth.user?.role==='client'?auth.user.id:undefined,idempotencyKey:requestKey.current});
   setSavedId(saved.id);if(saved.result)setResult(saved.result);
   submitted.current=true;
   try{sessionStorage.removeItem(QUOTE_RECOVERY_KEY);}catch{/* Saving the request does not depend on browser storage. */}
-  setRecoveryMessage('Tu solicitud ya fue enviada. La copia temporal de recuperación se ha retirado.');
+  setRecoveryMessage(staffMode?'Cotización guardada por el equipo. La copia temporal de recuperación se ha retirado.':'Tu solicitud ya fue enviada. La copia temporal de recuperación se ha retirado.');
   setFlow(old=>completeQuoteFlow(old,input));
-  setNotice(saved.mode==='persistent'?'Solicitud '+(saved.number||saved.id)+' enviada. El equipo TUKNEX ya puede revisarla.':'Solicitud incorporada a la sesión de demostración.');
+  setNotice(staffMode?'Cotización '+(saved.number||saved.id)+' guardada a tu cargo. Puedes vincularla a una cuenta de cliente desde el panel.':saved.mode==='persistent'?'Solicitud '+(saved.number||saved.id)+' enviada. El equipo TUKNEX ya puede revisarla.':'Solicitud incorporada a la sesión de demostración.');
  }
  async function finish(input:QuoteFormValues){
   if(busy)return;setBusy(true);setNotice('');setError('');
@@ -139,13 +144,14 @@ export function QuoteStepperForm(){
   if(target===step){if(first)focusField(first);}else{focusTarget.current=first??'heading';setFlow(old=>({...old,step:target}));}
  };
  async function submitProposal(input:QuoteFormValues,estimate:QuoteResult){
+  if(staffMode){await saveProposal(input,estimate);return;}
   if(!DEMO_MODE&&auth.user?.role!=='client'){setAccessOpen(true);return;}
   if(!DEMO_MODE){const verification=await billingRequest<VerificationStatus>('auth/verification');if(!canSaveQuote(verification)){setAccessOpen(true);return;}}
   await saveProposal(input,estimate);
  }
  async function requestAdvice(){
   if(!result||!completedValues||savedId||busy)return;
-  if(!DEMO_MODE&&auth.user?.role!=='client'){setAccessOpen(true);return;}
+  if(!DEMO_MODE&&!staffMode&&auth.user?.role!=='client'){setAccessOpen(true);return;}
   setBusy(true);setError('');
   try{await submitProposal(completedValues,result);}
   catch(e){setError((e instanceof Error?e.message:'No se envió la solicitud. Comprueba la conexión.')+' Tus respuestas siguen disponibles.');}
@@ -163,22 +169,24 @@ export function QuoteStepperForm(){
    case 2:return <QuoteFeaturesStep prices={prices}/>;
    case 3:return <QuoteStyleStep prices={prices}/>;
    case 4:return <QuoteTimingStep prices={prices}/>;
-   default:return <QuoteReviewStep onEdit={goTo} prices={prices}/>;
+   default:return <QuoteReviewStep onEdit={goTo} prices={prices} staff={staffMode}/>;
   }
  }
  return <FormProvider {...form}>
   {accessOpen&&<QuoteAuthDialog onClose={()=>setAccessOpen(false)} onSave={async()=>{if(completedValues&&result)await saveProposal(completedValues,result);}}/>}
   <QuoteProjectSession form={form} onRestore={message=>{setResult(null);setCompletedValues(null);setSavedId('');requestKey.current=null;setNotice(message??'Cambio recuperado. Tus datos de contacto se mantienen.');}}>
    <QuoteDictationSession step={step} disabled={busy||!!result}>
-    <div className="quote-experience quote-v4 quote-guided" data-step={step+1}>
+    <div className="quote-studio">
+     {staffMode&&<div className="quote-staff-mode" role="note"><strong>Atención de cliente · {auth.user?.name}</strong><p>Completa las respuestas del cliente desde tu sesión. Al guardar quedarán a cargo del equipo; después podrás vincularlas a su cuenta por correo.</p></div>}
+     <div className="quote-experience quote-v4 quote-guided" data-step={step+1}>
      <div className="quote-layout">
       <nav className="quote-sidebar" aria-label="Pasos de la cotización"><ol className="quote-steps">{steps.map((item,index)=><li key={item.label} className={(index===step?'active ':'')+(flow.completed.includes(index)?'complete':'')}>
-       <button type="button" disabled={index>furthestStep||busy} onClick={()=>goTo(index)} aria-label={`${index+1}. ${item.label}`} aria-current={index===step?'step':undefined}><span className="quote-step-number">{flow.completed.includes(index)?<Check size={16} aria-hidden="true"/>:index+1}</span><span>{item.label}</span></button>
+       <button type="button" disabled={index>furthestStep||busy} onClick={()=>goTo(index)} aria-label={`${index+1} ${item.label}`} aria-current={index===step?'step':undefined}><span className="quote-step-number">{flow.completed.includes(index)?<Check size={16} aria-hidden="true"/>:index+1}</span><span>{item.label}</span></button>
       </li>)}</ol></nav>
       <div className="quote-progress-shell"><div className="quote-v4-progress"><span>Paso {step+1} de 6 · {steps[step].label}</span><strong>{progress}% completado</strong><div role="progressbar" aria-label="Etapas completadas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i style={{width:progress+'%'}}/></div></div></div>
       <div className="quote-main" ref={panelRef}>
        <header className="quote-question-header"><h2 id="quote-question" ref={headingRef} tabIndex={-1}>{result?'Tu propuesta preliminar':steps[step].title}</h2><p id="quote-question-description" className="quote-step-description">{result?'El alcance y el precio final se confirman después de revisar tu solicitud.':steps[step].description}</p></header>
-       {result&&completedValues?<QuoteResultStep values={completedValues} result={result} busy={busy} savedId={savedId} authenticated={auth.user?.role==='client'} proposal={proposal} onPreferenceChange={preference=>{if(savedId||busy)return;form.setValue('paymentPreference',preference);setCompletedValues(old=>old?{...old,paymentPreference:preference}:old);requestKey.current=null;}} onEdit={goTo} onRequest={()=>void requestAdvice()} onWhatsApp={()=>void shareWhatsApp()}/>:
+       {result&&completedValues?<QuoteResultStep values={completedValues} result={result} busy={busy} savedId={savedId} authenticated={auth.user?.role==='client'||staffMode} staffRole={staffMode?auth.user?.role as 'admin'|'subadmin':undefined} proposal={proposal} onPreferenceChange={preference=>{if(savedId||busy)return;form.setValue('paymentPreference',preference);setCompletedValues(old=>old?{...old,paymentPreference:preference}:old);requestKey.current=null;}} onEdit={goTo} onRequest={()=>void requestAdvice()} onWhatsApp={()=>void shareWhatsApp()}/>:
         <form noValidate aria-labelledby="quote-question" aria-describedby="quote-question-description" onSubmit={event=>{if(step<5){event.preventDefault();void nextStep();}else void form.handleSubmit(finish,invalid)(event);}}>
          {step>0&&<QuoteDictationNotice/>}
          <div className="quote-current-step" key={'questions-'+step}>{renderStep()}</div>
@@ -186,7 +194,7 @@ export function QuoteStepperForm(){
          <details className="quote-history-disclosure"><summary>Deshacer o recuperar cambios de esta sesión</summary><QuoteProjectHistoryControls disabled={busy}/></details>
          {error&&<p className="quote-flow-error" role="alert">{error}</p>}
          <div className="quote-form-footer"><div>{step>0?<button type="button" className="quote-back" disabled={busy} onClick={()=>goTo(step-1)}><ArrowLeft size={18} aria-hidden="true"/> Anterior</button>:<span className="quote-help"><ShieldCheck size={17} aria-hidden="true"/> Sin compromiso</span>}</div>
-          {step<5?<button type="button" className="quote-primary" disabled={busy} onClick={event=>{event.preventDefault();void nextStep();}}>Continuar <ArrowRight size={18} aria-hidden="true"/></button>:<button type="submit" className="quote-primary" disabled={busy}>{busy?'Enviando…':'Enviar solicitud'}<Sparkles size={18} aria-hidden="true"/></button>}
+          {step<5?<button type="button" className="quote-primary" disabled={busy} onClick={event=>{event.preventDefault();void nextStep();}}>Continuar <ArrowRight size={18} aria-hidden="true"/></button>:<button type="submit" className="quote-primary" disabled={busy}>{busy?'Guardando…':staffMode?'Guardar cotización del cliente':'Enviar solicitud'}<Sparkles size={18} aria-hidden="true"/></button>}
          </div>
         </form>}
        {result&&error&&<p className="quote-flow-error" role="alert">{error}</p>}
@@ -195,6 +203,7 @@ export function QuoteStepperForm(){
       </div>
      </div>
      <aside className="quote-preview-column" aria-label="Tu idea y su estimación">{flow.goalChosen?<><QuotePreviewPanel disabled={busy||!!result} showEditor={false} openOnMobile={step===3}/><QuoteEstimatePanel prices={prices}/></>:<section className="quote-preview-intro"><Sparkles size={28} aria-hidden="true"/><h2>Tu idea comienza aquí</h2><p>Elige qué quieres conseguir. Después verás un boceto y una primera referencia de inversión.</p><span>Sin registro para explorar</span></section>}</aside>
+     </div>
     </div>
    </QuoteDictationSession>
   </QuoteProjectSession>

@@ -5,7 +5,10 @@
 .quote-route-intro h1{font-size:clamp(1.8rem,4vw,2.65rem);line-height:1.17;letter-spacing:-.04em;margin:8px 0 10px;color:var(--foreground)}
 .quote-route-intro p{max-width:690px;font-size:1rem;color:var(--secondary);line-height:1.65}
 .quote-workshop .xp-container{max-width:1220px;width:100%;padding:0 24px;margin:auto}
-.quote-workshop .quote-guided{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,350px);gap:24px;align-items:start;color:var(--foreground)}
+.quote-workshop .quote-studio{width:100%;min-width:0}
+.quote-workshop .quote-guided{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,400px);grid-template-areas:"questions preview";gap:24px;align-items:start;color:var(--foreground)}
+.quote-workshop .quote-guided>.quote-layout{grid-area:questions}
+.quote-workshop .quote-guided>.quote-preview-column{grid-area:preview;align-self:start}
 .quote-workshop .quote-v4 .quote-layout{background:#fff;border:1px solid var(--line);box-shadow:0 12px 40px #143b5010;border-radius:18px;min-width:0}
 .quote-workshop .quote-v4 .quote-sidebar{padding:14px 16px;border-bottom:1px solid var(--line);background:#fff}
 .quote-workshop .quote-v4 .quote-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;list-style:none}
@@ -106,7 +109,7 @@
 .quote-workshop .quote-v4 .qfd-error,.quote-workshop .quote-v4 .qfd-length{font-size:.8125rem;color:#9c3030}
 .experience:has(.quote-workshop) .chat-launcher{bottom:92px}
 @media(min-width:1024px){.quote-workshop .quote-v4 .quote-objective-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-workshop .quote-v4 .quote-style-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:1023px){.quote-workshop .quote-guided{grid-template-columns:minmax(0,1fr)}.quote-workshop .quote-v4 .quote-preview-column{position:static;display:grid;grid-template-columns:1fr 1fr;gap:16px}.quote-workshop .quote-v4 .quote-live-price{margin:0}.quote-workshop .quote-v4 .quote-sidebar{display:block}.quote-workshop .quote-v4 .quote-progress-shell{top:72px}.quote-workshop #quote-question{scroll-margin-top:155px}}
+@media(max-width:1023px){.quote-workshop .quote-guided{grid-template-columns:minmax(0,1fr);grid-template-areas:"questions" "preview"}.quote-workshop .quote-v4 .quote-preview-column{position:static;display:block}.quote-workshop .quote-v4 .quote-preview-column>*+*{margin-top:20px}.quote-workshop .quote-v4 .quote-live-price{margin:0}.quote-workshop .quote-v4 .quote-sidebar{display:block}.quote-workshop .quote-v4 .quote-progress-shell{top:72px}.quote-workshop #quote-question{scroll-margin-top:155px}}
 @media(max-width:600px){.quote-workshop{padding-top:22px}.quote-workshop .quote-route-intro{padding:0 16px;margin-bottom:20px}.quote-workshop .xp-container{padding:0 12px}.quote-workshop .quote-v4 .quote-main{padding:22px 18px}.quote-workshop .quote-v4 .quote-sidebar{padding:8px}.quote-workshop .quote-v4 .quote-steps li button{min-height:52px;padding:5px 0}.quote-workshop .quote-v4 .quote-steps li button>span:last-child{display:none}.quote-workshop .quote-v4 .quote-step-number{width:28px;height:28px}.quote-workshop .quote-v4 .quote-progress-shell{padding:12px 18px;top:70px}.quote-workshop .quote-v4 .quote-objective-grid,.quote-workshop .quote-v4 .quote-features-grid{grid-template-columns:minmax(0,1fr)}.quote-workshop .quote-v4 .quote-style-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quote-workshop .quote-v4 .quote-preview-column{display:block}.quote-workshop .quote-v4 .quote-live-price{margin-top:16px}.quote-workshop .quote-v4 .quote-form-footer .quote-primary{padding:12px 15px}.quote-workshop .quote-v4 .quote-history-disclosure>summary{font-size:.75rem}.quote-workshop .quote-v4 .quote-form-footer{gap:8px}}
 @media(prefers-reduced-motion:reduce){.quote-workshop *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 
