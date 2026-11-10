@@ -3,33 +3,11 @@ import { FEATURES, PROJECT_TYPES, money } from '../pricing';
 import { paymentPreferenceLabels, type QuoteFormValues } from './form';
 import type { QuoteAnswer, QuoteResult } from './contracts';
 
-export const sectorLabels = {
-  food: 'Restaurante / cafetería',
-  tourism: 'Turismo y hospedaje',
-  commerce: 'Comercio y productos',
-  services: 'Servicios profesionales',
-  health: 'Salud y bienestar',
-  education: 'Educación',
-  other: 'Otro emprendimiento',
-};
-export const goalLabels = {
-  visibility: 'Que conozcan mi negocio',
-  products: 'Mostrar productos o menú',
-  orders: 'Recibir pedidos o consultas',
-  sales: 'Vender y cobrar online',
-  organize: 'Organizar mis procesos',
-  modernize: 'Modernizar lo que tengo',
-  unsure: 'Necesito orientación',
-};
-export const budgetLabels = {
-  unsure: 'Aún no lo sé',
-  under300: 'Hasta S/ 300',
-  '300-550': 'S/ 300–550',
-  '550-800': 'S/ 550–800',
-  '800-1000': 'S/ 800–1,000',
-  '1000+': 'Más de S/ 1,000',
-};
-export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
+import {quoteChoiceLabels,quoteChoiceLabel,quoteChoiceList,quoteOriginLabel,type QuoteAnswerSources} from './commercial-labels';
+export const sectorLabels=quoteChoiceLabels.sector;
+export const goalLabels=quoteChoiceLabels.goal;
+export const budgetLabels=quoteChoiceLabels.budget;
+export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources): QuoteAnswer[] {
   const pairs: [string, string][] = [
     ['Objetivo', goalLabels[values.goal]],
     ['Negocio', values.businessName || 'Sin indicar'],
@@ -38,7 +16,7 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
     ['Ciudad / zona', values.city || 'Por definir'],
     ['Web / redes actuales', values.website || 'Sin indicar'],
     ['Clientes', values.customers || 'Por definir'],
-    ['Canales actuales', values.salesChannels.join(', ')],
+    ['Canales actuales', quoteChoiceList('salesChannels',values.salesChannels,'Sin canales indicados')],
     ['Venta actual', values.salesProcess || 'Sin indicar'],
     ['Problema a resolver', values.problem],
     [
@@ -49,13 +27,13 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
     ],
     [
       'Volumen de productos',
-      ['catalog', 'store'].includes(values.projectType) ? values.productsRange : 'No aplica',
+      ['catalog', 'store'].includes(values.projectType) ? quoteChoiceLabel('productsRange',values.productsRange) : 'No aplica',
     ],
-    ['Usuarios', values.projectType === 'system' ? values.userRange : 'No aplica'],
+    ['Usuarios', values.projectType === 'system' ? quoteChoiceLabel('userRange',values.userRange) : 'No aplica'],
     ['Otras funciones', values.otherFunctions || 'Ninguna adicional'],
-    ['Material disponible', values.materials.join(', ') || 'Por preparar'],
-    ['Diseño', values.design],
-    ['Estilo', values.stylePreference],
+    ['Material disponible', quoteChoiceList('materials',values.materials,'Por preparar')],
+    ['Diseño', quoteChoiceLabel('design',values.design)],
+    ['Estilo', quoteChoiceLabel('stylePreference',values.stylePreference)],
     ['Dirección del boceto (provisional)', visualPreferenceSummary(values.visualPreferences)],
     ['Valoración del boceto', values.previewFeedback ? previewFeedbackLabels[values.previewFeedback] : 'Sin valoración registrada'],
     ['Cambios que pide el cliente', values.previewComment || 'Sin comentarios'],
@@ -64,14 +42,14 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
     ['Referencias', values.references || 'Sin indicar'],
     ['Competencia / marca de referencia', values.competitor || 'Sin indicar'],
     ['Primer mensaje al visitante', values.firstImpression || 'Por definir'],
-    ['Prioridad', values.timeline],
+    ['Prioridad', quoteChoiceLabel('timeline',values.timeline)],
     ['Lanzamiento ideal', values.launchDate || 'Flexible'],
     ['Fecha límite real', values.hardDeadline ? values.deadlineReason || 'Sí, por confirmar' : 'No'],
     ['Presupuesto orientativo', budgetLabels[values.budget]],
     ['Frecuencia de pago preferida', paymentPreferenceLabels[values.paymentPreference||'unsure']],
-    ['Dominio', values.domain === 'yes' ? values.existingDomain || 'Ya tiene' : values.domain],
-    ['Hosting', values.hosting],
-    ['Gestión del contenido', values.management],
+    ['Dominio', values.domain === 'yes'&&values.existingDomain ? values.existingDomain : quoteChoiceLabel('domain',values.domain)],
+    ['Hosting', quoteChoiceLabel('hosting',values.hosting)],
+    ['Gestión del contenido', quoteChoiceLabel('management',values.management)],
     ['Capacitación', values.training ? 'Sí' : 'Por definir'],
     ['Mantenimiento', values.maintenance ? 'Interés en mantenimiento opcional' : 'No solicitado'],
     ['Correo corporativo', values.corporateEmail ? 'Evaluar proveedor' : 'No solicitado'],
@@ -81,7 +59,9 @@ export function quoteAnswers(values: QuoteFormValues): QuoteAnswer[] {
       values.marketingConsent ? 'Autorizado para contacto comercial sobre este proyecto' : 'No otorgado',
     ],
   ];
-  return pairs.map(([question, value]) => ({ question, value }));
+  const provenance:Record<string,keyof QuoteFormValues>={'Objetivo':'goal','Rubro':'sector','Canales actuales':'salesChannels','Volumen de productos':'productsRange','Usuarios':'userRange','Material disponible':'materials','Diseño':'design','Estilo':'stylePreference','Prioridad':'timeline','Presupuesto orientativo':'budget','Frecuencia de pago preferida':'paymentPreference','Dominio':'domain','Hosting':'hosting','Gestión del contenido':'management'};
+  // Old saved requests lack provenance; never claim that their defaults were explicitly chosen.
+  return pairs.map(([question,value])=>({question,value:sources&&provenance[question]?value+' · '+quoteOriginLabel(sources[provenance[question]]):value}));
 }
 export function quoteProposalText(values: QuoteFormValues, result: QuoteResult): string {
   const project = PROJECT_TYPES.find((item) => item.id === values.projectType)!;

@@ -9,7 +9,8 @@ export function assertProductionConfig() {
   const policy=verificationPolicy();
   const required=['DATABASE_URL','CORS_ORIGINS'];
   if(policy.verificationEnabled)required.push('VERIFICATION_SECRET');
-  if(policy.emailRequired)required.push('RESEND_API_KEY','EMAIL_FROM');
+  if(policy.emailRequired||process.env.NOTIFICATIONS_ENABLED==='true')required.push('RESEND_API_KEY','EMAIL_FROM');
+  if(process.env.NOTIFICATIONS_ENABLED==='true'){required.push('APP_PUBLIC_URL');if(process.env.APP_PUBLIC_URL){try{const publicUrl=new URL(process.env.APP_PUBLIC_URL);if(publicUrl.protocol!=='https:'||publicUrl.origin!==process.env.APP_PUBLIC_URL||['localhost','127.0.0.1'].includes(publicUrl.hostname))throw Error();}catch{throw Error('APP_PUBLIC_URL debe ser el origen HTTPS público exacto del frontend.');}}}
   if(policy.phoneRequired)required.push('TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_VERIFY_SERVICE_SID');
   const missing=required.filter(key=>!process.env[key]);
   if(missing.length)throw Error('Falta configuración de producción: '+missing.join(', '));

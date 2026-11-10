@@ -17,3 +17,9 @@ test('AI transport refuses unrelated revisions and sends consent without contact
  }finally{globalThis.fetch=original;}
 });
 
+
+ test('formal quote analysis sends only source ID, expected version and separate consent to scoped routes',async()=>{
+ const {analyzeAiProject}=await import('./ai-api'),p=createQuoteProject({...quoteDefaults,offering:'Carta de platos',problem:'Ordenar pedidos'}),original=globalThis.fetch;
+ let url='',body='';globalThis.fetch=async(input,options)=>{url=String(input);body=String(options?.body);return new Response(JSON.stringify({id:crypto.randomUUID(),projectId:p.id,baseRevision:0,provider:'groq',model:'test-model',generatedAt:new Date().toISOString(),report:{summary:'Carta',scope:[],exclusions:[],questions:[],risks:[],acceptanceCriteria:[],visualDirection:'Claro',suggestions:[]}}));};
+ try{await analyzeAiProject(p,new AbortController().signal,{id:p.id,version:4,source:'formal'});assert.ok(url.endsWith('/api/billing/quote-ai/quotes/'+p.id+'/analyze'));assert.equal(JSON.parse(body).version,4);assert.equal(JSON.parse(body).project,undefined);const teamId=crypto.randomUUID();await analyzeAiProject(p,new AbortController().signal,{id:p.id,version:4,source:'team-formal',teamProjectId:teamId});assert.ok(url.endsWith('/api/team/projects/'+teamId+'/quotes/'+p.id+'/analyze'));assert.deepEqual(Object.keys(JSON.parse(body)).sort(),['consent','policyVersion','version']);}finally{globalThis.fetch=original;}
+ });

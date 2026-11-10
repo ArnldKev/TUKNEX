@@ -20,9 +20,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { BillingService } from './billing.service';
 import { PdfService } from '../documents/pdf.service';
+import {validateReceipt} from './receipt-validation';
 import { AdminGuard } from '../auth/auth';
 @Controller('api/billing')
 @UseGuards(AdminGuard)
@@ -99,22 +100,10 @@ export class BillingController {
   @Post('receipts')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
   async receipt(@UploadedFile() file?: Express.Multer.File) {
-    if (!file) throw new BadRequestException('Selecciona un comprobante PDF, PNG o JPEG de hasta 5 MB.');
-    const bytes = file.buffer;
-    const mime =
-      bytes.subarray(0, 5).toString() === '%PDF-'
-        ? 'application/pdf'
-        : bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-          ? 'image/png'
-          : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-            ? 'image/jpeg'
-            : null;
-    if (!mime) throw new BadRequestException('El archivo debe ser un PDF, PNG o JPEG válido.');
-    const id = randomUUID(),
-      name = file.originalname.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ._-]/g, '').slice(0, 120) || 'comprobante';
+    const {bytes,mime,name,sha256}=validateReceipt(file),id=randomUUID();
     await this.service.db.query(
       'INSERT INTO comprobantes(id,nombre,mime,contenido,sha256) VALUES($1,$2,$3,$4,$5)',
-      [id, name, mime, bytes, createHash('sha256').update(bytes).digest('hex')],
+      [id, name, mime, bytes, sha256],
     );
     return { id, name };
   }

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { DEMO_MODE } from '../../config/environment';
 import { apiAuthService } from './api-auth';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {AuthRequestScope} from './auth-request-scope';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, LockKeyhole } from 'lucide-react';
 import { platformRepository } from './repository';
 import type { AuthService, RegistrationInput, User, UserRole } from './types';
@@ -68,7 +69,8 @@ export class MockAuthService implements AuthService {
       }
     }
   }
-  async getCurrentUser() {
+  async getCurrentUser(_signal?:AbortSignal) {
+    void _signal;
     if (!DEMO_MODE) return null;
     if (this.user) return this.user;
     if (typeof window === 'undefined') return null;
@@ -114,22 +116,35 @@ interface DemoAuthContextValue {
 const DemoAuthContext=createContext<DemoAuthContextValue|null>(null);
 export function DemoAuthProvider({children}:{children:ReactNode}) {
   const [user,setUser]=useState<User|null>(null),[ready,setReady]=useState(false),[error,setError]=useState('');
+  const scope=useRef(new AuthRequestScope());
   useEffect(()=>{
-    let alive=true;
-    activeAuth.getCurrentUser().then(current=>{if(alive)setUser(current);}).catch(()=>{if(alive)setError('No se pudo conectar con el servidor. Comprueba que el backend esté encendido y vuelve a cargar.');}).finally(()=>{if(alive)setReady(true);});
-    const expired=()=>setUser(null);
-    const verify=()=>{void activeAuth.getCurrentUser().then(current=>{if(alive)setUser(current);}).catch(()=>{});};
-    window.addEventListener('account-expired',expired);window.addEventListener('focus',verify);window.addEventListener('account-updated',verify);
-    return ()=>{alive=false;window.removeEventListener('account-expired',expired);window.removeEventListener('focus',verify);window.removeEventListener('account-updated',verify);};
+    const requests=scope.current;requests.activate();
+    const verify=(initial=false)=>{
+      const ticket=requests.verification();if(!ticket)return;
+      void activeAuth.getCurrentUser(ticket.signal).then(current=>{if(requests.current(ticket.token)){setUser(current);setError('');}})
+        .catch(()=>{if(initial&&requests.current(ticket.token)&&!ticket.signal.aborted)setError('No se pudo conectar con el servidor. Comprueba que el backend esté encendido y vuelve a cargar.');})
+        .finally(()=>{if(requests.current(ticket.token))setReady(true);});
+    };
+    verify(true);
+    const expired=(event:Event)=>{if(requests.isTransitioning())return;requests.invalidate();setUser(null);setReady(true);if((event as CustomEvent<{reason?:string}>).detail?.reason==='expired')setError('Tu sesión ha caducado. Inicia sesión para continuar.');};
+    const refresh=()=>verify();
+    window.addEventListener('account-expired',expired);window.addEventListener('focus',refresh);window.addEventListener('account-updated',refresh);
+    return ()=>{requests.dispose();window.removeEventListener('account-expired',expired);window.removeEventListener('focus',refresh);window.removeEventListener('account-updated',refresh);};
   },[]);
+  async function establish(action:()=>Promise<User>){
+    const token=scope.current.beginTransition();setUser(null);setReady(false);setError('');
+    try{const current=await action();if(!scope.current.finishTransition(token))throw new Error('La sesión cambió mientras se comprobaba el acceso.');setUser(current);return current;}
+    finally{if(scope.current.current(token)){scope.current.finishTransition(token);setReady(true);}}
+  }
   return <DemoAuthContext.Provider value={{user,ready,error,
-    loginDemo:async role=>{if(!DEMO_MODE)throw new Error('El acceso demo está desactivado.');setUser(await demoAuthService.loginDemo(role));},
-    login:async(email,password)=>{const current=await activeAuth.login(email,password);setUser(current);setError('');return current;},
-    register:async input=>{const current=await activeAuth.register(input);setUser(current);setError('');return current;},
-    logout:async()=>{await activeAuth.logout();setUser(null);},
+    loginDemo:role=>{if(!DEMO_MODE)return Promise.reject(new Error('El acceso demo está desactivado.'));return establish(()=>demoAuthService.loginDemo(role)).then(()=>undefined);},
+    login:(email,password)=>establish(()=>activeAuth.login(email,password)),
+    register:input=>establish(()=>activeAuth.register(input)),
+    logout:async()=>{const token=scope.current.beginTransition();setUser(null);setError('');setReady(false);try{await activeAuth.logout();}finally{if(scope.current.finishTransition(token))setReady(true);}},
     resetPassword:email=>activeAuth.resetPassword(email),hasRole:role=>user?.role===role,
   }}>{children}</DemoAuthContext.Provider>;
 }
+
 export function useDemoAuth() {
   const context=useContext(DemoAuthContext);
   if(!context)throw new Error('El proveedor de autenticación debe estar en el layout raíz.');

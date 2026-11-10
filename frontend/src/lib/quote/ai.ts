@@ -1,5 +1,6 @@
 // Keep identical in frontend/src/lib/quote and backend/src/domain/quote.
 import {z} from 'zod';
+import {organizedIdeaSchema,ideaOriginal,validateOrganizedIdea} from './idea';
 import {FEATURES} from '../pricing';
 import {quoteProjectSchema,projectSuggestionSchema,type QuoteProject,type ProjectSuggestion,type ProjectChange,type ProjectField} from './project';
 import {visualOptions} from './visual';
@@ -46,6 +47,9 @@ export function aiContext(project:QuoteProject){
   const value=field in project.answers?(project.answers as Record<string,unknown>)[field]:(project.visual as Record<string,unknown>)[field];
   result[field]=typeof value==='string'?redactAiText(value):value;
  }
+ const approved=project.answers.approvedIdea;
+ if(approved&&JSON.stringify(approved.original)===JSON.stringify(Object.fromEntries(Object.entries(ideaOriginal(project.answers)).map(([key,value])=>[key,redactAiText(value)]))))
+  result.approvedInterpretation=Object.fromEntries(Object.entries(approved.reviewed).map(([key,value])=>[key,typeof value==='string'?redactAiText(value):value.map(redactAiText)]));
  result.sources=Object.fromEntries(AI_FIELDS.filter(field=>project.sources[field]).map(field=>[field,project.sources[field]]));
  return result;
 }
@@ -87,3 +91,13 @@ export function aiSuggestionLabel(item:AiSuggestionItem){
  const option=visualOptions[item.target];return option.label+': '+(option.choices as Record<string,string>)[item.value];
 }
 
+
+export const aiOrganizedReportSchema=organizedIdeaSchema.extend({suggestions:z.array(aiSuggestionItemSchema).max(4)}).strict();
+export const aiOrganizedEnvelopeSchema=aiEnvelopeSchema.omit({report:true}).extend({report:aiOrganizedReportSchema}).strict();
+export type AiOrganizedEnvelope=z.infer<typeof aiOrganizedEnvelopeSchema>;
+export function validateAiOrganizedReport(raw:unknown,project:QuoteProject){
+ const report=aiOrganizedReportSchema.parse(raw);
+ const {suggestions,...prose}=report;validateOrganizedIdea(prose,ideaOriginal({...project.answers,...Object.fromEntries(['offering','problem','otherFunctions','customers'].map(key=>[key,redactAiText(String((project.answers as Record<string,unknown>)[key]||''))]))}));
+ for(const item of suggestions)aiSuggestion(project,item);
+ return report;
+}

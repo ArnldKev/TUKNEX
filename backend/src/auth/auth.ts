@@ -9,11 +9,12 @@ import { z } from 'zod';
 import { parse } from '../billing/dto';
 import { credentials, clientRegistration } from './account-fields';
 import { VerificationService } from './verification';
+import {allowedClientIds} from './client-access';
 import { activityContext } from './activity-context';
 import { derivePassword as derive, hashPassword as passwordHash } from './passwords';
 
 type Role = 'admin' | 'client' | 'subadmin';
-export interface Account { id: string; name: string; email: string; role: Role; clientId: string | null; isDemo: false; createdAt: string; phone?: string; emailVerified?: boolean; phoneVerified?: boolean; profileComplete?: boolean }
+export interface Account { id: string; name: string; email: string; role: Role; clientId: string | null; allowedClientIds?:string[]; isDemo: false; createdAt: string; phone?: string; emailVerified?: boolean; phoneVerified?: boolean; profileComplete?: boolean }
 type AuthRequest = Request & { account?: Account };
 const registration = credentials;
 const loginSchema = z.object({ email: credentials.shape.email, password: z.string().min(1).max(128) }).strict();
@@ -68,7 +69,7 @@ export class AuthService {
   async validate(token: string) {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
     const row=(await this.db.query('SELECT u.* FROM sesiones s JOIN usuarios u ON u.id=s.usuario_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.activo=true',[digest(token)])).rows[0];
-    return row ? account(row) : null;
+    if(!row)return null;const identity=account(row);if(identity.role==='client')identity.allowedClientIds=await allowedClientIds(this.db,identity);return identity;
   }
   async logout(token: string) { await this.db.query('DELETE FROM sesiones WHERE token_hash=$1',[digest(token)]); }
   async requestRecovery(value:unknown) {

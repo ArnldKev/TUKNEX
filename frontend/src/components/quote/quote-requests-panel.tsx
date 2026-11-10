@@ -2,6 +2,13 @@
 import './quote-requests.css';
 import './quote-requests-records.css';
 import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {ContractDraftDialog} from '@/components/billing/contract-draft-dialog';
+import {draftFromRequest,type ContractDraft} from '@/lib/billing/contract-draft';
+import type {BillingData} from '@/lib/billing/types';
+import {AccountResourceFeedback} from '@/components/client/account-resource-feedback';
+import type {AccountResource} from '@/lib/client/account-resources';
+import type {AiEnvelope} from '@/lib/quote/ai';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Download, RefreshCw, CalendarDays, ChevronDown, ArrowUpRight, Plus, UserPlus, UserCheck } from 'lucide-react';
 import { billingRequest, pdfBlob, savePdf } from '@/lib/billing/api';
@@ -13,6 +20,7 @@ import { useDemoAuth, RoleGate } from '@/lib/platform/auth';
 import { AccountShell } from '@/components/auth/account-shell';
 import { RecordDetail } from '@/components/records/record-detail';
 import { RecordList } from '@/components/records/record-list';
+import {usePrivateRecordLink} from '@/components/records/use-private-record-link';
 import { QuoteRequestNexiAi, QuoteTeamNexiAi } from './nexi-ai';
 import { QuoteDraftsAdminPanel } from './quote-drafts-admin';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -27,6 +35,7 @@ const nextSteps: Record<SavedQuoteRequest['status'], string> = {
 };
 export interface QuoteRequestRecordContext { busy: boolean; refresh: () => Promise<void>; }
 export interface QuoteRequestsPanelProps {
+  clientResource?:{resource:AccountResource<SavedQuoteRequest[]>;onRetry:()=>void};
   admin?: boolean;
   staff?: boolean;
   origin?: QuoteRequestOrigin;
@@ -60,7 +69,18 @@ function RequestRow({ item, onOpen, onAssign }: { item: SavedQuoteRequest; onOpe
   </article>;
 }
 
-export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all', limit, renderRecordActions, renderRecordMetadata }: QuoteRequestsPanelProps) {
+export function QuoteRequestsPanel(props:QuoteRequestsPanelProps){
+ return props.clientResource&&!props.admin&&!props.staff?<ClientQuoteRequests resource={props.clientResource.resource} onRetry={props.clientResource.onRetry} limit={props.limit}/>:<IndependentQuoteRequestsPanel {...props}/>;
+}
+function ClientQuoteRequests({resource,onRetry,limit}:{resource:AccountResource<SavedQuoteRequest[]>;onRetry:()=>void;limit?:number}){
+ const [selectedId,setSelectedId]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const records=resource.data||[],selected=records.find(item=>item.id===selectedId);
+ async function download(item:SavedQuoteRequest){setBusy(true);setError('');try{const doc=await pdfBlob('account/quote-requests/'+item.id+'/pdf?preview=current');savePdf(doc.blob,doc.filename);}catch(e){setError(e instanceof Error?e.message:'No pudimos descargar la propuesta. Puedes intentarlo de nuevo.');}finally{setBusy(false);}}
+ return <section className="portal-panel quote-requests-panel qrr-client-records" aria-label="Mis solicitudes del cotizador"><div className="quote-request-heading"><div><p className="platform-kicker">EL INICIO DE TU PROYECTO</p><h2>Mis solicitudes del cotizador</h2><p>Consulta tus ideas enviadas, su estimación y el seguimiento del equipo.</p></div><Link className="platform-secondary" href="/cotizar">Crear una solicitud</Link></div><AccountResourceFeedback resource={resource} onRetry={onRetry} label="solicitudes" announce={false}/>{error&&!selected&&<p className="platform-error" role="alert">{error}</p>}{resource.data&&<RecordList items={limit?records.slice(0,limit):records} getKey={item=>item.id} getSearchText={requestSearch} searchLabel="Buscar solicitudes por proyecto o número" emptyMessage="Aún no has enviado solicitudes. Puedes preparar tu idea en el cotizador." pageSize={10} renderItem={item=><div className="account-compact-row"><div><strong>{item.values.businessName||item.result.label}</strong><span>{item.number} · {createdDate(item.createdAt)}</span></div><StatusBadge status={item.status}/><strong>{estimateLabel(item)}</strong><button type="button" className="platform-secondary" onClick={()=>{setError('');setSelectedId(item.id);}}>Ver detalles<span className="sr-only"> de {item.number}</span></button></div>}/>}{selected&&<RecordDetail title={selected.values.businessName||selected.result.label} subtitle={selected.number} onClose={()=>setSelectedId(null)} actions={<button type="button" className="platform-secondary" disabled={busy} onClick={()=>void download(selected)}><Download size={16} aria-hidden="true"/>Descargar propuesta PDF</button>}><div className="qrr-detail-content">{error&&<p className="platform-error" role="alert">{error}</p>}<StatusBadge status={selected.status}/><p>{nextSteps[selected.status]}</p><div className="quote-request-summary"><div className="quote-request-estimate"><span>Inversión estimada</span><strong>{estimateLabel(selected)}</strong><small>Sujeta a revisión del alcance.</small></div><dl><div><dt>Preferencia de pago</dt><dd>{paymentPreferenceLabels[selected.values.paymentPreference||'unsure']}</dd></div><div><dt>Creada el</dt><dd>{createdDate(selected.createdAt)}</dd></div></dl></div><h3>Respuestas y alcance</h3><dl className="qrr-answer-grid">{quoteAnswers(selected.values).map((answer,index)=><div key={index}><dt>{answer.question}</dt><dd>{answer.value||'Sin indicar'}</dd></div>)}</dl></div></RecordDetail>}</section>;
+}
+function IndependentQuoteRequestsPanel({ admin = false, staff = false, origin = 'all', limit, renderRecordActions, renderRecordMetadata }: QuoteRequestsPanelProps) {
+  const router=useRouter();
+  const [contractDraft,setContractDraft]=useState<{draft:ContractDraft;data:BillingData;apiPath:string}|null>(null);
   const { user, ready } = useDemoAuth(), identity = user?.id, role = user?.role;
   const management = admin || staff;
   const panelTitle = !management ? 'Mis cotizaciones preliminares' : origin === 'mine' ? 'Mis cotizaciones' : origin === 'client' ? 'Solicitudes de clientes' : 'Solicitudes del cotizador';
@@ -73,6 +93,7 @@ export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all
   const [items, setItems] = useState<SavedQuoteRequest[]>([]), [loadedFor, setLoadedFor] = useState('');
   const [error, setError] = useState(''), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null),[assignmentId,setAssignmentId]=useState<string|null>(null),[assignmentNotice,setAssignmentNotice]=useState('');
+  const latestSelected=useRef(selectedId);latestSelected.current=selectedId;
   const [statusFilter, setStatusFilter] = useState('all'), [typeFilter, setTypeFilter] = useState('all'),[clientFilter,setClientFilter]=useState('all');
   const records = useMemo(() => allowed && loadedFor === scopeKey ? items.filter(item => matchesQuoteRequestOrigin(item, origin, identity)) : [], [allowed, loadedFor, scopeKey, items, origin, identity]);
   const selected = management ? records.find(item => item.id === selectedId) : undefined;
@@ -80,6 +101,7 @@ export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all
   const pendingClients=records.filter(item=>!!item.teamProjectId&&!item.clientId).length;
   const filtered = useMemo(() => records.filter(item => (statusFilter === 'all' || item.status === statusFilter) && (typeFilter === 'all' || item.values.projectType === typeFilter)&&(clientFilter==='all'||clientFilter==='pending'&&!!item.teamProjectId&&!item.clientId||clientFilter==='linked'&&!!item.clientId)), [records, statusFilter, typeFilter,clientFilter]);
   const summaryLimit = limit && limit > 0 ? limit : undefined;
+  const linkNotice=usePrivateRecordLink({parameter:'solicitud',records,ready:management&&allowed&&loadedFor===scopeKey&&!loading&&!error,scopeKey,onOpen:item=>{setStatusFilter('all');setTypeFilter('all');setClientFilter('all');setSelectedId(item.id);}});
 
   const load = useCallback(async () => {
     const run = ++epoch.current;
@@ -96,7 +118,7 @@ export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all
     } finally { if (run === epoch.current && scope.current === scopeKey) setLoading(false); }
   }, [allowed, endpoint, scopeKey]);
   useEffect(() => {
-    setItems([]); setSelectedId(null);setAssignmentId(null);setAssignmentNotice(''); setBusy(false); setError(''); setStatusFilter('all'); setTypeFilter('all');setClientFilter('all');
+    setContractDraft(null);setItems([]); setSelectedId(null);setAssignmentId(null);setAssignmentNotice(''); setBusy(false); setError(''); setStatusFilter('all'); setTypeFilter('all');setClientFilter('all');
     void load();
     const update = () => void load();
     window.addEventListener('focus', update); window.addEventListener('billing-change', update);
@@ -114,10 +136,18 @@ export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all
     catch (e) { if (scope.current === actor) setError(e instanceof Error ? e.message : 'No se pudo actualizar.'); }
     finally { if (scope.current === actor) setBusy(false); }
   }
+  async function prepareContract(item:SavedQuoteRequest,analysis?:AiEnvelope){
+    const actor=scopeKey;setBusy(true);setError('');
+    try{const draft=draftFromRequest(item,analysis),apiPath=item.teamProjectId?'team/projects/'+encodeURIComponent(item.teamProjectId):'billing';
+      const data=item.teamProjectId?(await billingRequest<{data:BillingData}>(apiPath)).data:await billingRequest<BillingData>('billing/state');
+      if(scope.current===actor&&latestSelected.current===item.id){setSelectedId(null);setContractDraft({draft,data,apiPath});}
+    }catch(e){if(scope.current===actor)setError(e instanceof Error?e.message:'No pudimos preparar el contrato.');}finally{if(scope.current===actor)setBusy(false);}
+  }
   const row = (item: SavedQuoteRequest) => <RequestRow item={item} onOpen={() => setSelectedId(item.id)} onAssign={()=>setAssignmentId(item.id)}/>;
   return <section className={'portal-panel quote-requests-panel' + (management ? ' qrr-management' : '')} aria-label={panelTitle}>
     <div className="quote-request-heading"><div><p className="platform-kicker">{management ? 'NUEVOS PROYECTOS' : 'EL INICIO DE TU PROYECTO'}</p><h2>{panelTitle}</h2><p>{management ? panelDescription : 'Consulta el estado, el importe estimado y las respuestas de cada propuesta.'}</p></div><div className="qrr-heading-actions">{management && <Link className="platform-button" href="/cotizar"><Plus size={16} aria-hidden="true"/>Cotizar para un cliente</Link>}<button className="platform-secondary" disabled={loading || busy} onClick={() => void load()}><RefreshCw size={16} aria-hidden="true"/>Actualizar</button></div></div>
     {assignmentNotice&&<p className="platform-success" role="status">{assignmentNotice}</p>}
+    {linkNotice&&<p className="platform-info" role="status">{linkNotice}</p>}
     {management&&records.length>0&&<div className="qrr-intake-status"><span><strong>{records.length}</strong> solicitudes</span><button type="button" aria-pressed={clientFilter==='pending'} onClick={()=>setClientFilter(value=>value==='pending'?'all':'pending')}><UserPlus size={16} aria-hidden="true"/>Por asignar <strong>{pendingClients}</strong></button><span><strong>{records.filter(item=>!!item.clientId).length}</strong> con cuenta de cliente</span></div>}
     {error && !selected && <p className="platform-error" role="alert">{error}</p>}
     {loading && !records.length ? <p role="status">Cargando solicitudes…</p> : allowed && !records.length && !error ? <div className="account-empty"><h3>{management ? origin === 'mine' ? 'Todavía no has creado cotizaciones.' : origin === 'client' ? 'Aún no recibiste solicitudes de clientes.' : 'Aún no hay solicitudes.' : 'Tu próximo proyecto empieza aquí.'}</h3><p>{management ? origin === 'mine' ? 'Prepara una cotización para un cliente y guárdala desde el último paso.' : 'Las propuestas guardadas aparecerán en esta sección.' : 'Guarda una propuesta desde el cotizador para seguir sus avances.'}</p>{!management && <Link className="platform-text-link" href="/cotizar">Crear una cotización</Link>}</div> : null}
@@ -137,6 +167,7 @@ export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all
     {selected && <RecordDetail title={selected.values.businessName || selected.result.label} subtitle={<>{selected.number} · {selected.result.label} · {createdDate(selected.createdAt)}</>} className="quote-request-record" onClose={() => setSelectedId(null)} actions={<>
       <button className="platform-secondary" type="button" disabled={busy} onClick={() => void download(selected.id)}><Download size={16} aria-hidden="true"/>Descargar propuesta PDF</button>
       <label className="qrr-status-control">Seguimiento<select aria-label={'Estado de ' + selected.number} disabled={busy} value={selected.status} onChange={event => void status(selected.id, event.target.value)}>{Object.entries(requestStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <button className="platform-button" type="button" disabled={busy||!selected.clientId} onClick={()=>void prepareContract(selected)}>Preparar contrato</button>
       {renderRecordActions?.(selected, { busy, refresh: load })}
     </>}>
       <div className="qrr-detail-content">
@@ -148,9 +179,10 @@ export function QuoteRequestsPanel({ admin = false, staff = false, origin = 'all
         <QuoteClientAssignment key={'assignment:'+selected.id} request={selected} disabled={busy} onLinked={async () => { await load(); }}/>
         <section className="qrr-detail-section"><h3>Lo que necesita el cliente</h3><p className="quote-request-offering">{selected.values.offering || 'Sin indicar'}</p></section>
         <section className="qrr-detail-section"><h3>Respuestas y alcance</h3><dl className="qrr-answer-grid">{quoteAnswers(selected.values).map((answer, index) => <div key={index}><dt>{answer.question}</dt><dd>{answer.value || 'Sin indicar'}</dd></div>)}</dl></section>
-        {staff ? selected.teamProjectId && <QuoteTeamNexiAi key={'nexi:'+selected.id} workId={selected.teamProjectId} requestId={selected.id} values={selected.values} disabled={busy}/> : <QuoteRequestNexiAi key={'nexi:'+selected.id} id={selected.id} values={selected.values} disabled={busy}/>}
+        {staff ? selected.teamProjectId && <QuoteTeamNexiAi key={'nexi:'+selected.id} workId={selected.teamProjectId} requestId={selected.id} values={selected.values} sourceRevision={selected.revision} disabled={busy} onPrepareContract={analysis=>prepareContract(selected,analysis)} prepareContractDisabledReason={!selected.clientId?'Asigna primero una cuenta de cliente.':undefined}/> : <QuoteRequestNexiAi key={'nexi:'+selected.id} id={selected.id} values={selected.values} sourceRevision={selected.revision} disabled={busy} onPrepareContract={analysis=>prepareContract(selected,analysis)} prepareContractDisabledReason={!selected.clientId?'Asigna primero una cuenta de cliente.':undefined}/>}
       </div>
     </RecordDetail>}
+    {contractDraft&&<ContractDraftDialog {...contractDraft} onClose={()=>setContractDraft(null)} onSaved={async id=>{setContractDraft(null);window.dispatchEvent(new Event('billing-change'));await load();if(admin&&id)router.push('/admin/contratos?contrato='+encodeURIComponent(id));else setAssignmentNotice('Contrato guardado. Revisa y envía el documento desde el proyecto del equipo.');}}/>}
   </section>;
 }
 export function QuoteRequestsAdmin({origin='client'}:{origin?:'client'|'mine'}) {

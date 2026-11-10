@@ -4,6 +4,6 @@ export const brand = {
   ...brandConfig,
   assistantName: 'NEXI',
   assistantSubtitle: 'Tu compañero digital',
-  logo: '/images/brand-logo.png',
+  logo: '/images/brand-logo.webp',
   colors: { navy: '#042545', turquoise: '#01cdcd', cyan: '#058eae', white: '#ffffff' },
 };

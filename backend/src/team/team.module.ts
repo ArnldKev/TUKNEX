@@ -1,3 +1,4 @@
+import {projectFromFormalQuote} from '../domain/billing/formal-quote-analysis';
 import {Body,Controller,Get,Post,Patch,Param,Query,Req,Res,Inject,Injectable,Module,UseGuards,ForbiddenException,NotFoundException,BadRequestException,ConflictException} from '@nestjs/common';
 import type {Request,Response} from 'express';
 import {randomUUID} from 'node:crypto';
@@ -16,7 +17,7 @@ import {BillingService} from '../billing/billing.service';
 import {parse,quoteDto,contractDto} from '../billing/dto';
 import {DocumentsModule} from '../documents/documents.module';
 import {PdfService} from '../documents/pdf.service';
-import {QuoteAiModule,QuoteAiService} from '../ai/quote-ai';
+import {QuoteAiModule,QuoteAiService,formalQuoteContext} from '../ai/quote-ai';
 import {aiAdminRequestSchema} from '../domain/quote/ai';
 import {createQuoteProject} from '../domain/quote/project';
 type ActorRequest=Request&{account:Account};
@@ -149,6 +150,8 @@ export class TeamService {
    if(!r.cliente_id)throw new BadRequestException('Vincula primero una cuenta de cliente a esta solicitud.');
    if(input.clientId!==r.cliente_id)throw new ForbiddenException('El cliente no corresponde a este proyecto.');
    if(input.quoteId)await this.scopedRecord(tx,'cotizaciones',pid,input.quoteId);
+   if(input.sourceQuoteId)await this.scopedRecord(tx,'cotizaciones',pid,input.sourceQuoteId);
+   if(input.sourceRequestId&&input.sourceRequestId!==r.solicitud_id)throw new ForbiddenException('La solicitud no corresponde a este proyecto.');
    if(id){const old=await this.scopedRecord(tx,'contratos',pid,id);if(input.projectId&&input.projectId!==old.projectId)throw new ForbiddenException('No cambies el proyecto del contrato.');}
    else if(input.projectId)throw new ForbiddenException('El proyecto del contrato se crea en el servidor.');
    const c=await b.createContract({...input,isDemo:false},id);
@@ -175,6 +178,13 @@ export class TeamService {
   const detail=await this.detail(a,pid);
   if(!detail.request)throw new NotFoundException('Solicitud no disponible.');
   return this.ai.analyze(req,createQuoteProject(detail.request.values,detail.request.id),res);
+ }
+ async analyzeFormal(a:Account,pid:string,id:string,req:Request,res:Response,body:unknown){
+  const input=parse(aiAdminRequestSchema,body),detail=await this.detail(a,pid);
+  const quote=detail.data.quotes.find(q=>q.id===id);
+  if(!quote)throw new NotFoundException('Cotización no disponible en este proyecto.');
+  if(quote.version!==input.version)throw new ConflictException('La cotización cambió. Actualiza antes de solicitar el análisis.');
+  return this.ai.analyze(req,projectFromFormalQuote(quote),res,formalQuoteContext(quote));
  }
  async document(a:Account,pid:string,kind:'quotes'|'contracts',id:string,res:Response){
   return this.scoped(a,pid,async(tx,_r,b)=>{
@@ -203,6 +213,7 @@ class TeamController {
  @Post('projects/:pid/quotes/:id/contract') convert(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string){return this.service.convert(r.account,pid,id);}
  @Post('projects/:pid/contracts/:id/status') status(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Body()b:unknown){return this.service.contractStatus(r.account,pid,id,b);}
  @Post('projects/:pid/analyze') analyze(@Req()r:ActorRequest,@Param('pid')pid:string,@Body()b:unknown,@Res({passthrough:true})res:Response){return this.service.analyze(r.account,pid,r,res,b);}
+ @Post('projects/:pid/quotes/:id/analyze') analyzeFormal(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Body()b:unknown,@Res({passthrough:true})res:Response){return this.service.analyzeFormal(r.account,pid,id,r,res,b);}
  @Get('projects/:pid/quotes/:id/pdf') quotePdf(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Res()res:Response){return this.service.document(r.account,pid,'quotes',id,res);}
  @Get('projects/:pid/contracts/:id/pdf') contractPdf(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Res()res:Response){return this.service.document(r.account,pid,'contracts',id,res);}
 }

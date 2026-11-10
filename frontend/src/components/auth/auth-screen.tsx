@@ -26,7 +26,7 @@ export function AuthScreen({mode='login',embedded=false,onModeChange,onComplete}
   }
   return <main className={'auth-page'+(embedded?' auth-embedded':'')}>
     <aside className="auth-story">
-      <Link href="/" className="platform-brand"><img className="official" src="/images/brand-logo.png" alt="TUKNEX · La base de tu siguiente nivel" /></Link>
+      <Link href="/" className="platform-brand"><img className="official" src="/images/brand-logo.webp" alt="TUKNEX · La base de tu siguiente nivel" /></Link>
       <div className="auth-story-main"><span className="platform-pill"><Sparkles size={13}/> TU SIGUIENTE NIVEL, MÁS CERCA</span><h1>Las buenas ideas<br/>merecen un<br/><em>gran espacio.</em></h1><p>Tu proyecto, tus avances y tu equipo. Todo conectado, de una forma simple y cercana.</p></div>
       <div className="auth-story-footer"><ShieldCheck size={16}/><span>Tu cuenta, conectada con TUKNEX.</span></div>
     </aside>

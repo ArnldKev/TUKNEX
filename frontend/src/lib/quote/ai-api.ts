@@ -10,8 +10,8 @@ export async function getAiConfig(signal:AbortSignal):Promise<AiConfig>{
  if(raw.policyVersion!==AI_POLICY_VERSION||raw.provider!=='groq'||typeof raw.enabled!=='boolean')throw Error('La configuración de NEXI no es compatible. Actualiza la página.');
  return raw;
 }
-export async function analyzeAiProject(project:QuoteProject,signal:AbortSignal,draft?:{id:string;version:number;source?:'request'|'team'}):Promise<AiEnvelope>{
- const res=await fetch(billingBase+'/api/'+(draft?.source==='team'?'team/projects/'+encodeURIComponent(draft.id)+'/analyze':draft?'billing/quote-ai/'+(draft.source==='request'?'requests/':'')+encodeURIComponent(draft.id)+'/analyze':'quote-ai/analyze'),{
+export async function analyzeAiProject(project:QuoteProject,signal:AbortSignal,draft?:{id:string;version:number;source?:'request'|'team'|'formal'|'team-formal';teamProjectId?:string}):Promise<AiEnvelope>{
+ const res=await fetch(billingBase+'/api/'+(draft?.source==='team-formal'?'team/projects/'+encodeURIComponent(draft.teamProjectId||'')+'/quotes/'+encodeURIComponent(draft.id)+'/analyze':draft?.source==='formal'?'billing/quote-ai/quotes/'+encodeURIComponent(draft.id)+'/analyze':draft?.source==='team'?'team/projects/'+encodeURIComponent(draft.id)+'/analyze':draft?'billing/quote-ai/'+(draft.source==='request'?'requests/':'')+encodeURIComponent(draft.id)+'/analyze':'quote-ai/analyze'),{
   method:'POST',credentials:'include',cache:'no-store',signal,headers:{'Content-Type':'application/json'},
   body:JSON.stringify(draft?{version:draft.version,consent:true,policyVersion:AI_POLICY_VERSION}:{project,consent:true,policyVersion:AI_POLICY_VERSION}),
  });

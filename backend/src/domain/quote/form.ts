@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {approvedIdeaSchema} from './idea';
 import { visualPreferencesSchema, visualDefaults } from './visual';
 import { FEATURES, type ProjectType } from '../pricing';
 
@@ -6,6 +7,7 @@ export const paymentPreferenceLabels = {unsure:'Por acordar',daily:'Diario',week
 
 const featureIds = FEATURES.map((item) => item.id);
 export const quoteFormSchema = z.object({
+  approvedIdea: approvedIdeaSchema.optional(),
   projectType: z.enum(['landing', 'business', 'catalog', 'store', 'system', 'redesign']),
   goal: z.enum(['visibility', 'products', 'orders', 'sales', 'organize', 'modernize', 'unsure']),
   businessName: z.string().trim().max(100),

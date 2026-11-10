@@ -1,12 +1,14 @@
 # Publicar TUKNEX en Render, Netlify y Neon
 
-Guía revisada el **6 de noviembre de 2026**, para el código de `D:\TUKNEX`, rama `codex/quote-studio-refinement`. Usar el repositorio `ArnldKev/TUKNEX` y los servicios existentes `tuknex-backend` y `tuknex.netlify.app`.
+Actualización de 10 de noviembre de 2026: utilizar también [la guía integral vigente](../docs/ACTUALIZACION_INTEGRAL.md), que incluye migraciones 011–019, avisos, permisos y recuperación. Los resultados de QA corresponden a pruebas locales, no a producción.
+
+Guía actualizada el **10 de noviembre de 2026**, para el código de `D:\TUKNEX`, rama `codex/connected-contract-workflow`. Usar el repositorio `ArnldKev/TUKNEX` y los servicios existentes `tuknex-backend` y `tuknex.netlify.app`.
 
 La arquitectura ya está preparada: navegador → Netlify → `/api/*` → Render → Neon. El frontend es una exportación estática; las cuentas, cotizaciones, contratos, pagos y documentos dependen del backend y PostgreSQL.
 
 ## 1. Preparar la publicación y el respaldo
 
-El código actual tiene muchos archivos modificados y nuevos sin commit. Publicar el commit anterior de GitHub no incluye estas mejoras. Deben entrar juntos frontend, backend, lockfiles, fuentes y migraciones. En particular, `009_team.sql` y `010_staff_quote_requests.sql` todavía estaban sin seguimiento al iniciar esta revisión.
+El código actual tiene muchos archivos modificados y nuevos sin commit. Publicar el commit anterior de GitHub no incluye estas mejoras. Deben entrar juntos frontend, backend, lockfiles, fuentes y migraciones. En particular, deben incluirse las migraciones 011–019, los módulos nuevos y los documentos de esta entrega.
 
 Antes de publicar:
 
@@ -91,7 +93,7 @@ La recuperación de contraseña por correo sí necesita un **RESEND_API_KEY** v�
 
 Si `VERIFICATION_SECRET` está definido y no vacío, debe tener al menos 32 caracteres incluso con verificación apagada. Mantén el secreto vigente; no lo cambies en cada reinicio. Twilio no es necesario mientras la verificación de teléfono permanezca desactivada.
 
-Los avisos por correo a todos los administradores al recibir solicitudes siguen siendo una función pendiente. Activar Resend no implementa esos avisos por sí solo.
+Los avisos durables ya están implementados localmente. Su envío permanece desactivado por defecto: revisar la bandeja y seguir la guía integral antes de autorizar una prueba real y habilitar NOTIFICATIONS_ENABLED.
 
 ## 5. Configurar Netlify
 
@@ -129,31 +131,30 @@ Referencias: [directorios en monorepos Netlify](https://docs.netlify.com/build/c
 
 ## 6. Subir todos los cambios a GitHub
 
-La rama local revisada es `codex/quote-studio-refinement`. Con Netlify temporalmente pausado y ambos servicios configurados para `main`, ejecuta en PowerShell solamente los comandos del bloque:
+La rama local revisada es `codex/connected-contract-workflow`. Comprueba primero la rama realmente conectada en los paneles; la configuración documentada usa `main`. Desactiva temporalmente Auto-Deploy de Render y pausa los builds de Netlify antes de subir/fusionar. Verifica el respaldo real y su restauración antes de desplegar el backend.
+
+En PowerShell, desde el proyecto:
 
 ```powershell
 cd D:\TUKNEX
 git status
-git add -- backend frontend deploy docs DESIGN.md UX-CONTRACT.md .dockerignore .gitignore
+git add -- backend frontend deploy docs
 git diff --cached --stat
-git commit -m "Preparar lanzamiento completo de TUKNEX"
-git fetch origin
-git switch main
-git pull --ff-only origin main
-git merge codex/quote-studio-refinement
-git push origin main
-git log -1 --oneline
+git commit -m "Integrar cotizaciones, NEXI, pagos y expedientes"
+git push -u origin codex/connected-contract-workflow
 ```
 
-El listado preparado para commit debe incluir los nuevos módulos de equipo, las migraciones 009/010, los estilos, las fuentes y ambos lockfiles. Los archivos `.env`, `.local-data`, `.qa-*`, `node_modules`, `out`, `dist` y respaldos están ignorados. Si aparecen conflictos o un error de Git, resuélvelo antes del push; no utilices `--force` como solución.
+Revisa el listado antes del commit: debe incluir las migraciones 011–019 y las nuevas fuentes/assets, y excluir `.env`, `.local-data`, `.qa-*`, `node_modules`, `out`, `dist` y dumps. Los `.env.example` contienen plantillas y sí se versionan.
 
-Estos comandos son instrucciones: esta revisión no hizo commit, merge, push ni publicación.
+Si ambos servicios están conectados a `main`, abre en GitHub una pull request con base `main` y compare `codex/connected-contract-workflow`. Revisa los cambios y comprobaciones, resuelve posibles conflictos y fusiónala después de preparar configuración y respaldo. Publica en ambos servicios el SHA resultante de `main`. Un push a la rama de trabajo no actualiza por sí solo una producción conectada a `main`. No utilices `--force`.
+
+Estas instrucciones no ejecutan commit, push, merge ni publicación por sí solas.
 
 ## 7. Publicar primero el backend y después el frontend
 
-1. En Render espera el despliegue automático del commit nuevo. Si está configurado para despliegue manual, usa **Manual Deploy → Deploy latest commit**. Comprueba que el commit coincide con el de `git log`.
+1. En Render, con Auto-Deploy desactivado para controlar el orden, usa **Manual Deploy → Deploy latest commit** tras fusionar la PR. Comprueba que corresponde al SHA aprobado de la rama conectada.
 2. Espera **Deploy succeeded / Live**. Abre `https://tuknex-backend.onrender.com/health`: debe devolver HTTP 200 y `{"status":"ok"}`. `/health` consulta la base; la ruta es directa de Render, porque el proxy del frontend solo reenvía `/api/*`.
-3. En Netlify reactiva **Activate builds** y espera una sola compilación del commit nuevo. Si no se inicia, usa **Deploys → Trigger deploy**. Comprueba el mismo commit. Si hace falta eliminar una caché antigua, selecciona la variante **Clear cache and deploy** en ese único despliegue.
+3. Cuando Render esté Live, en Netlify reactiva **Activate builds** y lanza **Deploys → Trigger deploy** si no hay una compilación iniciada. Reactivar builds por sí solo no inicia una. Comprueba el mismo SHA aprobado. Si hace falta eliminar una caché antigua, selecciona la variante **Clear cache and deploy** en ese único despliegue.
 4. Espera **Published**. Abre la web en una ventana privada o haz una recarga completa para comprobar los recursos nuevos.
 
 Render Free se suspende después de inactividad y puede tardar aproximadamente un minuto en despertar. Netlify documenta un máximo de 26 segundos para su proxy; una llamada en frío o audio lento puede agotarlo. Prueba en frío y en caliente antes de usarlo con clientes. Los proveedores describen Free como entorno de prueba; para disponibilidad continua conviene evaluar una instancia que permanezca activa.

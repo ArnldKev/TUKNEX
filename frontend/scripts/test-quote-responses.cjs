@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict');
+require('tsx/cjs');require.extensions['.css']=()=>{};
+const React=require('react');global.React=React;
+const {renderToStaticMarkup}=require('react-dom/server');
+const {QuoteDecisionForm,quoteDecisionLabels}=require('../src/components/billing/quote-responses.tsx');
+const quote={id:'qa',version:7,status:'sent'};
+const render=(extra={},blocked=false)=>renderToStaticMarkup(React.createElement(QuoteDecisionForm,{quote:{...quote,...extra},blocked,onChanged(){}}));
+const available=render();
+for(const value of ['request_changes','decline','confirm_proposal'])assert.ok(available.includes('value="'+value+'"'));
+assert.ok(available.includes('Confirmar propuesta y solicitar contrato'));
+assert.ok(available.includes('aceptación del contrato se realiza después por separado'));
+assert.ok(available.includes('versión 7'));
+assert.ok(available.includes('minLength="5"')&&available.includes('maxLength="2000"'));
+assert.ok(available.includes('required=""'));
+for(const status of ['draft','accepted','rejected'])assert.ok(!render({status}).includes('<form'));
+assert.ok(!render({},true).includes('<form'),'stale/replied/loading/error blocks decision controls');
+assert.deepEqual(Object.keys(quoteDecisionLabels),['request_changes','decline','confirm_proposal']);
+console.log('Quote response UI: three explicit decisions, separate contract consent, exact version, comment validation, disabled stale/final states.');

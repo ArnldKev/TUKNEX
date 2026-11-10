@@ -1,4 +1,9 @@
 'use client';
+import {ContractAddenda} from '@/components/billing/contract-addenda';
+import {QuoteResponseHistory} from '@/components/billing/quote-responses';
+import {ContractAcceptanceSummary} from '@/components/billing/contract-acceptance-summary';
+import {QuoteFormalNexiAi} from '@/components/quote/nexi-ai';
+import type {AiEnvelope} from '@/lib/quote/ai';
 import {type ReactNode} from 'react';
 import {RecordList} from '@/components/records/record-list';
 import {RecordDetail} from '@/components/records/record-detail';
@@ -16,21 +21,24 @@ export function TeamDocumentRecords({quotes,contracts,busy,canCreate,onCreate,on
   <section className="portal-panel"><div className="team-card-heading"><h2>Contratos del proyecto</h2><button className="platform-secondary" disabled={busy||!canCreate} onClick={event=>onCreate('contract',event.currentTarget)}>Nuevo contrato</button></div><p>El cliente consulta los contratos enviados desde su cuenta. El registro de cobros sigue a cargo del administrador principal.</p><RecordList items={contracts} getKey={c=>c.id} getSearchText={c=>[c.number,c.projectName,statusLabels[c.status],c.totalCents/100].join(' ')} renderItem={c=>render(c,'contract')} searchLabel="Buscar contratos de este proyecto" emptyMessage="Todavía no hay contratos."/></section>
  </>;
 }
-export function TeamDocumentDetail({selection,quotes,contracts,busy,error='',notice='',onClose,onEdit,onPdf,onConvert,onStatus}:{
+export function TeamDocumentDetail({selection,quotes,contracts,busy,error='',notice='',onClose,onEdit,onPdf,onConvert,onStatus,onPrepareContract,teamProjectId}:{
  selection:TeamDocumentSelection;quotes:BillingQuote[];contracts:Contract[];busy:boolean;error?:string;notice?:string;onClose:()=>void;
  onEdit:(kind:'quote'|'contract',target:HTMLElement,initial:BillingQuote|Contract)=>void;
  onPdf:(kind:'quotes'|'contracts',id:string)=>void;onConvert:(id:string)=>void;
- onStatus:(contract:Contract,status:string)=>void;
+ onStatus:(contract:Contract,status:string)=>void;onPrepareContract:(quote:BillingQuote,analysis?:AiEnvelope)=>void;teamProjectId:string;
 }){
  const record=selection.kind==='quote'?quotes.find(q=>q.id===selection.id):contracts.find(c=>c.id===selection.id);
  if(!record)return null;
  const quote=selection.kind==='quote'?record as BillingQuote:null,contract=selection.kind==='contract'?record as Contract:null;
  const field=(label:string,value:ReactNode)=><div><dt>{label}</dt><dd>{value||'Sin indicar'}</dd></div>;
- return <RecordDetail title={record.number+' · '+record.projectName} subtitle={<StatusBadge status={record.status}/>} onClose={onClose} actions={<><button className="platform-secondary" disabled={busy} onClick={()=>onPdf(quote?'quotes':'contracts',record.id)}>Descargar PDF</button>{((quote&&!['accepted','rejected'].includes(quote.status))||(contract&&contract.status==='borrador'))&&<button className="platform-secondary" disabled={busy} onClick={event=>onEdit(selection.kind,event.currentTarget,record)}>Editar {quote?'propuesta':'borrador'}</button>}{quote?.status==='accepted'&&<button className="platform-button" disabled={busy} onClick={()=>onConvert(quote.id)}>Preparar contrato</button>}</>}>
+ return <RecordDetail title={record.number+' · '+record.projectName} subtitle={<StatusBadge status={record.status}/>} onClose={onClose} actions={<><button className="platform-secondary" disabled={busy} onClick={()=>onPdf(quote?'quotes':'contracts',record.id)}>Descargar PDF</button>{((quote&&!['accepted','rejected'].includes(quote.status))||(contract&&contract.status==='borrador'))&&<button className="platform-secondary" disabled={busy} onClick={event=>onEdit(selection.kind,event.currentTarget,record)}>Editar {quote?'propuesta':'borrador'}</button>}{quote&&<button className="platform-button" disabled={busy} onClick={()=>onConvert(quote.id)}>Preparar contrato</button>}</>}>
   <div className="team-workspace">{error&&<p className="platform-error" role="alert">{error}</p>}{notice&&<p className="platform-info" role="status">{notice}</p>}<section className="portal-panel"><dl className="team-answers">{field('Proyecto',record.projectName)}{field('Importe total',amount(record.totalCents))}{field('Versión',record.version)}{field('Alcance',record.scope)}{field('Condiciones',record.conditions)}{field('Observaciones',record.observations)}{field('Plazo',quote?quote.delivery:contract?.deliveryDate)}{field('Emisión',record.issuedDate)}{quote&&field('Válida hasta',quote.validUntil)}{contract&&field('Inicio acordado',contract.startDate)}{contract&&field('Entrega acordada',contract.deliveryDate)}</dl></section>
   <section className="portal-panel"><h3>Cliente y datos del documento</h3><dl className="team-answers">{field('Nombre',record.client.name)}{field('Correo',record.client.email)}{field('Teléfono',record.client.phone)}{field('DNI / RUC declarado',record.client.taxId)}{field('Dirección',record.client.address)}</dl></section>
   <section className="portal-panel"><h3>Importes y forma de pago</h3><dl className="team-answers">{field('Precio base',amount(record.baseCents))}{field('Recargo acordado',amount(record.feeCents))}{field('Importe total',amount(record.totalCents))}{field('Modalidad',paymentModes[record.plan.mode]?.label||record.plan.mode)}{field('Número de cuotas',String(record.plan.count))}{field('Recargo porcentual',String(record.plan.rate)+'%')}{field('Primera fecha',record.plan.firstDueDate)}</dl><h4>Cronograma acordado</h4><ol className="team-document-schedule">{record.schedule.map(item=><li key={item.number}><strong>{item.label||'Cuota '+item.number}</strong><time dateTime={item.date}>{item.date}</time><span>{amount(item.amountCents)}</span></li>)}</ol></section>
   <section className="portal-panel"><h3>Datos del prestador</h3><dl className="team-answers">{field('Nombre',record.issuer.name)}{field('RUC',record.issuer.taxId)}{field('Correo',record.issuer.email)}{field('Teléfono',record.issuer.phone)}{field('Dirección',record.issuer.address)}</dl></section>
-  {contract&&contractTransitions[contract.status].length>0&&<section className="portal-panel"><form className="team-inline-form" onSubmit={event=>{event.preventDefault();const form=new FormData(event.currentTarget);onStatus(contract,String(form.get('status')));}}><label>Registrar estado<select name="status" disabled={busy}>{contractTransitions[contract.status].map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}</select></label><button className="platform-secondary" disabled={busy}>Aplicar estado</button></form></section>}</div>
+  {contract&&<><ContractAcceptanceSummary contract={contract}/><ContractAddenda contract={contract}/></>}
+  {quote&&<QuoteResponseHistory quoteId={quote.id} version={quote.version} teamProjectId={teamProjectId}/>}
+  {quote&&<QuoteFormalNexiAi key={quote.id+':'+quote.version} quote={quote} teamProjectId={teamProjectId} disabled={busy} onPrepareContract={analysis=>onPrepareContract(quote,analysis)}/>}
+  {contract&&contractTransitions[contract.status].length>0&&<section className="portal-panel"><form className="team-inline-form" onSubmit={event=>{event.preventDefault();const form=new FormData(event.currentTarget);onStatus(contract,String(form.get('status')));}}><label>Registrar estado<select name="status" disabled={busy}>{contractTransitions[contract.status].filter(s=>!(contract.signatureMode==='online'&&s==='firmado_cliente')).map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}</select></label><button className="platform-secondary" disabled={busy}>Aplicar estado</button></form></section>}</div>
  </RecordDetail>;
 }

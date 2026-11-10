@@ -359,7 +359,7 @@ function AdminDashboardContent({ initialTab = 'overview' }: { initialTab?: Admin
         <Link href="/" className="adm-brand" aria-label="TUKNEX, ir al inicio">
           <img
             className="adm-official-logo"
-            src="/images/brand-logo.png"
+            src="/images/brand-logo.webp"
             alt="TUKNEX · La base de tu siguiente nivel"
           />
         </Link>

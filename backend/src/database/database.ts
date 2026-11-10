@@ -29,6 +29,7 @@ export class Database implements OnModuleInit, OnModuleDestroy {
       .filter((n) => n.endsWith('.sql'))
       .sort()) {
       await this.transaction(async (tx) => {
+        if(this.pool)await tx.query("SELECT pg_advisory_xact_lock(hashtext('tuknex-schema-migrations'))");
         const found = await tx.query('SELECT id FROM schema_migrations WHERE id=$1', [name]);
         if (!found.rows.length) {
           const sql = await readFile(resolve(BACKEND_ROOT, 'migrations', name), 'utf8');

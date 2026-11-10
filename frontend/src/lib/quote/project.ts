@@ -97,7 +97,7 @@ export class StaleProjectRevisionError extends Error {
   constructor() { super('Tu idea cambió. Revisa la sugerencia con la versión actual antes de aplicarla.'); }
 }
 const pick = <T extends object, K extends keyof T>(value: T, keys: readonly K[]): Pick<T, K> =>
-  Object.fromEntries(keys.map(key => [key, value[key]])) as Pick<T, K>;
+  Object.fromEntries(keys.filter(key=>value[key]!==undefined).map(key => [key, value[key]])) as Pick<T, K>;
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 function stateOf(project: QuoteProject): ProjectState {
   return stateSchema.parse({ answers: project.answers, visual: project.visual, sources: project.sources });
@@ -181,7 +181,7 @@ export function restoreProjectStart(history: ProjectHistory): ProjectHistory {
 }
 export function projectToForm(project: QuoteProject, current: QuoteFormValues): QuoteFormValues {
   const valid = quoteProjectSchema.parse(project);
-  return { ...current, ...valid.answers, ...valid.visual };
+  return { ...current, ...valid.answers, ...valid.visual, approvedIdea:valid.answers.approvedIdea };
 }
 export function projectPricingInput(project: QuoteProject): QuoteInput {
   return pick(project.answers, ['projectType', 'features', 'design', 'timeline', 'productsRange', 'userRange', 'otherFunctions']);
