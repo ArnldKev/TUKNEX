@@ -1,3 +1,4 @@
+import {quoteAnswers} from '../domain/quote/presentation';
 import { visualPreferenceSummary, previewFeedbackLabels } from '../domain/quote/visual';
 import { BACKEND_ROOT } from '../config/paths';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { Database } from '../database/database';
 import { BillingService } from '../billing/billing.service';
 import { amount, todayLima, buildPlan, addDays } from '../domain/billing/finance';
 import {
+  signatureModeLabels,
   paymentModes,
   serviceLabels,
   statusLabels,
@@ -200,6 +202,8 @@ class Layout {
     this.y -= h;
   }
   schedule(items: Contract['schedule']) {
+    const first=items[0],firstRows=first?this.lines(String(first.number).padStart(2,'0')+'  '+clean(first.label)+'  /  '+first.date,this.font,9,345).length:0;
+    this.ensure(80+firstRows*14+12);
     this.heading('Cronograma de pagos');
     this.text(
       'Fechas e importes acordados. El recargo es único y está incluido en el total.',
@@ -273,7 +277,21 @@ export class PdfService {
     @Inject(Database) private db: Database,
     @Inject(BillingService) private billing: BillingService,
   ) {}
+  /** Bounded, structured document content; never renders user HTML. */
+  async reportPdf(title:string,number:string,sections:{title:string;text:string}[]){
+    const l=await Layout.create(title,number);await l.header(title,number,todayLima(),false);
+    for(const section of sections){if(section.text){l.heading(section.title);l.text(section.text);l.y-=6;}}
+    return l.finish();
+  }
+  async previewPdf(model:SolutionPreviewModel,number:string){
+    const l=await Layout.create('Boceto del proyecto',number);await l.header('Boceto del proyecto',number,todayLima(),false);
+    l.text('Representación del cuestionario indicado; no es diseño final aprobado.');l.ensure(350);
+    l.y-=await drawProjectPreview(l.doc,l.page,l.margin,l.y,l.contentWidth,model,l.font,l.bold)+12;
+    l.heading('Preferencias de esta revisión');l.text(model.styleName+' / '+model.palette.name+' / '+model.sectorName);
+    l.text('Navegación: '+model.sections.map(section=>section.label).join(' / '));return l.finish();
+  }
   async quotePdf(q: BillingQuote, preliminary = false, custom = false, preference = 'Por acordar', preview?:SolutionPreviewModel) {
+    preview=preview||q.sourcePreview;
     const l = await Layout.create('Cotización', q.number);
     await l.header(
       preliminary ? 'Propuesta preliminar' : 'Cotización de servicios digitales',
@@ -362,6 +380,8 @@ export class PdfService {
     const l = await Layout.create('Contrato de servicios digitales', c.number);
     await l.header('Contrato de Prestación de Servicios Digitales', c.number, c.issuedDate, c.isDemo);
     l.field('Estado registrado', statusLabels[c.status]);
+    l.field('Modalidad de aceptación',signatureModeLabels[c.signatureMode||'physical']);
+    l.field('Versión del contrato',String(c.version));
     if (c.isDemo || c.status === 'borrador')
       l.text(
         'Borrador de referencia. Revisar los datos y acuerdos antes de su formalización.',
@@ -386,6 +406,17 @@ export class PdfService {
     );
     l.heading('3. Alcance del servicio');
     l.text(c.scope);
+    if(c.sourcePreview){
+      l.ensure(390);
+      l.heading('Boceto y dirección visual de la propuesta de origen');
+      const height=await drawProjectPreview(l.doc,l.page,l.margin,l.y,l.contentWidth,c.sourcePreview,l.font,l.bold);
+      l.y-=height+8;
+      l.text('Boceto de referencia conservado al preparar este contrato. El alcance y las condiciones escritos determinan los entregables; cualquier cambio posterior requiere acuerdo.',8,l.font,muted);
+      l.field('Dirección visual',c.sourcePreview.styleName+' / '+c.sourcePreview.palette.name+' / '+c.sourcePreview.sectorName);
+      l.field('Navegación propuesta',c.sourcePreview.sections.map(section=>section.label).join(' / '));
+    }
+    if(c.sourceRequestId)l.field('Solicitud de origen',c.sourceRequestId+' / revisión '+c.sourceRequestRevision);
+    if(c.sourceQuoteId)l.field('Cotización formal de origen',c.sourceQuoteId+' / versión '+c.sourceQuoteVersion);
     l.heading('4. Precio y forma de pago');
     l.price('Monto base', amount(c.baseCents));
     l.price('Recargo único (' + c.plan.rate + '%)', amount(c.feeCents));
@@ -408,7 +439,29 @@ export class PdfService {
     l.heading('9. Condiciones particulares');
     l.text(c.conditions || documentTerms.exclusions);
     if (c.observations) l.field('Observaciones', c.observations);
+    if(c.signatureMode==='online'&&c.clientAcceptance){
+      const a=c.clientAcceptance;
+      const fieldHeight=(value:string)=>16+l.lines(value,l.font,10).length*15;
+      const evidenceHeight=65+41+fieldHeight(a.signerName)+fieldHeight(a.acceptedAt)+fieldHeight(String(a.acceptedVersion))+fieldHeight(a.id)+fieldHeight(a.documentId)+fieldHeight(a.documentSha256)+l.lines(a.consentText,l.font,9).length*13.5+54+fieldHeight(c.issuerSignedAt||'Pendiente');
+      l.ensure(evidenceHeight);
+    }else if(c.signatureMode==='online')l.ensure(220);
+    if(c.signatureMode!=='online')l.ensure(240);
     l.heading('10. Aceptación y firmas');
+    if(c.signatureMode==='online'){
+      l.text('La aceptación del cliente se registra desde su cuenta autenticada, sobre el PDF de una versión concreta. Es una aceptación en línea; no es una firma digital certificada.',9,l.font,muted);
+      if(c.clientAcceptance){
+        const a=c.clientAcceptance;
+        l.field('Titular que aceptó',a.signerName);
+        l.field('Fecha de aceptación (UTC)',a.acceptedAt);
+        l.field('Versión aceptada',String(a.acceptedVersion));
+        l.field('Identificador de evidencia',a.id);
+        l.field('PDF revisado',a.documentId);
+        l.field('Huella SHA-256 del PDF revisado',a.documentSha256);
+        l.text(a.consentText,9,l.font,muted);
+        l.text('El PDF identificado por esa huella se conserva por separado, tal como se presentó antes de la aceptación. Este documento incluye el estado posterior y la constancia.',8,l.font,muted);
+      }else l.text('Pendiente: el cliente debe abrir el PDF vigente y confirmar expresamente su aceptación en el portal. Este documento todavía no acredita su aceptación.',10,l.bold);
+      l.field('Conformidad registrada por TUKNEX',c.issuerSignedAt?c.issuerSignedAt+' (UTC)':'Pendiente');
+    }else{
     l.text(
       'Las firmas se recaban fuera de esta plataforma. El estado del panel es un registro administrativo y no constituye una firma digital certificada.',
       9,
@@ -438,6 +491,7 @@ export class PdfService {
       l.page.drawText('Fecha: __________________', { x, y: y - 24, size: 9, font: l.font, color: muted });
     }
     l.y -= 110;
+    }
     return l.finish();
   }
   async document(kind: 'quote' | 'contract', id: string) {
@@ -446,7 +500,8 @@ export class PdfService {
     if (!row) throw new NotFoundException('Documento no encontrado.');
     const entity = row.datos as Contract | BillingQuote;
     let preview:SolutionPreviewModel|undefined;
-    if(kind==='quote'&&row.equipo_proyecto_id){
+    if(kind==='quote'&&(entity as BillingQuote).sourcePreview)preview=(entity as BillingQuote).sourcePreview;
+    if(kind==='quote'&&!preview&&row.equipo_proyecto_id){
       const source=(await this.db.query('SELECT s.respuestas FROM equipo_proyectos p JOIN solicitudes_cotizacion s ON s.id=p.solicitud_id WHERE p.id=$1 AND p.cliente_id=$2 AND s.cliente_id=$2',[row.equipo_proyecto_id,entity.clientId])).rows[0];
       const values=quoteFormSchema.safeParse(source?.respuestas);
       if(values.success)preview=buildSolutionPreview(values.data,values.data.businessName,values.data);
@@ -515,7 +570,9 @@ export class PdfService {
         + '\nColor preferido: ' + (values.colorsLiked || 'Por definir')
         + '\nTitular: ' + (values.firstImpression || 'Por definir')
         + '\nValoración del boceto: ' + (values.previewFeedback ? previewFeedbackLabels[values.previewFeedback] : 'Sin valoración registrada')
-        + (values.previewComment ? '\nComentarios: ' + values.previewComment : ''),
+        + (values.previewComment ? '\nComentarios: ' + values.previewComment : '')
+        + '\n\nPreferencias registradas en el cuestionario (pueden incluir opciones predefinidas):\n'
+        + quoteAnswers(values).filter(answer=>['Canales actuales','Volumen de productos','Usuarios','Material disponible','Diseño','Estilo','Prioridad','Dominio','Hosting','Gestión del contenido'].includes(answer.question)).map(answer=>answer.question+': '+answer.value).join('\n'),
       conditions:
         estimate.conditions +
         '\n' +

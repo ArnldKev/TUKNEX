@@ -85,7 +85,7 @@ function ClientPortalContent({ section }: { section: ClientSection }) {
         <Link href="/" className="platform-brand">
           <img
             className="official"
-            src="/images/brand-logo.png"
+            src="/images/brand-logo.webp"
             alt="TUKNEX · La base de tu siguiente nivel"
           />
         </Link>

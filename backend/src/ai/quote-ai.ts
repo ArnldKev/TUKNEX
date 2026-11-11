@@ -1,4 +1,4 @@
-import {Body,Controller,ForbiddenException,Get,HttpException,Inject,Injectable,Module,NotFoundException,Param,Post,Req,Res,ServiceUnavailableException,UseGuards,OnModuleInit,OnModuleDestroy,Logger} from '@nestjs/common';
+import {Body,ConflictException,Controller,ForbiddenException,Get,HttpException,Inject,Injectable,Module,NotFoundException,Param,Post,Req,Res,ServiceUnavailableException,UseGuards,OnModuleInit,OnModuleDestroy,Logger} from '@nestjs/common';
 import type {Request,Response} from 'express';
 import {createHmac,randomUUID} from 'node:crypto';
 import {AuthModule} from '../auth/auth.module';
@@ -10,7 +10,11 @@ import {AI_POLICY_VERSION,AI_MAX_INPUT_BYTES,aiRequestSchema,aiAdminRequestSchem
 import {createQuoteProject,type QuoteProject} from '../domain/quote/project';
 import {quoteDefaults,quoteFormSchema} from '../domain/quote/form';
 import {z} from 'zod';
-import {AI_MODELS,requestGroqReport,AiProviderError} from './groq';
+import type {BillingQuote} from '../domain/billing/types';
+import {projectFromFormalQuote} from '../domain/billing/formal-quote-analysis';
+import {redactAiText} from '../domain/quote/ai';
+export function formalQuoteContext(quote:BillingQuote){return Object.fromEntries(['scope','conditions','observations','delivery'].map(key=>[key,redactAiText(String(quote[key as keyof BillingQuote]||''))]));}
+import {AI_MODELS,requestGroqReport,requestGroqOrganizedIdea,AiProviderError} from './groq';
 
 export function quoteAiConfig():AiConfig{
  return {enabled:process.env.NEXI_AI_ENABLED==='true'&&!!process.env.GROQ_API_KEY?.trim()&&(process.env.NEXI_AI_PROVIDER||'groq')==='groq'&&AI_MODELS.includes((process.env.NEXI_AI_MODEL||AI_MODELS[0]) as typeof AI_MODELS[number]),
@@ -34,7 +38,13 @@ export class QuoteAiService implements OnModuleInit,OnModuleDestroy{
   if(!row)throw new NotFoundException('Solicitud no disponible.');
   return createQuoteProject({...quoteDefaults,...quoteFormSchema.parse(row.respuestas)},id);
  }
- async analyze(req:Request,project:QuoteProject,res:Response){
+ async financialQuote(id:string,version:number){
+  parse(z.uuid(),id);const row=(await this.db.query('SELECT datos,version FROM cotizaciones WHERE id=$1',[id])).rows[0];
+  if(!row)throw new NotFoundException('Cotización no disponible.');
+  if(row.version!==version)throw new ConflictException('La cotización cambió. Actualízala y solicita un nuevo análisis.');
+  return row.datos as BillingQuote;
+ }
+ async analyze(req:Request,project:QuoteProject,res:Response,terms?:Record<string,string>,mode:'analyze'|'organize'='analyze'){
   if(!quoteAiConfig().enabled)throw new ServiceUnavailableException('La ayuda de IA todavía no está activada. Puedes seguir con el cuestionario y los controles visuales.');
   if(Buffer.byteLength(JSON.stringify(project),'utf8')>AI_MAX_INPUT_BYTES)throw new HttpException('La idea es demasiado extensa para esta prueba de IA. Resume las respuestas antes de analizar.',400);
   if(!project.answers.offering.trim()&&!project.answers.problem.trim())throw new HttpException('Cuéntanos qué ofreces o qué quieres mejorar antes de pedir ideas.',400);
@@ -51,7 +61,7 @@ export class QuoteAiService implements OnModuleInit,OnModuleDestroy{
    }
   });
   if(controller.signal.aborted)throw new HttpException('Consulta cancelada. Tus respuestas no cambiaron.',503);
-   const report=await requestGroqReport(project,controller.signal);
+   const report=mode==='organize'?await requestGroqOrganizedIdea(project,controller.signal):await requestGroqReport(project,controller.signal,terms);
    return {id:randomUUID(),projectId:project.id,baseRevision:project.revision,provider:'groq',model:quoteAiConfig().model,generatedAt:new Date().toISOString(),report};
   }catch(error){if(error instanceof AiProviderError)throw new HttpException(error.message,error.status);throw error;}
   finally{res.off('close',cancel);}
@@ -61,6 +71,9 @@ export class QuoteAiService implements OnModuleInit,OnModuleDestroy{
 class QuoteAiController{
  constructor(@Inject(QuoteAiService)private ai:QuoteAiService){}
  @Get('config')config(){return quoteAiConfig();}
+ @Post('organize')organize(@Req()req:Request,@Res({passthrough:true})res:Response,@Body()body:unknown){
+  checkOrigin(req);const input=parse(aiRequestSchema,body);return this.ai.analyze(req,input.project,res,undefined,'organize');
+ }
  @Post('analyze')analyze(@Req()req:Request,@Res({passthrough:true})res:Response,@Body()body:unknown){
   checkOrigin(req);const input=parse(aiRequestSchema,body);return this.ai.analyze(req,input.project,res);
  }
@@ -73,6 +86,10 @@ class AdminQuoteAiController{
   checkOrigin(req);const input=parse(aiAdminRequestSchema,body);
   if(input.version!==1)throw new NotFoundException('Versión de solicitud no disponible.');
   return this.ai.analyze(req,await this.ai.formalRequest(id),res);
+ }
+ @Post('quotes/:id/analyze')async financial(@Req()req:Request,@Res({passthrough:true})res:Response,@Param('id')id:string,@Body()body:unknown){
+  checkOrigin(req);const input=parse(aiAdminRequestSchema,body),quote=await this.ai.financialQuote(id,input.version);
+  return this.ai.analyze(req,projectFromFormalQuote(quote),res,formalQuoteContext(quote));
  }
  @Post(':id/analyze')async analyze(@Req()req:Request,@Res({passthrough:true})res:Response,@Param('id')id:string,@Body()body:unknown){
   checkOrigin(req);const input=parse(aiAdminRequestSchema,body);

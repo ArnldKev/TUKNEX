@@ -1,3 +1,4 @@
+import {enqueueNotification} from '../notifications/outbox';
 import { Body, BadRequestException, ConflictException, Controller, ForbiddenException, Get, Inject, Injectable, Module, NotFoundException, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { createHash, randomUUID } from 'node:crypto';
@@ -6,6 +7,7 @@ import { Database, type Sql } from '../database/database';
 import { SessionGuard, AdminGuard, TeamGuard, type Account } from '../auth/auth';
 import { activityContext } from '../auth/activity-context';
 import { VerificationService } from '../auth/verification';
+import {allowedClientIds} from '../auth/client-access';
 import { AuthModule } from '../auth/auth.module';
 import { BillingModule } from '../billing/billing.module';
 import { BillingService } from '../billing/billing.service';
@@ -60,7 +62,7 @@ export class QuoteRequestsService {
   async list(actor: Account) {
     const result=actor.role==='admin'
       ?await this.db.query(quoteRequestSelect+' ORDER BY s.created_at DESC')
-      :await this.db.query(quoteRequestSelect+' WHERE s.usuario_id=$1 AND s.cliente_id=$2 ORDER BY s.created_at DESC',[actor.id,actor.clientId]);
+      :await this.db.query(quoteRequestSelect+' WHERE s.usuario_id=$2 OR s.cliente_id=ANY($1::uuid[]) ORDER BY s.created_at DESC',[await allowedClientIds(this.db,actor),actor.id]);
     return result.rows.map(exposeQuoteRequest);
   }
   async listStaff(actor:Account){
@@ -133,6 +135,7 @@ export class QuoteRequestsService {
         await tx.query('INSERT INTO equipo_proyectos(id,solicitud_id,cliente_id,titulo,responsable_id) VALUES($1,$2,NULL,$3,$4)',[projectId,saved.id,values.businessName||values.offering||'Nuevo proyecto',actor.role==='subadmin'?actor.id:null]);
       }
       await activityContext.run({actor,projectId},()=>this.billing.audit(tx,staff?'solicitud_equipo_creada':'solicitud_cotizacion_guardada',saved.id,{userId:staff?null:actor.id,clientId:staff?null:actor.clientId,createdById:actor.id,assigneeId:staff&&actor.role==='subadmin'?actor.id:null}));
+      if(!staff)await enqueueNotification(tx,{key:'quote_request:'+saved.id,kind:'quote_request',entityId:saved.id,projectName:values.businessName||'Nueva solicitud',route:'/admin/solicitudes?solicitud='+saved.id});
       return exposeQuoteRequest(await this.row(tx,saved.id));
     });
   }
@@ -175,7 +178,7 @@ export class QuoteRequestsService {
     parse(uuid,id);const {preview}=parse(pdfQuerySchema,query);
     const found=actor.role==='admin'
       ?await this.db.query('SELECT numero,pdf,respuestas,estimacion,created_at FROM solicitudes_cotizacion WHERE id=$1',[id])
-      :await this.db.query('SELECT numero,pdf,respuestas,estimacion,created_at FROM solicitudes_cotizacion WHERE id=$1 AND usuario_id=$2 AND cliente_id=$3',[id,actor.id,actor.clientId]);
+      :await this.db.query('SELECT numero,pdf,respuestas,estimacion,created_at FROM solicitudes_cotizacion WHERE id=$1 AND (usuario_id=$3 OR cliente_id=ANY($2::uuid[]))',[id,await allowedClientIds(this.db,actor),actor.id]);
     if(!found.rows[0])throw new NotFoundException('Solicitud no encontrada.');return this.sendPdf(res,found.rows[0],preview==='current');
   }
   async downloadStaff(actor:Account,id:string,res:Response,query:unknown={}){

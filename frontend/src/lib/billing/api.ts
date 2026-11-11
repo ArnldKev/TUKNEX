@@ -15,7 +15,7 @@ export async function billingRequest<T>(path: string, options: RequestInit = {})
   if (!res.ok) {
     if (res.status === 401 && !path.startsWith('auth/')) {
       setBillingSession(false);
-      if(typeof window!=='undefined')window.dispatchEvent(new Event('account-expired'));
+      if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('account-expired',{detail:{reason:'expired'}}));
     }
     const error = await res.json().catch(() => ({ message: 'No se pudo completar la operación.' }));
     throw new Error(error.message || 'No se pudo completar la operación.');

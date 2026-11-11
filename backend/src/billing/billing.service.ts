@@ -1,6 +1,8 @@
+import {saveQuoteVersion} from './quote-versions';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,6 +10,8 @@ import {
 import { activityContext } from '../auth/activity-context';
 import { randomUUID, createHash } from 'node:crypto';
 import { DEFAULT_PRICES } from '../domain/pricing';
+import {quoteFormSchema} from '../domain/quote/form';
+import {buildSolutionPreview} from '../domain/quote/preview';
 import { z } from 'zod';
 import { Database, type Sql } from '../database/database';
 import {
@@ -196,7 +200,7 @@ export class BillingService {
     catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'Revisa el plan de pagos.'); }
   }
   async createQuote(body: unknown, existingId?: string): Promise<BillingQuote> {
-    const input = parse(quoteDto, body);
+    const {expectedVersion,...input} = parse(quoteDto, body);
     const calculated = this.calculatePlan(input.baseCents, input.plan);
     if (input.validUntil < input.issuedDate)
       throw new BadRequestException('La vigencia debe ser posterior a la emisión.');
@@ -211,6 +215,8 @@ export class BillingService {
         ? await queryOne(tx, 'SELECT datos,estado,equipo_proyecto_id FROM cotizaciones WHERE id=$1 FOR UPDATE', [existingId])
         : undefined;
       const previous = previousRow?.datos as BillingQuote | undefined;
+      if(previous&&expectedVersion!==undefined&&previous.version!==expectedVersion)throw new ConflictException('La cotización cambió. Actualiza antes de editar.');
+      if(previous)await saveQuoteVersion(tx,previous,activityContext.getStore()?.actor?.id);
       if (previousRow?.equipo_proyecto_id) {
         const project = await queryOne(tx, 'SELECT cliente_id FROM equipo_proyectos WHERE id=$1', [previousRow.equipo_proyecto_id]);
         if (project.cliente_id !== input.clientId)
@@ -230,6 +236,9 @@ export class BillingService {
         issuer: previous?.issuer || settings.issuer,
         version: (previous?.version || 0) + 1,
       };
+      // Capture the visual source once for this commercial version, not at later download time.
+      const workId=activityContext.getStore()?.projectId||previousRow?.equipo_proyecto_id;
+      if(workId){const origin=(await tx.query('SELECT s.id,s.revision,s.respuestas FROM equipo_proyectos p JOIN solicitudes_cotizacion s ON s.id=p.solicitud_id WHERE p.id=$1 AND p.cliente_id=$2 AND s.cliente_id=$2',[workId,input.clientId])).rows[0];const values=quoteFormSchema.safeParse(origin?.respuestas);if(values.success){quote.sourceRequestId=origin.id;quote.sourceRequestRevision=origin.revision;quote.sourcePreview=buildSolutionPreview(values.data,values.data.businessName,values.data);}}
       quote.isDemo = quote.isDemo || quote.client.isDemo;
       if (previous)
         await tx.query(
@@ -260,6 +269,7 @@ export class BillingService {
             json(quote),
           ],
         );
+      await saveQuoteVersion(tx,quote,activityContext.getStore()?.actor?.id);
       await this.audit(tx, 'cotizacion_guardada', quote.id, { status: quote.status, before: previous||null, after: quote });
       return quote;
     });
@@ -268,6 +278,7 @@ export class BillingService {
     return this.db.transaction(async (tx) => {
       const quote = (await queryOne(tx, 'SELECT datos FROM cotizaciones WHERE id=$1 FOR UPDATE', [id]))
         .datos as BillingQuote;
+      await saveQuoteVersion(tx,quote,activityContext.getStore()?.actor?.id);
       if (quote.status === 'rejected')
         throw new ConflictException('Una cotización rechazada no puede aceptarse. Crea una nueva propuesta.');
       if (quote.status !== 'accepted') {
@@ -279,6 +290,7 @@ export class BillingService {
           json(quote),
           quote.version,
         ]);
+        await saveQuoteVersion(tx,quote,activityContext.getStore()?.actor?.id);
         await this.audit(tx, 'aceptacion_registrada', id);
       }
       return quote;
@@ -295,6 +307,32 @@ export class BillingService {
   }
   async contract(id: string, tx: Sql = this.db): Promise<Contract> {
     return (await queryOne(tx, 'SELECT datos FROM contratos WHERE id=$1', [id])).datos;
+  }
+  private async contractOrigin(tx:Sql,input:{clientId:string;quoteId?:string;sourceRequestId?:string;sourceRequestRevision?:number;sourceQuoteId?:string;sourceQuoteVersion?:number}):Promise<{data:Partial<Contract>;teamProjectId?:string|null}>{
+    const context=activityContext.getStore(),actor=context?.actor;
+    if((input.sourceRequestId||input.sourceQuoteId)&&(!actor||!['admin','subadmin'].includes(actor.role)))throw new ForbiddenException('Solo el equipo puede preparar un contrato desde una solicitud.');
+    if(actor){const active=(await tx.query('SELECT rol,activo FROM usuarios WHERE id=$1 FOR UPDATE',[actor.id])).rows[0];if(!active?.activo||active.rol!==actor.role)throw new ForbiddenException('La cuenta ya no tiene acceso.');}
+    const allowed=(teamId:unknown,assignee:unknown)=>{if(actor?.role==='subadmin'&&(!teamId||assignee!==actor.id||context?.projectId!==teamId))throw new NotFoundException('El origen no está disponible en este proyecto.');if(context?.projectId&&teamId!==context.projectId)throw new BadRequestException('El origen no corresponde al proyecto atendido.');};
+    if(input.sourceRequestId){
+      const row=(await tx.query('SELECT s.cliente_id,s.revision,s.respuestas,p.id AS team_id,p.responsable_id FROM solicitudes_cotizacion s LEFT JOIN equipo_proyectos p ON p.solicitud_id=s.id WHERE s.id=$1 FOR UPDATE OF s',[input.sourceRequestId])).rows[0];
+      if(!row)throw new NotFoundException('Solicitud de origen no disponible.');allowed(row.team_id,row.responsable_id);
+      if(!row.cliente_id||row.cliente_id!==input.clientId)throw new BadRequestException('Asigna la solicitud a este cliente antes de preparar el contrato.');
+      if(row.revision!==input.sourceRequestRevision)throw new ConflictException('La solicitud cambió. Actualiza el alcance antes de preparar el contrato.');
+      const values=parse(quoteFormSchema,row.respuestas);
+      return{teamProjectId:row.team_id,data:{sourceRequestId:input.sourceRequestId,sourceRequestRevision:row.revision,sourcePreview:buildSolutionPreview(values,values.businessName,values)}};
+    }
+    const quoteId=input.sourceQuoteId||input.quoteId;
+    if(quoteId){
+      if(input.quoteId&&input.sourceQuoteId&&input.quoteId!==input.sourceQuoteId)throw new BadRequestException('Los orígenes de la cotización no coinciden.');
+      const row=(await tx.query('SELECT q.cliente_id,q.datos,q.equipo_proyecto_id,p.responsable_id FROM cotizaciones q LEFT JOIN equipo_proyectos p ON p.id=q.equipo_proyecto_id WHERE q.id=$1 FOR UPDATE OF q',[quoteId])).rows[0];
+      if(!row)throw new NotFoundException('Cotización de origen no disponible.');allowed(row.equipo_proyecto_id,row.responsable_id);
+      if(row.cliente_id!==input.clientId)throw new BadRequestException('La cotización de origen pertenece a otro cliente.');
+      if(input.sourceQuoteVersion&&row.datos.version!==input.sourceQuoteVersion)throw new ConflictException('La cotización cambió. Revisa su versión antes de preparar el contrato.');
+      let sourcePreview:Contract['sourcePreview']=row.datos.sourcePreview;
+      if(!sourcePreview&&row.equipo_proyecto_id){const request=(await tx.query('SELECT s.respuestas FROM equipo_proyectos p JOIN solicitudes_cotizacion s ON s.id=p.solicitud_id WHERE p.id=$1 AND s.cliente_id=$2',[row.equipo_proyecto_id,input.clientId])).rows[0];const values=quoteFormSchema.safeParse(request?.respuestas);if(values.success)sourcePreview=buildSolutionPreview(values.data,values.data.businessName,values.data);}
+      return{teamProjectId:row.equipo_proyecto_id,data:{sourceQuoteId:quoteId,sourceQuoteVersion:row.datos.version,...(sourcePreview?{sourcePreview}:{})}};
+    }
+    return{data:{}};
   }
   async createContract(body: unknown, existingId?: string): Promise<Contract> {
     const input = parse(contractDto, body),
@@ -338,7 +376,10 @@ export class BillingService {
         ? ((await queryOne(tx, 'SELECT datos FROM contratos WHERE id=$1 FOR UPDATE', [existingId]))
             .datos as Contract)
         : undefined;
+      const origin=previous?{data:{sourceRequestId:previous.sourceRequestId,sourceRequestRevision:previous.sourceRequestRevision,sourceQuoteId:previous.sourceQuoteId,sourceQuoteVersion:previous.sourceQuoteVersion,sourcePreview:previous.sourcePreview}}:await this.contractOrigin(tx,{...input,clientId:source.clientId});
+      if(!teamProjectId&&'teamProjectId' in origin)teamProjectId=origin.teamProjectId||null;
       if (previous) {
+        for(const key of ['sourceRequestId','sourceRequestRevision','sourceQuoteId','sourceQuoteVersion'] as const)if(input[key]!==undefined&&input[key]!==previous[key])throw new ConflictException('Conserva el origen del contrato al editar su borrador.');
         if (previous.version !== input.version)
           throw new ConflictException('El contrato cambió. Actualiza antes de editar.');
         const paid = (await tx.query('SELECT id FROM pagos WHERE contrato_id=$1 LIMIT 1', [existingId])).rows
@@ -367,6 +408,8 @@ export class BillingService {
       }
       const contract: Contract = {
         ...source,
+        ...origin.data,
+        signatureMode:previous&&!Object.hasOwn(body as object,'signatureMode')?(previous.signatureMode||'physical'):input.signatureMode,
         ...calculated,
         schedule: calculated.installments,
         id: previous?.id || randomUUID(),
@@ -468,10 +511,12 @@ export class BillingService {
           !contract.issuer.address)
       )
         throw new BadRequestException('Completa DNI/RUC y dirección de ambas partes antes de enviar.');
+      if(contract.signatureMode==='online'&&input.status==='firmado_cliente')throw new ConflictException('El cliente debe aceptar la versión virtual desde su propia cuenta.');
+      if(contract.signatureMode==='online'&&input.status==='activo'&&!contract.clientAcceptance)throw new ConflictException('Falta la aceptación en línea del cliente.');
       if (input.status === 'firmado_cliente') contract.clientSignedAt = new Date().toISOString();
       if (input.status === 'firmado_tuknex') contract.issuerSignedAt = new Date().toISOString();
       if (input.status === 'activo' && (!contract.clientSignedAt || !contract.issuerSignedAt))
-        throw new ConflictException('Registra la firma externa de ambas partes antes de activar.');
+        throw new ConflictException('Registra la conformidad de ambas partes antes de activar.');
       const paid = Number(
         (
           await queryOne(
@@ -603,7 +648,7 @@ export class BillingService {
       this.db.query('SELECT datos FROM cotizaciones ORDER BY created_at DESC'),
       this.db.query('SELECT datos FROM contratos ORDER BY created_at DESC'),
       this.db.query('SELECT * FROM saldo_cuotas ORDER BY fecha_vencimiento,numero_cuota'),
-      this.db.query('SELECT * FROM pagos ORDER BY created_at DESC'),
+      this.db.query("SELECT p.*,COALESCE((SELECT jsonb_agg(jsonb_build_object('installmentId',a.cuota_id,'amountCents',a.monto) ORDER BY a.cuota_id) FROM pago_aplicaciones a WHERE a.pago_id=p.id),'[]'::jsonb) AS allocations FROM pagos p ORDER BY p.created_at DESC"),
       this.settings(),
     ]);
     const cs = contracts.rows.map((r) => r.datos as Contract);
@@ -629,7 +674,7 @@ export class BillingService {
             : r.fecha_vencimiento,
         ),
       ),
-      paidDate: r.ultima_fecha_pago ? String(r.ultima_fecha_pago) : undefined,
+      paidDate: r.ultima_fecha_pago ? r.ultima_fecha_pago instanceof Date ? r.ultima_fecha_pago.toISOString().slice(0,10) : String(r.ultima_fecha_pago) : undefined,
     }));
     const validIds = new Set(cs.filter((c) => c.status !== 'cancelado').map((c) => c.id));
     return {
@@ -647,6 +692,7 @@ export class BillingService {
         reference: r.referencia,
         observation: r.observacion,
         receiptId: r.comprobante_id || undefined,
+        allocations: (r.allocations || []).map((a:{installmentId:string;amountCents:unknown}) => ({installmentId:a.installmentId,amountCents:Number(a.amountCents)})),
         voided: r.anulado,
         voidReason: r.motivo_anulacion || undefined,
         createdAt: String(r.created_at),

@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "build:release": "node scripts/check-release-env.mjs && next build",
-    "test": "node scripts/test.mjs && node scripts/test-quote-review.cjs && node scripts/test-quote-style.cjs"
+    "test": "node scripts/test.mjs && node scripts/test-quote-review.cjs && node scripts/test-quote-style.cjs && node scripts/test-quote-responses.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

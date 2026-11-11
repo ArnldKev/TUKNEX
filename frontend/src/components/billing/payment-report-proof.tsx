@@ -1,0 +1,19 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {Download,ExternalLink,FileCheck2,RefreshCw} from 'lucide-react';
+import {paymentReportReceipt,paymentReportError,type PaymentReportDetail,paymentReportStatuses,reportActionLabels} from '@/lib/billing/payment-reports';
+import {amount} from '@/lib/billing/finance';
+import {formatPaymentDate} from '@/lib/billing/payment-evidence';
+import {receiptMethods} from '@/lib/billing/receipts';
+import './payment-reports.css';
+export function PaymentReportProof({id,scope}:{id:string;scope:'account'|'billing'}){
+ const [attempt,setAttempt]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(''),[file,setFile]=useState<{url:string;filename:string;image:boolean}|null>(null);
+ useEffect(()=>{if(!attempt)return;const abort=new AbortController();let active=true,url='';setBusy(true);setError('');setFile(null);
+  void paymentReportReceipt(scope,id,AbortSignal.any([abort.signal,AbortSignal.timeout(20000)])).then(value=>{if(active){url=URL.createObjectURL(value.blob);setFile({url,filename:value.filename,image:value.blob.type.startsWith('image/')});}}).catch(e=>{if(active)setError(paymentReportError(e,'No se pudo cargar el comprobante.'));}).finally(()=>{if(active)setBusy(false);});
+  return()=>{active=false;abort.abort();if(url)URL.revokeObjectURL(url);};
+ },[id,scope,attempt]);
+ return <div className="payment-report-proof">{!attempt&&<button type="button" className="platform-secondary" onClick={()=>setAttempt(1)}><FileCheck2 size={17} aria-hidden="true"/>Ver comprobante privado</button>}{busy&&<p role="status">Cargando comprobante…</p>}{error&&<p role="alert" className="platform-error">{error} <button type="button" className="platform-secondary" onClick={()=>setAttempt(v=>v+1)}><RefreshCw size={16} aria-hidden="true"/>Reintentar</button></p>}{file&&<><div className="payment-report-image">{file.image?<a href={file.url} target="_blank" rel="noopener noreferrer" aria-label="Ampliar comprobante"><img src={file.url} alt="Comprobante adjunto a este reporte de pago"/></a>:<p>Comprobante PDF disponible</p>}</div><div className="payment-report-actions"><a className="platform-secondary" href={file.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} aria-hidden="true"/>Abrir comprobante</a><a className="platform-secondary" href={file.url} download={file.filename}><Download size={16} aria-hidden="true"/>Descargar</a></div></>}</div>;
+}
+export function PaymentReportContent({report,scope}:{report:PaymentReportDetail;scope:'account'|'billing'}){
+ return <div className="payment-report-content"><span className={'payment-report-status '+report.status}>{paymentReportStatuses[report.status]}</span><dl className="payment-report-facts"><div><dt>Importe reportado</dt><dd>{amount(report.amountCents)}</dd></div><div><dt>Fecha del pago</dt><dd>{formatPaymentDate(report.date)}</dd></div><div><dt>Medio de pago</dt><dd>{receiptMethods[report.method]?.label||'Otro medio'}</dd></div><div><dt>Operación o referencia</dt><dd>{report.reference||'Sin referencia indicada'}</dd></div><div><dt>Contrato</dt><dd>{report.contractNumber}</dd></div><div><dt>Aplicación</dt><dd>{report.installmentId?'A la cuota seleccionada':'A las cuotas pendientes por vencimiento'}</dd></div></dl>{report.observation&&<p className="payment-report-note">{report.observation}</p>}{report.lastReason&&<div className="payment-report-note"><strong>Respuesta de administración</strong><p>{report.lastReason}</p></div>}<PaymentReportProof key={report.id+':'+report.version} id={report.id} scope={scope}/><h3>Historial de revisión</h3><ol className="payment-report-history">{report.history.map(event=><li key={event.id}><strong>{reportActionLabels[event.action]}</strong><span>{event.actorName} · {new Date(event.createdAt).toLocaleString('es-PE')}</span><p>{event.reason}</p></li>)}</ol></div>;
+}

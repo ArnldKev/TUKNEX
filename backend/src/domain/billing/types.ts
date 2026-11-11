@@ -78,6 +78,9 @@ export interface PlanResult {
   installments: ScheduleItem[];
 }
 export interface BillingQuote {
+  sourceRequestId?:string;
+  sourceRequestRevision?:number;
+  sourcePreview?:import('../quote/preview').SolutionPreviewModel;
   id: string;
   number: string;
   clientId: string;
@@ -102,11 +105,27 @@ export interface BillingQuote {
   issuer: Issuer;
   version: number;
 }
+export type ContractSignatureMode = 'physical' | 'online';
+export const signatureModeLabels:Record<ContractSignatureMode,string>={physical:'Presencial / firma externa',online:'Virtual / aceptación en línea'};
+export const contractAcceptanceText='Declaro que he revisado el PDF identificado para esta versión y acepto su alcance, precio, cronograma y condiciones.';
+export interface ContractAcceptance {
+ id:string;acceptedAt:string;acceptedVersion:number;signerName:string;acceptedByUserId:string;
+ documentId:string;documentSha256:string;consentText:string;
+}
 export interface Contract {
   id: string;
   number: string;
   clientId: string;
   quoteId?: string;
+  signatureMode?:ContractSignatureMode;
+  clientSignedAt?:string;
+  issuerSignedAt?:string;
+  clientAcceptance?:ContractAcceptance;
+  sourceRequestId?:string;
+  sourceRequestRevision?:number;
+  sourceQuoteId?:string;
+  sourceQuoteVersion?:number;
+  sourcePreview?:import('../quote/preview').SolutionPreviewModel;
   projectId?: string;
   client: BillingClient;
   issuer: Issuer;
@@ -146,6 +165,7 @@ export interface Payment {
   reference: string;
   observation: string;
   receiptId?: string;
+  allocations?: { installmentId: string; amountCents: number }[];
   voidReason?: string;
   voided: boolean;
   createdAt: string;

@@ -12,6 +12,7 @@ import {
   type Contract,
   type PlanInput,
 } from '@/lib/billing/types';
+import type { ContractDraft } from '@/lib/billing/contract-draft';
 import { PaymentPlanFields } from './payment-plan-fields';
 type Done = (id?: string) => void;
 function issue(error: unknown) {
@@ -101,6 +102,7 @@ export function DocumentEditor({
   kind,
   data,
   initial,
+  draft,
   onDone,
   apiPath = 'billing',
 }: {
@@ -108,29 +110,34 @@ export function DocumentEditor({
   kind: 'quote' | 'contract';
   data: BillingData;
   initial?: BillingQuote | Contract;
+  draft?: ContractDraft;
   onDone: Done;
 }) {
   const today = todayLima(),
-    [quoteId, setQuoteId] = useState(initial && 'quoteId' in initial ? initial.quoteId || '' : '');
+    [quoteId, setQuoteId] = useState(initial && 'quoteId' in initial ? initial.quoteId || '' : draft?.quoteId || '');
+  const [signatureMode,setSignatureMode]=useState<'physical'|'online'>(initial&&'signatureMode' in initial?initial.signatureMode||'physical':draft?.signatureMode||'physical');
+  const [reviewed,setReviewed]=useState(false);
+  const source=initial&&kind==='contract'?initial as Contract:draft;
+  const draftClientMissing=!!draft&&!data.clients.some(client=>client.id===draft.clientId);
   const [fields, set] = useState({
-    clientId: initial?.clientId || data.clients[0]?.id || '',
-    projectName: initial?.projectName || '',
-    service: initial?.service || 'landing',
-    scope: initial?.scope || '',
-    observations: initial?.observations || '',
-    conditions: initial?.conditions || '',
+    clientId: initial?.clientId || (draft?draft.clientId:data.clients[0]?.id) || '',
+    projectName: initial?.projectName || draft?.projectName || '',
+    service: initial?.service || draft?.service || 'landing',
+    scope: initial?.scope || draft?.scope || '',
+    observations: initial?.observations || draft?.observations || '',
+    conditions: initial?.conditions || draft?.conditions || '',
     issuedDate: initial?.issuedDate || today,
     startDate: initial && 'startDate' in initial ? initial.startDate : today,
-    deliveryDate: initial && 'deliveryDate' in initial ? initial.deliveryDate : addDays(today, 30),
+    deliveryDate: initial && 'deliveryDate' in initial ? initial.deliveryDate : draft?.delivery?estimateDeliveryDate(today,draft.delivery):addDays(today, 30),
     delivery:
       initial && 'delivery' in initial ? initial.delivery : '15 días hábiles desde la entrega de materiales.',
     validUntil: initial && 'validUntil' in initial ? initial.validUntil : addDays(today, 15),
-    base: String((initial?.baseCents || 25000) / 100),
+    base: draft&&draft.baseCents===undefined?'':String((initial?.baseCents ?? draft?.baseCents ?? 25000) / 100),
     status: initial && 'validUntil' in initial ? initial.status : 'draft',
-    isDemo: initial ? initial.isDemo : data.clients[0]?.isDemo || false,
+    isDemo: initial ? initial.isDemo : draft?draft.isDemo:data.clients[0]?.isDemo || false,
   });
   const [plan, setPlan] = useState<PlanInput>(
-      initial?.plan || { mode: 'cash', rate: data.rates.cash, count: 1, firstDueDate: today },
+      initial?.plan || draft?.plan || { mode: 'cash', rate: data.rates.cash, count: 1, firstDueDate: today },
     ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -165,6 +172,8 @@ export function DocumentEditor({
     setBusy(true);
     setError('');
     try {
+      if(draftClientMissing)throw Error('El cliente de origen ya no está disponible en este espacio. Actualiza la solicitud antes de continuar.');
+      if(draft&&!reviewed)throw Error('Revisa y confirma los términos y el precio antes de guardar el borrador.');
       const shared = {
         clientId: fields.clientId,
         projectName: fields.projectName,
@@ -181,6 +190,7 @@ export function DocumentEditor({
         kind === 'quote'
           ? quoteDto.parse({
               ...shared,
+              ...(initial?{expectedVersion:initial.version}:{}),
               delivery: fields.delivery,
               validUntil: fields.validUntil,
               status: fields.status,
@@ -189,7 +199,11 @@ export function DocumentEditor({
               ...shared,
               startDate: fields.startDate,
               deliveryDate: fields.deliveryDate,
+              signatureMode,
               ...(quoteId ? { quoteId } : {}),
+              ...(source?.sourceRequestId?{sourceRequestId:source.sourceRequestId,sourceRequestRevision:source.sourceRequestRevision}:{}),
+              ...(source?.sourceQuoteId?{sourceQuoteId:source.sourceQuoteId,sourceQuoteVersion:source.sourceQuoteVersion}:{}),
+              ...(draft?.projectId&&apiPath==='billing'?{projectId:draft.projectId}:{}),
               ...(initial && 'projectId' in initial && initial.projectId
                 ? { projectId: initial.projectId }
                 : {}),
@@ -227,11 +241,11 @@ export function DocumentEditor({
       <p className="billing-hint">
         Número {initial?.number || 'asignado automáticamente al guardar'}. Moneda: soles peruanos.
       </p>
-      {kind === 'contract' && !initial && (
+      {kind === 'contract' && !initial && !draft && (
         <label>
-          Crear desde una cotización aceptada (opcional)
+          Origen de los términos (opcional)
           <select value={quoteId} onChange={(e) => chooseQuote(e.target.value)}>
-            <option value="">Contrato manual</option>
+            <option value="">Completar sin cotización</option>
             {data.quotes
               .filter((q) => q.status === 'accepted')
               .map((q) => (
@@ -247,12 +261,16 @@ export function DocumentEditor({
           )}
         </label>
       )}
+      {kind==='contract'&&<label>Modalidad de aceptación<select value={signatureMode} onChange={e=>setSignatureMode(e.target.value as 'physical'|'online')} disabled={!!(initial&&'clientAcceptance' in initial&&initial.clientAcceptance)}><option value="physical">Firma física · descargar e imprimir</option><option value="online">Aceptación en línea · desde la cuenta del cliente</option></select><small>{signatureMode==='online'?'El cliente revisará el PDF y aceptará la versión enviada desde su cuenta. Esta aceptación no es una firma digital certificada.':'Se prepara el documento para descargarlo y firmarlo físicamente.'}</small></label>}
+      {draft&&<section className="billing-client-summary" aria-label="Origen del borrador"><strong>Preparado desde {draft.source.number} · versión {draft.source.revision}</strong><span>{draft.analysis?'Incluye propuestas de NEXI para revisión.':'Conserva las respuestas y el alcance de origen.'}</span>{draft.warnings.map((warning,index)=><span key={index}>{warning}</span>)}<span>Guardar crea un borrador; no lo envía ni lo firma.</span></section>}
+      {draftClientMissing&&<p className="billing-error" role="alert">El cliente de esta propuesta no está disponible. Actualiza la solicitud para continuar.</p>}
       <fieldset disabled={locked} className="billing-fieldset">
         <div className="billing-form-grid">
           <label>
             Cliente existente
             <select
               required
+              disabled={!!draft}
               value={fields.clientId}
               onChange={(e) =>
                 set({
@@ -371,7 +389,8 @@ export function DocumentEditor({
           {error}
         </p>
       )}
-      <button disabled={busy || !data.clients.length} className="platform-button">
+      {draft&&<label className="billing-check"><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>He revisado el cliente, el alcance, las condiciones, las fechas, el precio y las cuotas. Las propuestas de IA pendientes no se consideran acuerdos sin mi revisión.</label>}
+      <button disabled={busy || !data.clients.length || draftClientMissing || (!!draft&&!reviewed)} className="platform-button">
         {busy ? 'Guardando…' : kind === 'quote' ? 'Guardar cotización' : 'Guardar contrato'}
       </button>
     </form>

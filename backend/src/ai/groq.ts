@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {cancelProviderBody} from './provider-response';
-import {aiContext,aiReportSchema,validateAiReport,type AiReport} from '../domain/quote/ai';
+import {aiContext,aiReportSchema,validateAiReport,aiOrganizedReportSchema,validateAiOrganizedReport,type AiReport,type AiOrganizedEnvelope} from '../domain/quote/ai';
 import {FEATURES} from '../domain/pricing';
 import type {QuoteProject} from '../domain/quote/project';
 
@@ -28,7 +28,14 @@ export const AI_SYSTEM_PROMPT=[
  'Catálogo de funciones (sin tarifas): '+JSON.stringify(FEATURES.map(f=>({id:f.id,name:f.name,detail:f.detail}))),
 ].join('\n');
 
-export async function requestGroqReport(project:QuoteProject,signal?:AbortSignal):Promise<AiReport>{
+export async function requestGroqReport(project:QuoteProject,signal?:AbortSignal,terms?:Record<string,string>):Promise<AiReport>{
+ return requestStructured(project,aiReportSchema,AI_SYSTEM_PROMPT,'tuknex_quote_analysis',raw=>validateAiReport(raw,project),signal,terms);
+}
+export const ORGANIZE_SYSTEM_PROMPT=AI_SYSTEM_PROMPT+'\nTu tarea ahora es ordenar lo que expresa el cliente: narrative es una narración clara y fiel; requirements son necesidades explícitas, exclusions conserva las negaciones y questions separa lo que falta confirmar. Conserva literalmente todas las cantidades y las frases negativas en narrative o exclusions. No conviertas suposiciones en requisitos. No añadas características que no pidió. Las propuestas visuales separadas van en suggestions y nunca se aplican automáticamente.';
+export async function requestGroqOrganizedIdea(project:QuoteProject,signal?:AbortSignal):Promise<AiOrganizedEnvelope['report']>{
+ return requestStructured(project,aiOrganizedReportSchema,ORGANIZE_SYSTEM_PROMPT,'tuknex_organized_idea',raw=>validateAiOrganizedReport(raw,project),signal);
+}
+async function requestStructured<T>(project:QuoteProject,schema:z.ZodType,prompt:string,name:string,validate:(raw:unknown)=>T,signal?:AbortSignal,terms?:Record<string,string>):Promise<T>{
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
  const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)controller.abort();
  try{
@@ -36,8 +43,8 @@ export async function requestGroqReport(project:QuoteProject,signal?:AbortSignal
    method:'POST',signal:controller.signal,
    headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},
    body:JSON.stringify({model:process.env.NEXI_AI_MODEL||AI_MODELS[0],reasoning_effort:'low',max_completion_tokens:1600,
-    messages:[{role:'system',content:AI_SYSTEM_PROMPT},{role:'user',content:JSON.stringify(aiContext(project))}],
-    response_format:{type:'json_schema',json_schema:{name:'tuknex_quote_analysis',strict:true,schema:z.toJSONSchema(aiReportSchema)}},
+    messages:[{role:'system',content:prompt},{role:'user',content:JSON.stringify(terms?{...aiContext(project),formalQuoteTerms:terms}:aiContext(project))}],
+    response_format:{type:'json_schema',json_schema:{name,strict:true,schema:z.toJSONSchema(schema)}},
    }),
   });
   if(res.status===429){await cancelProviderBody(res.body);throw new AiProviderError(429,'La cuota gratuita de NEXI está ocupada. Puedes seguir respondiendo y probar más tarde.');}
@@ -52,7 +59,7 @@ export async function requestGroqReport(project:QuoteProject,signal?:AbortSignal
    if(data.choices?.[0]?.finish_reason==='length')throw Error('Truncated');
    const content=data.choices?.[0]?.message?.content;
    if(typeof content!=='string')throw Error('Missing content');
-   return validateAiReport(JSON.parse(content),project);
+   return validate(JSON.parse(content));
   }catch{throw new AiProviderError(502,'El análisis no pasó las comprobaciones. Tus respuestas no cambiaron; puedes volver a intentarlo.');}
  }catch(error){
   if(error instanceof AiProviderError)throw error;

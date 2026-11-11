@@ -5,6 +5,7 @@ import { FEATURES, PROJECT_TYPES } from '@/lib/pricing';
 import type { QuoteFormValues } from '@/lib/quote/form';
 import type { QuoteResult } from '@/lib/quote/contracts';
 import { goalLabels } from '@/lib/quote/presentation';
+import {quoteChoiceLabel} from '@/lib/quote/commercial-labels';
 
 export type QuoteSummaryValues = Pick<
   QuoteFormValues,
@@ -41,12 +42,12 @@ export function QuoteSummary({
     },
     {
       label: 'Diseño / contenido',
-      value: `${values.design === 'essential' ? 'Esencial' : values.design === 'custom' ? 'A medida' : 'Premium'} · ${values.materials.length ? `${values.materials.length} materiales disponibles` : 'Contenido por preparar'}`,
+      value: `${quoteChoiceLabel('design',values.design)} · ${values.materials.length ? `${values.materials.length} materiales disponibles` : 'Contenido por preparar'}`,
       step: 3,
     },
     {
       label: 'Plazo / soporte',
-      value: `${values.timeline === 'urgent' ? 'Prioritario' : values.timeline === 'flexible' ? 'Flexible' : 'Próximas semanas'}${values.maintenance ? ' · Mantenimiento por cotizar' : ''}`,
+      value: `${quoteChoiceLabel('timeline',values.timeline)}${values.maintenance ? ' · Mantenimiento por cotizar' : ''}`,
       step: 4,
     },
   ];

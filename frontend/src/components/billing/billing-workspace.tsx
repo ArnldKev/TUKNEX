@@ -1,4 +1,20 @@
 'use client';
+import {usePrivateRecordLink} from '@/components/records/use-private-record-link';
+import {NotificationInbox} from './notification-inbox';
+import {AdminPaymentReportsInbox} from './admin-payment-reports-inbox';
+import {QuoteResponseHistory} from './quote-responses';
+import {ContractAddenda} from './contract-addenda';
+import {ProjectDossier} from './project-dossier';
+import {ProjectTrackingEditor} from '@/components/projects/project-tracking';
+import {ClientAccountAssociation} from './client-account-association';
+import {ContractAcceptanceSummary} from './contract-acceptance-summary';
+import {ClientProjectRecords} from './client-project-records';
+import {PaymentProofHistory} from './payment-proof-history';
+import {formatPaymentDate} from '@/lib/billing/payment-evidence';
+import {ContractDraftDialog} from './contract-draft-dialog';
+import {draftFromQuote,type ContractDraft} from '@/lib/billing/contract-draft';
+import type {AiEnvelope} from '@/lib/quote/ai';
+import {QuoteFormalNexiAi} from '@/components/quote/nexi-ai';
 import { PaymentReceipt } from './payment-receipt';
 import { RecordDetail } from '@/components/records/record-detail';
 import { RecordList } from '@/components/records/record-list';
@@ -21,7 +37,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { DEMO_MODE } from '@/config/environment';
-import { RoleGate } from '@/lib/platform/auth';
+import { RoleGate, useDemoAuth } from '@/lib/platform/auth';
 import { usePlatformData } from '@/lib/platform/repository';
 import type { Quote } from '@/lib/platform/types';
 import {
@@ -207,6 +223,7 @@ export function BillingWorkspace({
   const router = useRouter();
   const { data, error, loading, refresh } = useBilling(),
     snapshot = usePlatformData();
+  const [contractDraft,setContractDraft]=useState<ContractDraft|null>(null);
   const [view, setView] = useState(section),
     [editor, setEditor] = useState<Editor | null>(null),
     [selected, setSelected] = useState(''),
@@ -331,6 +348,8 @@ export function BillingWorkspace({
     setNotice('Registro guardado.');
     if (editor?.kind === 'contract' && id) setSelected(id);
   }
+  const {user:linkActor}=useDemoAuth();
+  const quoteLinkNotice=usePrivateRecordLink({parameter:'cotizacion',records:data?.quotes||[],ready:!!linkActor&&!!data&&!loading&&!error,scopeKey:'billing:'+linkActor?.id,onOpen:item=>{setView('quotes');setRecord({kind:'quote',id:item.id});setProblem('');}});
   if (!data)
     return (
       <div className={'billing-workspace ' + (embedded ? 'embedded' : '')}>
@@ -360,6 +379,7 @@ export function BillingWorkspace({
   function feedback() {
     return <>{notice && <p className="billing-success" role="status">{notice}</p>}{(problem || error) && <p className="billing-error" role="alert">{problem || error}</p>}</>;
   }
+  function prepareQuote(q:BillingQuote,analysis?:AiEnvelope){try{setContractDraft(draftFromQuote(q,analysis));setRecord(null);}catch(e){setProblem(message(e));}}
   function quoteActions(q: BillingQuote) {
     return <div className="billing-row-actions billing-detail-actions">
       <button disabled={busy} onClick={() => void preview('quote', q.id)}><Eye size={16}/>Ver PDF</button>
@@ -368,7 +388,7 @@ export function BillingWorkspace({
         <button onClick={() => setEditor({ kind: 'quote', initial: q })}><Pencil size={16}/>Editar</button>
         <button disabled={busy} onClick={() => void run(() => billingRequest('billing/quotes/' + q.id + '/accept', { method: 'POST' }), 'Aceptación del cliente registrada manualmente.')}>Registrar aceptación</button>
       </>}
-      {q.status === 'accepted' && <button disabled={busy} onClick={() => void convert(q.id)}><FileSignature size={16}/>Generar contrato</button>}
+      <button disabled={busy} onClick={() => prepareQuote(q)}><FileSignature size={16}/>Preparar contrato</button>
     </div>;
   }
   async function downloadReceipt(payment: Payment) {
@@ -430,6 +450,7 @@ export function BillingWorkspace({
           {problem || error}
         </p>
       )}
+      {quoteLinkNotice&&<p className="platform-info" role="status">{quoteLinkNotice}</p>}
       {legacyOrigin && (
         <div className="billing-callout">
           <div>
@@ -447,6 +468,8 @@ export function BillingWorkspace({
           </button>
         </div>
       )}
+      {!DEMO_MODE && view === 'overview' && <NotificationInbox/>}
+      {!DEMO_MODE && view === 'payments' && <AdminPaymentReportsInbox onChanged={()=>{void refresh();}}/>}
       {!DEMO_MODE && view === 'overview' && <QuoteRequestsPanel admin origin="client" limit={3} />}
       {view === 'overview' && (
         <>
@@ -571,6 +594,8 @@ export function BillingWorkspace({
           {contract && (
             <RecordDetail title={contract.projectName} subtitle={<>{contract.number} · {contract.client.name} · {statusLabels[contract.status]}</>} onClose={() => setSelected('')} className="billing-workspace billing-record-detail">
             {feedback()}
+            <ContractAcceptanceSummary contract={contract}/><ContractAddenda contract={contract} onChanged={()=>{void refresh();}}/>{contract.projectId&&<ProjectDossier kind="billing" projectId={contract.projectId}/>}
+            {contract.projectId&&<details><summary>Seguimiento del desarrollo</summary><ProjectTrackingEditor kind="billing" projectId={contract.projectId}/></details>}
             <article className="billing-detail">
               <div className="billing-metrics">
                 <Metric label="Base" value={amount(contract.baseCents)} />
@@ -661,7 +686,7 @@ export function BillingWorkspace({
                       Seleccionar estado
                     </option>
                     {Object.entries(statusLabels)
-                      .filter(([key]) => contractTransitions[contract.status].includes(key as ContractStatus))
+                      .filter(([key]) => contractTransitions[contract.status].includes(key as ContractStatus)&&!(contract.signatureMode==='online'&&key==='firmado_cliente'))
                       .map(([key, label]) => (
                         <option key={key} value={key}>
                           {label}
@@ -676,7 +701,7 @@ export function BillingWorkspace({
                   Actualizar estado
                 </button>
                 <small>
-                  Las firmas se obtienen fuera de la plataforma. Activar requiere registrar ambas; finalizar
+                  {contract.signatureMode==='online'?'La conformidad del cliente se registra desde su cuenta. Activar requiere ambas conformidades; finalizar':'Las firmas se obtienen fuera de la plataforma. Activar requiere registrar ambas; finalizar'}
                   requiere saldo cero.
                 </small>
               </form>
@@ -743,22 +768,27 @@ export function BillingWorkspace({
       {activeClient && <RecordDetail title={activeClient.name} subtitle="Cliente guardado" onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={<button className="platform-secondary" onClick={() => setEditor({ kind: 'client', initial: activeClient })}><Pencil size={16}/>Editar cliente</button>}>
         {feedback()}
         <dl className="billing-record-fields"><div><dt>Nombre</dt><dd>{activeClient.name}</dd></div><div><dt>DNI / RUC</dt><dd>{activeClient.taxId || 'Por completar'}</dd></div><div><dt>Correo electrónico</dt><dd>{activeClient.email || 'Por completar'}</dd></div><div><dt>Teléfono</dt><dd>{activeClient.phone || 'Por completar'}</dd></div><div><dt>Dirección</dt><dd>{activeClient.address || 'Dirección pendiente'}</dd></div><div><dt>Fecha de registro</dt><dd>{activeClient.createdAt.slice(0, 10)}</dd></div><div><dt>Tipo de registro</dt><dd>{activeClient.isDemo ? 'Demo' : 'Cliente guardado'}</dd></div></dl>
-        <div className="billing-metrics"><Metric label="Cotizaciones guardadas" value={String(data.quotes.filter(q => q.clientId === activeClient.id).length)}/><Metric label="Contratos guardados" value={String(data.contracts.filter(c => c.clientId === activeClient.id).length)}/></div>
+        <ClientAccountAssociation clientId={activeClient.id} onChanged={()=>{void refresh();}}/>
+        <ClientProjectRecords key={activeClient.id} client={activeClient} quotes={data.quotes} contracts={data.contracts} onOpenQuote={q=>setRecord({kind:'quote',id:q.id})} onOpenContract={c=>{setRecord(null);router.push('/admin/contratos?contrato='+encodeURIComponent(c.id));}}/>
       </RecordDetail>}
       {activeQuote && <RecordDetail title={activeQuote.projectName} subtitle={<>{activeQuote.number} · {activeQuote.client.name} · {{ draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada', rejected: 'Rechazada' }[activeQuote.status]}</>} onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={quoteActions(activeQuote)}>
         {feedback()}
         <div className="billing-metrics"><Metric label="Base" value={amount(activeQuote.baseCents)}/><Metric label={'Recargo ' + activeQuote.plan.rate + '%'} value={amount(activeQuote.feeCents)}/><Metric label="Monto final" value={amount(activeQuote.totalCents)}/></div>
         <article className="billing-detail"><div className="billing-detail-grid"><div><h3>Cliente y proyecto</h3><p>{activeQuote.client.name}<br/>DNI/RUC: {activeQuote.client.taxId || 'Por completar'}<br/>{activeQuote.client.address || 'Dirección por completar'}<br/>{activeQuote.client.phone} {activeQuote.client.email}</p><h4>Servicio</h4><p>{serviceLabels[activeQuote.service] || activeQuote.service}</p><h4>Alcance</h4><p className="billing-preserve">{activeQuote.scope}</p></div><div><h3>Acuerdos de la propuesta</h3><h4>Fechas</h4><p>Emisión: {activeQuote.issuedDate}<br/>Vigencia: {activeQuote.validUntil}</p><h4>Entrega</h4><p className="billing-preserve">{activeQuote.delivery || 'Por confirmar'}</p><h4>Condiciones</h4><p className="billing-preserve">{activeQuote.conditions || 'Ver condiciones de la plantilla PDF.'}</p><h4>Observaciones</h4><p className="billing-preserve">{activeQuote.observations || 'Sin observaciones'}</p></div></div><h4>Modalidad acordada</h4><p>{paymentModes[activeQuote.plan.mode].label} · Recargo {activeQuote.plan.rate}%</p><div className="billing-schedule-preview"><ol>{activeQuote.schedule.map(item => <li key={item.number}><span>{item.number}. {item.label} · {item.date}</span><strong>{amount(item.amountCents)}</strong></li>)}</ol></div></article>
+      <QuoteResponseHistory quoteId={activeQuote.id} version={activeQuote.version}/><QuoteFormalNexiAi key={activeQuote.id+':'+activeQuote.version} quote={activeQuote} disabled={busy} onPrepareContract={analysis=>prepareQuote(activeQuote,analysis)}/>
       </RecordDetail>}
       {activeInstallment && <RecordDetail title={activeInstallment.number + '. ' + activeInstallment.label} subtitle={<>{data.contracts.find(c => c.id === activeInstallment.contractId)?.number} · {data.contracts.find(c => c.id === activeInstallment.contractId)?.client.name}</>} onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={activeInstallment.remainingCents > 0 && !['cancelado', 'finalizado'].includes(data.contracts.find(c => c.id === activeInstallment.contractId)?.status || '') ? <button className="platform-button" onClick={() => setEditor({ kind: 'payment', contractId: activeInstallment.contractId, installmentId: activeInstallment.id })}><Wallet size={17}/>Registrar pago</button> : undefined}>
         {feedback()}
         <div className="billing-metrics"><Metric label="Importe de la cuota" value={amount(activeInstallment.amountCents)}/><Metric label="Pagado" value={amount(activeInstallment.paidCents)}/><Metric label="Saldo" value={amount(activeInstallment.remainingCents)}/></div>
-        <dl className="billing-record-fields"><div><dt>Vencimiento</dt><dd>{activeInstallment.date}</dd></div><div><dt>Estado</dt><dd>{activeInstallment.status === 'pagada' ? 'Pagada' : activeInstallment.status === 'vencida' ? 'Vencida' : activeInstallment.paidCents ? 'Pago parcial' : 'Pendiente'}</dd></div>{activeInstallment.paidDate && <div><dt>Fecha de pago</dt><dd>{activeInstallment.paidDate}</dd></div>}</dl>
+        <dl className="billing-record-fields"><div><dt>Vencimiento</dt><dd>{activeInstallment.date}</dd></div><div><dt>Estado</dt><dd>{activeInstallment.status === 'pagada' ? 'Pagada' : activeInstallment.status === 'vencida' ? 'Vencida' : activeInstallment.paidCents ? 'Pago parcial' : 'Pendiente'}</dd></div>{activeInstallment.paidDate && <div><dt>Fecha de pago</dt><dd>{formatPaymentDate(activeInstallment.paidDate)}</dd></div>}</dl>
+      <PaymentProofHistory key={activeInstallment.id} payments={data.payments} installmentId={activeInstallment.id} autoPreview/>
       </RecordDetail>}
       {activePayment && <RecordDetail title={'Pago de ' + amount(activePayment.amountCents)} subtitle={<>{data.contracts.find(c => c.id === activePayment.contractId)?.number} · {data.contracts.find(c => c.id === activePayment.contractId)?.client.name}</>} onClose={() => setRecord(null)} className="billing-workspace billing-record-detail" actions={<div className="billing-row-actions billing-detail-actions">{activePayment.receiptId && <button onClick={() => void downloadReceipt(activePayment)}>Descargar comprobante</button>}{!activePayment.voided && <button onClick={() => setEditor({ kind: 'void', payment: activePayment })}>Anular registro</button>}</div>}>
         {feedback()}
         <dl className="billing-record-fields"><div><dt>Fecha</dt><dd>{activePayment.date}</dd></div><div><dt>Monto</dt><dd>{amount(activePayment.amountCents)}</dd></div><div><dt>Método</dt><dd>{receiptMethods[activePayment.method]?.label || activePayment.method}</dd></div><div><dt>Referencia</dt><dd>{activePayment.reference || 'Sin referencia'}</dd></div><div><dt>Observación</dt><dd className="billing-preserve">{activePayment.observation || 'Sin observaciones'}</dd></div><div><dt>Estado</dt><dd>{activePayment.voided ? 'ANULADO' : 'Registrado'}</dd></div>{activePayment.voided && <div><dt>Motivo de anulación</dt><dd className="billing-preserve">{activePayment.voidReason}</dd></div>}</dl>
+      <PaymentProofHistory key={activePayment.id} payments={[activePayment]} autoPreview/>
       </RecordDetail>}
+      {contractDraft&&<ContractDraftDialog draft={contractDraft} data={data} onClose={()=>setContractDraft(null)} onSaved={async id=>{setContractDraft(null);await refresh();window.dispatchEvent(new Event('billing-change'));if(id)router.push('/admin/contratos?contrato='+encodeURIComponent(id));}}/>}
       {editor && (
         <Modal
           title={

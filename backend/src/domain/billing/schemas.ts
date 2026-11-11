@@ -35,6 +35,7 @@ export const planDto = z
   .strict();
 export const quoteDto = z
   .object({
+    expectedVersion:z.number().int().positive().optional(),
     clientId: id,
     projectName: text(200).min(2),
     service: z.enum(Object.keys(serviceLabels) as [string, ...string[]]),
@@ -55,6 +56,11 @@ export const contractDto = z
   .object({
     clientId: id,
     quoteId: id.optional(),
+    signatureMode:z.enum(['physical','online']).default('physical'),
+    sourceRequestId:id.optional(),
+    sourceRequestRevision:z.number().int().positive().optional(),
+    sourceQuoteId:id.optional(),
+    sourceQuoteVersion:z.number().int().positive().optional(),
     projectId: id.optional(),
     projectName: text(200).min(2),
     service: z.enum(Object.keys(serviceLabels) as [string, ...string[]]),
@@ -70,7 +76,10 @@ export const contractDto = z
     version: z.number().int().min(1).optional(),
   })
   .strict()
-  .refine((v) => v.deliveryDate >= v.startDate, 'La entrega no puede ser anterior al inicio.');
+  .refine((v) => v.deliveryDate >= v.startDate, 'La entrega no puede ser anterior al inicio.')
+  .refine(v=>!(v.sourceRequestId&&(v.sourceQuoteId||v.quoteId)),'Selecciona un solo origen del contrato.')
+  .refine(v=>!!v.sourceRequestId===!!v.sourceRequestRevision,'Indica la revisión de la solicitud de origen.')
+  .refine(v=>!!v.sourceQuoteVersion===!!v.sourceQuoteId,'Indica la versión de la cotización formal de origen.');
 export const statusDto = z
   .object({ status: z.enum(contractStatuses), version: z.number().int().min(1) })
   .strict();

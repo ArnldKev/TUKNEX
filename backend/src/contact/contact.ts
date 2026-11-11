@@ -1,3 +1,4 @@
+import {enqueueNotification} from '../notifications/outbox';
 import { Body, Controller, Get, Inject, Module, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -11,8 +12,13 @@ class ContactController {
   @Post() async create(@Body() body:unknown) {
     const input=parse(z.object({name:z.string().trim().min(2).max(80),email:z.string().trim().toLowerCase().pipe(z.email().max(254)),message:z.string().trim().min(10).max(2000),consent:z.literal(true),website:z.string().max(300).optional()}).strict(),body);
     if(input.website)return {accepted:true}; // Honeypot: do not store automated submissions.
-    const id=randomUUID();
-    await this.db.query('INSERT INTO mensajes_contacto(id,nombre,correo,mensaje) VALUES($1,$2,$3,$4)',[id,input.name,input.email,input.message]);
+    await this.db.transaction(async tx=>{
+      // Serialize identical explicit submissions, including retries after a lost response.
+      await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))',[input.email+'|'+input.name+'|'+input.message]);
+      const repeated=(await tx.query("SELECT id FROM mensajes_contacto WHERE nombre=$1 AND correo=$2 AND mensaje=$3 AND created_at>now()-interval '10 minutes' LIMIT 1",[input.name,input.email,input.message])).rows[0];if(repeated)return;
+      const id=randomUUID();await tx.query('INSERT INTO mensajes_contacto(id,nombre,correo,mensaje) VALUES($1,$2,$3,$4)',[id,input.name,input.email,input.message]);
+      await enqueueNotification(tx,{key:'orientation:'+id,kind:'orientation',entityId:id,projectName:'Consulta de orientación',route:'/admin/mensajes?mensaje='+id});
+    });
     return {accepted:true};
   }
 }

@@ -101,6 +101,19 @@ try{
  disconnected.destroyed=true;disconnected.emit('close');releaseSql();
  await assert.rejects(pending,/cancel/i,'cancelled before quota reservation must not reach Groq');checks++;
  check(captured.length===beforeCalls,'disconnect before SQL completes prevents an external call');
+ await reset();
+ const financialClient=(await call('billing/clients',{cookie:admin.cookie,value:{name:'Cliente financiero sintético',email:'financial@example.test',phone:'900000002',taxId:'00000002',address:'',isDemo:true}})).data;
+ const financial=(await call('billing/quotes',{cookie:admin.cookie,value:{clientId:financialClient.id,projectName:'Proyecto sintético',service:'business',scope:'Alcance completo: '+('Descripción de sección. '.repeat(60))+'FINAL_ALCANCE. contacto@example.test +51 900000002',conditions:'Entregar fotografías. No incluir pagos online.',observations:'Confirmar contenidos. https://private.example.test',delivery:'20 días desde materiales',baseCents:8675309,plan:{mode:'cash',rate:0,count:1,firstDueDate:'2026-11-09'},status:'draft',issuedDate:'2026-11-09',validUntil:'2026-11-24',isDemo:true}})).data;
+ await call('billing/quote-ai/quotes/'+financial.id+'/analyze',{value:{version:financial.version,consent:true,policyVersion},status:401});
+ await call('billing/quote-ai/quotes/'+financial.id+'/analyze',{value:{version:financial.version,consent:true,policyVersion},cookie:client.cookie,status:403});
+ await call('billing/quote-ai/quotes/'+financial.id+'/analyze',{value:{version:999,consent:true,policyVersion},cookie:admin.cookie,status:409});
+ const before=captured.length,analysis=(await call('billing/quote-ai/quotes/'+financial.id+'/analyze',{value:{version:financial.version,consent:true,policyVersion},cookie:admin.cookie})).data;
+ check(analysis.projectId===financial.id&&analysis.baseRevision===0,'financial analysis binds canonical formal quote');
+ const context=JSON.parse(captured[before].messages[1].content);
+ check(context.formalQuoteTerms.scope.includes('FINAL_ALCANCE'),'full canonical scope reaches model beyond compact preview limit');
+ for(const privateValue of ['financial@example.test','contacto@example.test','900000002','private.example.test','8675309'])check(!JSON.stringify(context).includes(privateValue),'formal context omits contacts and financial values');
+ check(context.formalQuoteTerms.conditions.includes('No incluir pagos online'),'canonical exclusions preserved');
+ check((await db.query('SELECT version FROM cotizaciones WHERE id=$1',[financial.id])).rows[0].version===financial.version,'analysis does not accept or modify financial quote');
  console.log(JSON.stringify({result:'PASS',checks,realProviderCalls:0,realEmails:0},null,2));
 }finally{globalThis.fetch=originalFetch;await app?.close();assert.equal(path.dirname(temporary),path.resolve('.local-data'));assert.ok(path.basename(temporary).startsWith('ai-test-'));await rm(temporary,{recursive:true,force:true});}
 

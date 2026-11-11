@@ -1,3 +1,12 @@
+import {DossiersModule} from './documents/project-dossiers';
+import {AddendaModule} from './billing/addenda';
+import {PaymentReportsModule} from './billing/payment-reports';
+import {NexiReportsModule} from './ai/nexi-reports';
+import {QuoteResponsesModule} from './billing/quote-responses';
+import {NotificationsModule} from './notifications/notifications';
+import {ProjectTrackingModule} from './projects/project-tracking';
+import {ClientAssociationsModule} from './auth/client-associations';
+import { OnlineContractModule } from './billing/online-contract';
 import { TeamModule } from './team/team.module';
 import { QuoteAudioModule } from './ai/quote-audio';
 import { QuoteAiModule } from './ai/quote-ai';
@@ -20,7 +29,7 @@ class HealthController {
   @Get('health') async health() {await this.db.query('SELECT 1'); return {status:'ok'};}
 }
 @Module({
-  imports: [TeamModule, QuoteAudioModule, QuoteAiModule, DatabaseModule, QuoteDraftsModule, AuthModule, BillingModule, DocumentsModule, QuoteRequestsModule, ContactModule, ReviewsModule],
+  imports: [DossiersModule, AddendaModule, PaymentReportsModule, NexiReportsModule, QuoteResponsesModule, NotificationsModule, ProjectTrackingModule, ClientAssociationsModule, OnlineContractModule, TeamModule, QuoteAudioModule, QuoteAiModule, DatabaseModule, QuoteDraftsModule, AuthModule, BillingModule, DocumentsModule, QuoteRequestsModule, ContactModule, ReviewsModule],
   controllers: [BillingController, PublicController, DocumentController, HealthController, AccountController],
 })
 export class AppModule {}

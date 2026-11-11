@@ -8,7 +8,7 @@ import {visualPreferenceSummary} from '@/lib/quote/visual';
 import {QuotePreviewFeedback} from '../preview-feedback';
 import {QuoteSummary} from './summary';
 import {QuoteCheckboxField,QuoteDetails,QuoteSelectField,QuoteTextField} from './shared';
-const styles={modern:'Moderno',elegant:'Elegante',minimal:'Sencillo',corporate:'Profesional',bold:'Llamativo',unsure:'Por definir con TUKNEX'};
+import {quoteChoiceLabel} from '@/lib/quote/commercial-labels';
 export function QuoteReviewStep({onEdit,prices,staff=false}:{onEdit:(step:number)=>void;prices:Record<string,number>;staff?:boolean}){
  const {control}=useFormContext<QuoteFormValues>();
  const values=useWatch({control}) as QuoteFormValues;
@@ -23,7 +23,7 @@ export function QuoteReviewStep({onEdit,prices,staff=false}:{onEdit:(step:number
   <QuoteSummary values={values} onEdit={onEdit}/>
   <section className="quote-review-direction" aria-label="Tu negocio y dirección visual">
    <h3>La idea que nos cuentas</h3><p>{values.offering}</p><p>{values.problem}</p>
-   <h3>Dirección visual</h3><p>{styles[values.stylePreference]} · Colores: {values.colorsLiked||'Por definir contigo'}</p>
+   <h3>Dirección visual</h3><p>{quoteChoiceLabel('stylePreference',values.stylePreference)} · Colores: {values.colorsLiked||'Por definir contigo'}</p>
    <p>{visualPreferenceSummary(values.visualPreferences)}</p>
    {values.references&&<p>Referencias: {values.references}</p>}
   </section>

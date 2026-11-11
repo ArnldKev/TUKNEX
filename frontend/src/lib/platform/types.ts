@@ -176,7 +176,7 @@ export interface AuthService {
   login(email: string, password: string): Promise<User>;
   register(input: RegistrationInput): Promise<User>;
   logout(): Promise<void>;
-  getCurrentUser(): Promise<User | null>;
+  getCurrentUser(signal?:AbortSignal): Promise<User | null>;
   resetPassword(email: string): Promise<string>;
   hasRole(role: UserRole): boolean;
 }
