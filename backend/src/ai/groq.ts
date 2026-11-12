@@ -1,7 +1,9 @@
 import {z} from 'zod';
+import {Logger} from '@nestjs/common';
 import {cancelProviderBody} from './provider-response';
-import {aiContext,aiReportSchema,validateAiReport,aiOrganizedReportSchema,validateAiOrganizedReport,type AiReport,type AiOrganizedEnvelope} from '../domain/quote/ai';
+import {AI_FIELDS,aiContext,aiReportSchema,validateAiReport,aiOrganizedReportSchema,validateAiOrganizedReport,type AiReport,type AiOrganizedEnvelope} from '../domain/quote/ai';
 import {FEATURES} from '../domain/pricing';
+import {visualOptions} from '../domain/quote/visual';
 import type {QuoteProject} from '../domain/quote/project';
 
 export const AI_MODELS=['openai/gpt-oss-120b','openai/gpt-oss-20b'] as const;
@@ -11,8 +13,45 @@ export function validateAiConfig(){
  if(!AI_MODELS.includes((process.env.NEXI_AI_MODEL||AI_MODELS[0]) as typeof AI_MODELS[number]))throw Error('Modelo NEXI_AI_MODEL no admitido para Groq.');
  if(!process.env.GROQ_API_KEY?.trim())throw Error('Configura GROQ_API_KEY en el backend antes de activar NEXI_AI_ENABLED.');
 }
+export type AiDiagnosticCode='NEXI_AI_TRUNCATED'|'NEXI_AI_FORMAT'|'NEXI_AI_VALIDATION'|'NEXI_AI_REFUSED';
 export class AiProviderError extends Error{
- constructor(public status:number,message:string){super(message);}
+ constructor(public status:number,message:string,public diagnosticCode?:AiDiagnosticCode){super(message);}
+}
+const responseErrors:Record<AiDiagnosticCode,string>={
+ NEXI_AI_TRUNCATED:'La IA no terminó de escribir el análisis. Puedes volver a intentarlo con una descripción más breve.',
+ NEXI_AI_FORMAT:'La IA devolvió un formato que no podemos leer. No se guardó el análisis; puedes intentarlo de nuevo.',
+ NEXI_AI_VALIDATION:'La IA propuso datos o sugerencias que no cumplen las opciones de esta cotización. No se guardó el análisis; puedes intentarlo de nuevo.',
+ NEXI_AI_REFUSED:'La IA no pudo responder a esta consulta. Revisa la descripción o continúa sin IA.',
+};
+function rejectResponse(code:AiDiagnosticCode):never{
+ // Fixed categories only: never log provider text, reasoning, project data, keys or validation values.
+ Logger.warn(code,'NexiAI');
+ throw new AiProviderError(502,responseErrors[code],code);
+}
+type JsonSchema={ [key:string]:unknown; properties?:Record<string,JsonSchema>; items?:JsonSchema; $defs?:Record<string,JsonSchema> };
+function providerSchema(schema:z.ZodType,context:Record<string,unknown>){
+ const json=z.toJSONSchema(schema) as JsonSchema;
+ const suggestions=json.properties!.suggestions,item=suggestions.items!,properties=item.properties!;
+ const evidence=AI_FIELDS.filter(field=>{
+  const value=context[field];return value!==''&&value!==undefined&&value!==null&&(!Array.isArray(value)||value.length>0);
+ });
+ const values:Record<string,string[]>={
+  addFeature:FEATURES.map(feature=>feature.id),removeFeature:FEATURES.map(feature=>feature.id),
+  palette:['turquesa','azul','verde','naranja','rojo','morado','dorado','rosa'],
+  style:['modern','minimal','elegant','corporate','bold'],
+  ...Object.fromEntries(Object.entries(visualOptions).map(([target,option])=>[target,Object.keys(option.choices)])),
+ };
+ // Reuse prose/evidence schemas so target-value constraints do not multiply the prompt size.
+ json.$defs={...json.$defs,nexiSuggestionTitle:properties.title,nexiSuggestionReason:properties.reason,
+  nexiSuggestionEvidence:{...properties.evidenceFields,items:{type:'string',enum:evidence.length?evidence:AI_FIELDS}},
+ };
+ suggestions.items={anyOf:Object.entries(values).map(([target,choices])=>({
+  type:'object',additionalProperties:false,required:['title','reason','evidenceFields','target','value'],
+  properties:{title:{$ref:'#/$defs/nexiSuggestionTitle'},reason:{$ref:'#/$defs/nexiSuggestionReason'},
+   evidenceFields:{$ref:'#/$defs/nexiSuggestionEvidence'},target:{type:'string',enum:[target]},value:{type:'string',enum:choices}},
+ }))};
+ if(!evidence.length)suggestions.maxItems=0;
+ return json;
 }
 export const AI_SYSTEM_PROMPT=[
  'Eres NEXI, asistente de definición de proyectos web de TUKNEX en Perú. Responde en español claro.',
@@ -24,7 +63,7 @@ export const AI_SYSTEM_PROMPT=[
  'No modifiques silenciosamente decisiones elegidas. Propón solo cambios relevantes. Es correcto devolver suggestions vacío si falta información o el diseño ya coincide.',
  'targets permitidos: addFeature/removeFeature (value es id del catálogo), palette (turquesa,azul,verde,naranja,rojo,morado,dorado,rosa), style (modern,minimal,elegant,corporate,bold), font (sans,editorial,rounded), scale (balanced,large), spacing (airy,compact), hero (split,centered), surface (tinted,paper), sectionOrder (content,contact).',
  'No generes HTML, CSS, JavaScript, URLs, imágenes ni instrucciones ejecutables. No uses herramientas. No afirmes haber visitado enlaces ni investigado negocios.',
- 'Sé breve: máximo 4 sugerencias, 6 elementos por lista. No prometas que una función es viable sin revisión del administrador.',
+ 'Sé breve: resumen y dirección visual de una o dos frases, preferentemente hasta 3 elementos por lista y máximo 4 sugerencias. No prometas que una función es viable sin revisión del administrador.',
  'Catálogo de funciones (sin tarifas): '+JSON.stringify(FEATURES.map(f=>({id:f.id,name:f.name,detail:f.detail}))),
 ].join('\n');
 
@@ -39,31 +78,34 @@ async function requestStructured<T>(project:QuoteProject,schema:z.ZodType,prompt
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
  const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)controller.abort();
  try{
+  const context=aiContext(project);
   const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
    method:'POST',signal:controller.signal,
    headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},
-   body:JSON.stringify({model:process.env.NEXI_AI_MODEL||AI_MODELS[0],reasoning_effort:'low',max_completion_tokens:1600,
-    messages:[{role:'system',content:prompt},{role:'user',content:JSON.stringify(terms?{...aiContext(project),formalQuoteTerms:terms}:aiContext(project))}],
-    response_format:{type:'json_schema',json_schema:{name,strict:true,schema:z.toJSONSchema(schema)}},
+   body:JSON.stringify({model:process.env.NEXI_AI_MODEL||AI_MODELS[0],reasoning_effort:'low',include_reasoning:false,max_completion_tokens:4096,
+    messages:[{role:'system',content:prompt},{role:'user',content:JSON.stringify(terms?{...context,formalQuoteTerms:terms}:context)}],
+    response_format:{type:'json_schema',json_schema:{name,strict:true,schema:providerSchema(schema,context)}},
    }),
   });
   if(res.status===429){await cancelProviderBody(res.body);throw new AiProviderError(429,'La cuota gratuita de NEXI está ocupada. Puedes seguir respondiendo y probar más tarde.');}
   if(!res.ok){await cancelProviderBody(res.body);throw new AiProviderError(503,'NEXI no pudo consultar la IA. Conservamos tus respuestas; puedes seguir con el cuestionario.');}
   if(Number(res.headers.get('content-length')||0)>32768){await cancelProviderBody(res.body);throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa. Puedes intentarlo de nuevo.');}
-  if(!res.body)throw new AiProviderError(502,'La IA no devolvió un análisis válido.');
+  if(!res.body)rejectResponse('NEXI_AI_FORMAT');
   const reader=res.body.getReader(),chunks:Uint8Array[]=[];let size=0;
   try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await cancelProviderBody(reader);throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa.');}chunks.push(value);}}
   finally{reader.releaseLock();}
-  try{
-   const data=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-   if(data.choices?.[0]?.finish_reason==='length')throw Error('Truncated');
-   const content=data.choices?.[0]?.message?.content;
-   if(typeof content!=='string')throw Error('Missing content');
-   return validate(JSON.parse(content));
-  }catch{throw new AiProviderError(502,'El análisis no pasó las comprobaciones. Tus respuestas no cambiaron; puedes volver a intentarlo.');}
+  let data;
+  try{data=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{rejectResponse('NEXI_AI_FORMAT');}
+  const choice=data?.choices?.[0];
+  if(choice?.finish_reason==='length')rejectResponse('NEXI_AI_TRUNCATED');
+  if(choice?.finish_reason==='content_filter'||choice?.message?.refusal)rejectResponse('NEXI_AI_REFUSED');
+  const content=choice?.message?.content;
+  if(typeof content!=='string')rejectResponse('NEXI_AI_FORMAT');
+  let raw;
+  try{raw=JSON.parse(content);}catch{rejectResponse('NEXI_AI_FORMAT');}
+  try{return validate(raw);}catch{return rejectResponse('NEXI_AI_VALIDATION');}
  }catch(error){
   if(error instanceof AiProviderError)throw error;
   throw new AiProviderError(503,controller.signal.aborted?'Se canceló o agotó el tiempo de NEXI. Tus respuestas siguen en el cuestionario.':'La IA no está disponible. Puedes continuar sin ella y probar más tarde.');
  }finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
 }
-

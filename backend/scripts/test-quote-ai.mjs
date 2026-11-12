@@ -54,7 +54,7 @@ try{
  const sent=JSON.stringify(captured[0]);
  for(const secret of ['Nombre privado','a@example.test','934631664',project.id])check(!sent.includes(secret),'outgoing context excludes '+secret);
  check(sent.includes('No quiero pagos online'),'negation reaches provider unchanged');
- check(captured[0].response_format.json_schema.strict===true&&captured[0].max_completion_tokens===1600,'bounded structured completion');
+ check(captured[0].response_format.json_schema.strict===true&&captured[0].max_completion_tokens===4096&&captured[0].include_reasoning===false,'bounded structured completion');
  check(!Object.hasOwn(captured[0],'tools'),'model cannot execute tools');
  const metadata=JSON.stringify((await db.query('SELECT * FROM cotizador_ia_cuotas')).rows);
  check(!metadata.includes('198.51.100')&&!metadata.includes(project.answers.problem),'quota stores neither raw IP nor project text');

@@ -37,3 +37,94 @@ test('audio: valid transcript and absent segment metadata remain supported',asyn
  try{assert.deepEqual(await transcribeAudio(file(),new AbortController().signal),{text:'No quiero pagos online.',duration:5});}
  finally{globalThis.fetch=original;}
 });
+
+
+// Text-provider regressions use synthetic responses only. Each test restores fetch
+// and the static logger; these top-level tests deliberately run sequentially.
+const {Logger}=require('@nestjs/common');
+const {FEATURES}=require('../dist/domain/pricing.js');
+const privateMarker='private-provider-payload-never-expose';
+const validReport={summary:'Carta para organizar pedidos por WhatsApp.',scope:['Carta de platos'],exclusions:['Confirmar medios de pago'],questions:['¿Cuántos platos se mostrarán?'],risks:['Confirmar fotografías'],acceptanceCriteria:['El contacto permite continuar por WhatsApp'],visualDirection:'Texto claro con fotografías del menú',suggestions:[]};
+const suggestion={title:'Mostrar el catálogo',reason:'El cliente desea organizar los pedidos',evidenceFields:['problem'],target:'addFeature',value:'catalog'};
+const textEnvelope=(report=validReport,choice={})=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify(report)},...choice}]});
+async function withTextResponse(response,check){
+ const originalFetch=globalThis.fetch,originalWarn=Logger.warn,captured=[],warnings=[];
+ globalThis.fetch=async(url,options)=>{captured.push({url:String(url),body:JSON.parse(options.body)});return response();};
+ Logger.warn=(...args)=>{warnings.push(args.map(value=>typeof value==='string'?value:JSON.stringify(value)).join(' '));};
+ try{return await check(captured,warnings);}finally{globalThis.fetch=originalFetch;Logger.warn=originalWarn;}
+}
+async function rejectedText(response,diagnosticCode){
+ await withTextResponse(response,async(captured,warnings)=>{
+  await assert.rejects(requestGroqReport(project),error=>{
+   assert.ok(error instanceof AiProviderError);assert.equal(error.status,502);assert.equal(error.diagnosticCode,diagnosticCode);
+   assert.ok(!String(error.message).includes(privateMarker));assert.ok(!JSON.stringify(error).includes(privateMarker));return true;
+  });
+  assert.equal(captured.length,1,'a rejected analysis must not silently retry or consume another request');
+  assert.ok(warnings.some(message=>message.includes(diagnosticCode)),'a rejected analysis must record its safe categorical diagnostic');
+  assert.ok(warnings.every(message=>!message.includes(privateMarker)),'provider diagnostics must never expose model output');
+ });
+}
+for(const [label,response] of [
+ ['even when content is valid JSON',()=>Response.json(textEnvelope(validReport,{finish_reason:'length'}))],
+ ['when content is also incomplete',()=>Response.json(textEnvelope(validReport,{finish_reason:'length',message:{content:'{"summary":"'+privateMarker}}))],
+])test('text: categorizes truncated generation '+label,{concurrency:false},()=>rejectedText(response,'NEXI_AI_TRUNCATED'));
+
+for(const [label,response] of [
+ ['malformed HTTP envelope',()=>new Response('{'+privateMarker)],
+ ['missing choices',()=>Response.json({detail:privateMarker})],
+ ['empty choices',()=>Response.json({choices:[],detail:privateMarker})],
+ ['missing content',()=>Response.json({choices:[{finish_reason:'stop',message:{detail:privateMarker}}]})],
+ ['nontext content',()=>Response.json({choices:[{finish_reason:'stop',message:{content:{detail:privateMarker}}}]})],
+ ['malformed content JSON',()=>Response.json(textEnvelope(validReport,{message:{content:'{"summary":"'+privateMarker}}))],
+])test('text: categorizes '+label,{concurrency:false},()=>rejectedText(response,'NEXI_AI_FORMAT'));
+
+const {scope:_scope,...missingScope}=validReport;
+for(const [label,report] of [
+ ['missing required report field',missingScope],
+ ['unknown extra report field',{...validReport,providerPrivateDetail:privateMarker}],
+ ['unsupported suggestion target',{...validReport,suggestions:[{...suggestion,target:'execute',value:privateMarker}]}],
+ ['unsupported feature',{...validReport,suggestions:[{...suggestion,value:privateMarker}]}],
+ ['unsupported palette',{...validReport,suggestions:[{...suggestion,target:'palette',value:'#123456'}]}],
+ ['unsupported font',{...validReport,suggestions:[{...suggestion,target:'font',value:'Comic Sans'}]}],
+ ['empty evidence field',{...validReport,suggestions:[{...suggestion,evidenceFields:['otherFunctions']}]}],
+])test('text: rejects '+label+' even if provider ignores the supplied schema',{concurrency:false},()=>rejectedText(()=>Response.json(textEnvelope(report)),'NEXI_AI_VALIDATION'));
+
+for(const [label,choice] of [
+ ['explicit refusal',{finish_reason:'stop',message:{refusal:privateMarker,content:JSON.stringify(validReport)}}],
+ ['content filter',{finish_reason:'content_filter',message:{content:JSON.stringify(validReport),detail:privateMarker}}],
+])test('text: categorizes '+label,{concurrency:false},()=>rejectedText(()=>Response.json(textEnvelope(validReport,choice)),'NEXI_AI_REFUSED'));
+
+test('text: a valid stopped report passes unchanged without an implicit retry',{concurrency:false},async()=>{
+ const report={...validReport,suggestions:[suggestion,{...suggestion,target:'palette',value:'turquesa'},{...suggestion,target:'font',value:'sans'}]};
+ await withTextResponse(()=>Response.json(textEnvelope(report)),async(captured)=>{
+  assert.deepEqual(await requestGroqReport(project),report);assert.equal(captured.length,1);
+  assert.equal(captured[0].url,'https://api.groq.com/openai/v1/chat/completions');
+  assert.equal(captured[0].body.max_completion_tokens,4096);assert.equal(captured[0].body.include_reasoning,false);
+ });
+});
+
+test('text: generation schema constrains every suggestion value and excludes unavailable evidence',{concurrency:false},async()=>{
+ await withTextResponse(()=>Response.json(textEnvelope()),async(captured)=>{
+  await requestGroqReport(project);assert.equal(captured.length,1);
+  const format=captured[0].body.response_format;assert.equal(format.type,'json_schema');assert.equal(format.json_schema.strict,true);
+  const schema=format.json_schema.schema;assert.equal(schema.additionalProperties,false);
+  const variants=schema.properties.suggestions.items.anyOf;assert.ok(Array.isArray(variants),'suggestions must carry complete target-specific schema alternatives');
+  const resolve=fragment=>{if(!fragment.$ref)return fragment;assert.ok(fragment.$ref.startsWith('#/$defs/'));const definition=schema.$defs?.[fragment.$ref.slice('#/$defs/'.length)];assert.ok(definition,'every shared schema reference must resolve');return definition;};
+  const byTarget=new Map();
+  for(const variant of variants){
+   assert.equal(variant.type,'object');assert.equal(variant.additionalProperties,false);
+   assert.deepEqual([...variant.required].sort(),['evidenceFields','reason','target','title','value']);
+   const target=variant.properties.target.const??variant.properties.target.enum?.[0];assert.ok(target);assert.ok(!byTarget.has(target));byTarget.set(target,variant);
+   const evidence=resolve(resolve(variant.properties.evidenceFields).items).enum;assert.ok(Array.isArray(evidence));
+   assert.ok(evidence.includes('problem'));assert.ok(evidence.includes('offering'));assert.ok(!evidence.includes('otherFunctions'),'empty fields must not be offered as evidence');
+   assert.ok(!evidence.includes('email'));assert.ok(!evidence.includes('businessName'));
+   assert.ok(Array.isArray(variant.properties.value.enum),'a suggestion must expose allowed values to the provider');
+  }
+  assert.equal(byTarget.size,10);
+  assert.deepEqual([...byTarget.get('font').properties.value.enum].sort(),['editorial','rounded','sans']);
+  assert.deepEqual([...byTarget.get('palette').properties.value.enum].sort(),['azul','dorado','morado','naranja','rojo','rosa','turquesa','verde']);
+  const features=FEATURES.map(feature=>feature.id).sort();
+  assert.deepEqual([...byTarget.get('addFeature').properties.value.enum].sort(),features);
+  assert.deepEqual([...byTarget.get('removeFeature').properties.value.enum].sort(),features);
+ });
+});
