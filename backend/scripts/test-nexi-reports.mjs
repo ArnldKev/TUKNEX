@@ -22,6 +22,7 @@ globalThis.fetch=async(input,options)=>{
  if(url==='https://api.groq.com/openai/v1/chat/completions'){
   providerCalls++;const payload=JSON.parse(options.body);captured.push(payload);let report=payload.response_format.json_schema.name==='tuknex_organized_idea'?organized:analysis;
   if(mode==='missing')report={...organized,narrative:'Carta de productos',requirements:[],exclusions:[]};
+  if(mode==='invalid-analysis')report={...analysis,suggestions:[{title:'Propuesta sintética inválida',reason:'Caso de regresión de validación',evidenceFields:['problem'],target:'palette',value:'PRIVATE_INVALID_PALETTE_NEVER_EXPOSE'}]};
   if(mode==='hold'){started?.();await new Promise(resolve=>{release=resolve;});}
   return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(report)}}]}),{headers:{'Content-Type':'application/json'}});
  }
@@ -55,6 +56,21 @@ try{
  const source='nexi-reports/request/'+request.id;
  await call(source,'',undefined,401);await call(source,client.cookie,undefined,403);await call(source,staffB.cookie,undefined,404);
  await call(source+'/generate',staffB.cookie,aiBody(request.revision),404);await call(source+'/generate',admin.cookie,aiBody(999),409);
+ // A rejected provider analysis must not create history or change the saved source.
+ await quota();
+ const beforeInvalidCalls=providerCalls;
+ const beforeInvalidSource=(await db.query('SELECT to_jsonb(s) AS snapshot FROM solicitudes_cotizacion s WHERE id=$1',[request.id])).rows[0].snapshot;
+ const beforeInvalidReports=Number((await db.query('SELECT count(*)::int AS n FROM nexi_informes')).rows[0].n);
+ const beforeInvalidReviews=Number((await db.query('SELECT count(*)::int AS n FROM nexi_informe_revisiones')).rows[0].n);
+ mode='invalid-analysis';
+ try{
+  const invalid=await call(source+'/generate',admin.cookie,aiBody(request.revision),502);
+  check(providerCalls===beforeInvalidCalls+1,'invalid saved-source analysis calls the provider once without hidden retries');
+  check(!JSON.stringify(invalid.data).includes('PRIVATE_INVALID_PALETTE_NEVER_EXPOSE'),'invalid provider suggestion stays private in HTTP response');
+  check(Number((await db.query('SELECT count(*)::int AS n FROM nexi_informes')).rows[0].n)===beforeInvalidReports,'invalid analysis writes no generated report');
+  check(Number((await db.query('SELECT count(*)::int AS n FROM nexi_informe_revisiones')).rows[0].n)===beforeInvalidReviews,'invalid analysis writes no human review');
+  assert.deepEqual((await db.query('SELECT to_jsonb(s) AS snapshot FROM solicitudes_cotizacion s WHERE id=$1',[request.id])).rows[0].snapshot,beforeInvalidSource,'invalid analysis preserves all source fields and its revision');checks++;
+ }finally{mode='normal';await quota();}
  const generated=(await call(source+'/generate',staffA.cookie,aiBody(request.revision))).data;
  check(generated.envelope.report.summary===analysis.summary,'assigned subadmin generates stored canonical report');
  check(generated.sourceRevision===request.revision,'report binds exact source revision');

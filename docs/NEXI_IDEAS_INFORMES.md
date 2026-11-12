@@ -51,3 +51,19 @@ Pruebas automatizadas añadidas:
 - `backend/scripts/test-nexi-reports.mjs`: organización sin guardar solicitud/informe, persistencia solo al envío, acceso cliente/subadministrador/asignación, fuente canónica, reapertura, original inmutable, versiones humanas, idempotencia, conflictos, cambio de fuente durante generación y privacidad de las notas. Base PGlite temporal y proveedor simulado; carga `.env` deshabilitada y red externa bloqueada.
 
 La calidad real de un modelo gratuito, el cupo de la cuenta real y el permiso de micrófono requieren una prueba manual posterior. Los tests no contactan al proveedor real, Neon, Resend ni micrófono; no prueban rendimiento real del modelo. No se publicó ni se hizo push.
+
+## Diagnóstico de respuestas rechazadas (11 de noviembre de 2026)
+
+El aviso anterior «El análisis no pasó las comprobaciones» agrupaba resultados cortados por el límite de salida, respuestas sin contenido o JSON válido, incumplimientos del esquema y sugerencias incompatibles con las opciones permitidas. Una captura de ese mensaje no identifica cuál ocurrió. No equivale por sí sola a una clave ausente, un límite gratuito agotado o un fallo al guardar en la base; esos casos tienen otros mensajes.
+
+Corrección del adaptador de texto en backend:
+
+- Máximo de salida de 1,600 a 4,096 tokens, con esfuerzo bajo, respuesta breve e `include_reasoning=false`. El razonamiento puede consumir tokens aunque no se devuelva. Se mantienen el máximo de 32 KB, 20 segundos y los cupos existentes; no hay reintentos implícitos, cambio de modelo/proveedor ni activación de facturación.
+- El esquema enviado a Groq restringe cada pareja `target`/`value` a las funciones, paletas, estilos y controles existentes. La evidencia solo puede citar campos no vacíos del contexto. Las definiciones compartidas evitan repetir los esquemas de texto en cada alternativa. La validación local completa se mantiene: una salida inválida no se acepta parcialmente ni se guarda.
+- Mensajes distintos para generación incompleta, formato ilegible, validación rechazada y respuesta filtrada/rechazada por el proveedor. Render puede registrar únicamente las categorías fijas `NEXI_AI_TRUNCATED`, `NEXI_AI_FORMAT`, `NEXI_AI_VALIDATION` y `NEXI_AI_REFUSED`, con contexto `NexiAI`. No se registra contenido de respuestas, razonamiento, claves, contactos ni valores de los errores de validación.
+
+Publicación: requiere subir esta corrección y desplegar el backend en Render desde la rama de producción. No necesita nuevas variables, cambios de clave ni migraciones. La publicación previa no incorpora automáticamente archivos que todavía solo existen en el equipo. La comprobación contra Groq real sigue pendiente; no se envían respuestas reales de clientes como parte de las pruebas locales.
+
+Pruebas enfocadas: compilación de backend; `test-ai-provider-boundaries.mjs` con proveedor simulado; `test-quote-ai.mjs` con `.env` deshabilitado y PGlite temporal; `test-nexi-reports.mjs` con PGlite temporal y red externa bloqueada. Se comprueban truncamiento, formato, rechazo, reglas de sugerencias, ausencia de reintentos, privacidad y que un análisis inválido de una fuente guardada no cree informes ni revisiones ni cambie la solicitud original.
+
+Fuentes de compatibilidad del proveedor: [salida estructurada y referencias de esquemas](https://console.groq.com/docs/structured-outputs) y [control del razonamiento](https://console.groq.com/docs/reasoning). Las pruebas simuladas no certifican disponibilidad, cuota ni calidad del modelo en la cuenta real.
