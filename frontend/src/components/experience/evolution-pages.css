@@ -180,6 +180,7 @@
   .xp-contact-form [aria-invalid='true'] { border-color:var(--fc-form-error,#9b2336); }
   .xp-contact-form .xp-error { color:var(--fc-form-error,#9b2336); font-weight:500; font-size:14px; }
   .xp-contact-form .xp-checkbox { color:var(--fc-paper-ink); font-size:15px; line-height:1.7; gap:var(--fc-space-3); margin:28px 0 var(--fc-space-6); }
+  .xp-contact-form .xp-checkbox a { color:inherit; text-decoration:underline; text-underline-offset:.15em; }
   .xp-contact-form .xp-checkbox input { accent-color:var(--fc-paper-ink); width:20px; height:20px; margin-top:3px; }
   .xp-contact-form .button-primary { background:var(--fc-paper-ink); border-color:var(--fc-paper-ink); color:var(--fc-paper); min-height:56px; }
   .xp-contact-form .button-primary:hover { background:var(--fc-bg); color:var(--fc-paper); }
@@ -408,4 +409,17 @@
     .v5-service-visual::before,.v5-screen-stage > .xp-demo,.v5-service-showcase[data-solution='system'] .v5-screen-stage > .xp-demo,.purpose-project-image:first-child,.purpose-project-image:last-child { transform:none; }
     .xp-case-toggle > svg { transition:none; }
   }
+}
+
+/* Contact keeps a normal, reachable assistant action instead of covering mobile fields. */
+.xp-contact-assistant { display:none; }
+@media(max-width:600px) {
+  .experience[data-public-page='/contacto'] .chat-launcher:not(.is-open) { display:none; }
+  .experience.future-connected .xp-contact-assistant {
+    display:flex; align-items:center; gap:10px; width:100%; margin:0 0 24px;
+    padding:12px 0; border:0; border-bottom:1px solid currentColor; border-radius:0;
+    background:transparent; color:var(--fc-paper-ink); text-align:left; line-height:1.5;
+    font:inherit; font-size:15px; font-weight:600; cursor:pointer;
+  }
+  .xp-contact-assistant > svg { flex:none; }
 }

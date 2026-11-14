@@ -56,7 +56,7 @@ export async function createApp() {
     origin: origins,
     methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Content-Disposition'],
+    exposedHeaders: ['Content-Disposition', 'X-Nexi-Reference', 'Retry-After'],
     credentials: true,
   });
   app.use(json({ limit: '96kb' }));

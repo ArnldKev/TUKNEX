@@ -20,3 +20,8 @@ assert.ok(staffHtml.includes('He informado al cliente'));
 assert.ok(!staffHtml.includes('usaremos el de tu cuenta'));
 assert.ok(staffHtml.includes('name="privacyAcknowledged"'));
 console.log('PASS: staff intake keeps client contact distinct and requires explicit submission acknowledgement.');
+
+const scheduled=render({timeline:'flexible',launchDate:'2099-01-15',hardDeadline:true});
+assert.ok(scheduled.includes('Fecha límite solicitada: 15/01/2099'),'Review must make the fixed date visible');
+assert.ok(scheduled.includes('Flexible, sin prioridad urgente'),'A future fixed date does not change commercial priority');
+console.log('PASS: requested deadline is visible independently of priority.');

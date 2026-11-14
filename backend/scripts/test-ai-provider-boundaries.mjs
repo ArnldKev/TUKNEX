@@ -128,3 +128,61 @@ test('text: generation schema constrains every suggestion value and excludes una
   assert.deepEqual([...byTarget.get('removeFeature').properties.value.enum].sort(),features);
  });
 });
+
+
+for(const [providerStatus,status,code,retryAfterHeader,retryAfter] of [
+ [400,502,'REQUEST'],[401,503,'AUTH'],[403,503,'PERMISSION'],[404,503,'MODEL'],
+ [413,413,'TOO_LARGE'],[422,502,'UNPROCESSABLE'],
+ [429,429,'RATE_LIMIT','45',45],[429,429,'RATE_LIMIT','9999999',3600],
+ [429,429,'RATE_LIMIT',privateMarker,60],
+ [500,503,'UNAVAILABLE'],[503,503,'UNAVAILABLE','75',75],[504,503,'UNAVAILABLE'],
+ [409,503,'HTTP'],
+]){
+ test(`text: safely classifies upstream HTTP ${providerStatus} with Retry-After ${Boolean(retryAfterHeader)}`,async()=>{
+  let cancelled=0;
+  const response={status:providerStatus,ok:false,headers:new Headers(retryAfterHeader?{'Retry-After':retryAfterHeader}:{}),
+   body:{async cancel(){cancelled++;},getReader(){assert.fail('an upstream error body must never be read');}}};
+  await withTextResponse(()=>response,async(captured,warnings)=>{
+   let reference;
+   await assert.rejects(requestGroqReport(project),error=>{
+    assert.ok(error instanceof AiProviderError);
+    assert.equal(error.status,status);
+    assert.equal(error.diagnosticCode,'NEXI_AI_PROVIDER_'+code);
+    assert.equal(error.retryAfter,retryAfter);
+    assert.match(error.reference,/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
+    reference=error.reference;
+    assert.ok(!error.message.includes(privateMarker));
+    return true;
+   });
+   assert.equal(cancelled,1);
+   assert.equal(captured.length,1,'the adapter must never automatically retry');
+   assert.deepEqual(warnings,[JSON.stringify({code:'NEXI_AI_PROVIDER_'+code,providerStatus,reference})+' NexiAI']);
+  });
+ });
+}
+
+test('text: accepts an HTTP-date from Retry-After',async()=>{
+ const retryAt=new Date(Date.now()+30000).toUTCString();
+ await withTextResponse(()=>new Response(privateMarker,{status:503,headers:{'Retry-After':retryAt}}),async()=>{
+  await assert.rejects(requestGroqReport(project),error=>error.status===503&&error.retryAfter>=28&&error.retryAfter<=30);
+ });
+});
+
+test('text: logs only a reference and a fixed code for transport failures',async()=>{
+ await withTextResponse(()=>{throw Error(privateMarker);},async(captured,warnings)=>{
+  await assert.rejects(requestGroqReport(project),error=>{
+   assert.equal(error.diagnosticCode,'NEXI_AI_NETWORK');
+   assert.deepEqual(warnings,[JSON.stringify({code:'NEXI_AI_NETWORK',providerStatus:null,reference:error.reference})+' NexiAI']);
+   return !error.message.includes(privateMarker);
+  });
+  assert.equal(captured.length,1);
+ });
+});
+
+test('text: a cancelled request does not start a provider call',async()=>{
+ await withTextResponse(()=>assert.fail('cancelled before fetch'),async(captured)=>{
+  await assert.rejects(requestGroqReport(project,AbortSignal.abort(privateMarker)),error=>
+   error.diagnosticCode==='NEXI_AI_CANCELLED'&&!error.message.includes(privateMarker));
+  assert.equal(captured.length,0);
+ });
+});

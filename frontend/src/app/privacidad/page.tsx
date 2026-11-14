@@ -1,6 +1,8 @@
 import { PublicShell, PageIntro } from '@/components/experience/public-shell';
 
-export const metadata = { title: 'Uso de tus datos | TUKNEX' };
+import { pageMetadata } from '@/lib/seo';
+
+export const metadata = pageMetadata('/privacidad');
 
 export default function PrivacyPage() {
   return <PublicShell>
@@ -35,8 +37,15 @@ export default function PrivacyPage() {
       <article>
         <h2>Ayuda opcional de NEXI con IA</h2>
         <p>NEXI generativo es una consulta separada del dictado. Cuando está disponible y autorizas cada consulta, enviamos a Groq una selección de respuestas del proyecto y preferencias visuales para generar sugerencias y un análisis orientativo. No enviamos los campos de identidad de la cuenta, correo, teléfono, DNI, contratos ni pagos. Ocultamos correos, enlaces y números reconocibles dentro de los textos; esta detección no garantiza anonimato. Evita información personal o confidencial.</p>
-        <p>El resultado no confirma alcance, viabilidad, precio ni contrato. Se muestra en pantalla y no se guarda como informe en nuestra base. Solo las sugerencias que aceptes se incorporan al proyecto, su historial y la recuperación local de esta pestaña. La autorización de NEXI es independiente del dictado, del envío formal y de cualquier autorización comercial. Puedes continuar sin usar IA. El tratamiento del contenido enviado al proveedor está descrito en su <a href="https://console.groq.com/docs/your-data" target="_blank" rel="noreferrer">política de datos</a>.</p>
+        <p>Durante el cuestionario público, el resultado se muestra en esta pestaña y no crea un informe interno ni una solicitud para el equipo. Las sugerencias que aceptes y la interpretación que apruebes pueden incorporarse a tu avance local y a las respuestas de la cotización si después la envías. El resultado no confirma alcance, viabilidad, precio ni contrato.</p>
+        <p>La autorización de NEXI es independiente del dictado, del envío formal y de cualquier autorización comercial. Puedes continuar sin usar IA. El tratamiento del contenido enviado al proveedor está descrito en su <a href="https://console.groq.com/docs/your-data" target="_blank" rel="noreferrer">política de datos</a>.</p>
         <p>Para limitar el uso de IA y dictado conservamos contadores con un identificador derivado de la conexión, sin guardar en ellos textos, grabaciones ni direcciones IP en claro. Se limpian tras 48 horas mediante los procesos del servicio mientras está activo. Los intentos fallidos o cancelados pueden consumir cuota.</p>
+      </article>
+      <article>
+        <h2>Informes internos de NEXI sobre solicitudes enviadas</h2>
+        <p>Cuando el equipo autorizado pide un análisis de una solicitud guardada o de una propuesta ya registrada, TUKNEX conserva el informe generado, la versión de la información analizada y las revisiones posteriores del equipo. Las revisiones aprobadas pueden utilizarse para preparar una propuesta o un borrador de contrato que se revisa antes de compartirlo; el análisis no envía ni firma un acuerdo automáticamente.</p>
+        <p>El administrador principal puede consultar estos informes. Los colaboradores autorizados solo acceden a los proyectos que tienen asignados. Los informes y las notas internas no se muestran directamente en la cuenta del cliente; los documentos que el equipo prepare y comparta tienen su propio contenido y permisos.</p>
+        <p>El plazo de conservación de estos informes internos está pendiente de definición por TUKNEX. Para consultar tus datos o solicitar su corrección o eliminación, utiliza <a href="/contacto">Contacto</a>. No se aplica a estos informes el plazo de la copia temporal del navegador.</p>
       </article>
       <article>
         <h2>Solicitudes enviadas y mensajes</h2>
@@ -53,7 +62,7 @@ export default function PrivacyPage() {
       </article>
       <article>
         <h2>Sesión y acceso a tus datos</h2>
-        <p>La sesión de cuenta usa una cookie necesaria HttpOnly con una duración de 8 horas. La contraseña se almacena mediante un hash con sal. Un cliente puede consultar sus propios documentos; los administradores acceden a los registros privados necesarios para gestionar el servicio.</p>
+        <p>Usamos una cookie necesaria para mantener abierta tu sesión durante 8 horas. Tu contraseña se protege y no se muestra al equipo. Un cliente puede consultar sus propios documentos; el administrador y los colaboradores autorizados acceden a los registros que les corresponden para gestionar el servicio.</p>
         <p>Para consultar, corregir o solicitar la eliminación de tus datos, contacta con TUKNEX desde <a href="/contacto">el formulario de contacto</a>. Las solicitudes se atienden considerando los documentos y servicios vinculados.</p>
       </article>
     </section>

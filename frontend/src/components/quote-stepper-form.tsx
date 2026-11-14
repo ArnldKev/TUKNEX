@@ -12,7 +12,9 @@ import {DEMO_MODE} from '@/config/environment';
 import {DEFAULT_PRICES,PROJECT_TYPES,readPriceOverrides,type ProjectType} from '@/lib/pricing';
 import {getWhatsAppUrl} from '@/lib/config';
 import {useDemoAuth} from '@/lib/platform/auth';
-import {QUOTE_STEP_FIELDS,defaultFeatures,firstInvalidQuoteStep,quoteDefaults,quoteFormSchema,quotePrefillFromSearch,type QuoteFormValues} from '@/lib/quote/form';
+import {QUOTE_STEP_FIELDS,defaultFeatures,firstInvalidQuoteStep,quoteDefaults,quotePrefillFromSearch,type QuoteFormValues} from '@/lib/quote/form';
+import {quoteSubmissionSchema} from '@/lib/quote/submission';
+import {quoteScheduleIssue} from '@/lib/quote/schedule';
 import {QUOTE_RECOVERY_KEY,initialQuoteFlow,advanceQuoteFlow,completeQuoteFlow,quoteProgress,serializeQuoteRecovery,parseQuoteRecovery,type QuoteFlowState} from '@/lib/quote/workflow';
 import {quoteService} from '@/lib/quote/service';
 import {saveStaffQuoteRequest} from '@/lib/quote/staff-requests';
@@ -51,7 +53,7 @@ function QuoteDictationSession({children,step,disabled}:{children:React.ReactNod
 export function QuoteStepperForm(){
  const auth=useDemoAuth();
  const staffMode=!DEMO_MODE&&(auth.user?.role==='admin'||auth.user?.role==='subadmin');
- const form=useForm<QuoteFormValues>({resolver:zodResolver(quoteFormSchema),mode:'onTouched',defaultValues:startValues,shouldUnregister:false});
+ const form=useForm<QuoteFormValues>({resolver:zodResolver(quoteSubmissionSchema),mode:'onTouched',defaultValues:startValues,shouldUnregister:false});
  const values=useWatch({control:form.control}) as QuoteFormValues;
  const [flow,setFlow]=useState<QuoteFlowState>(initialQuoteFlow),step=flow.step;
  const [result,setResult]=useState<QuoteResult|null>(null),[completedValues,setCompletedValues]=useState<QuoteFormValues|null>(null);
@@ -61,7 +63,8 @@ export function QuoteStepperForm(){
  const submitted=useRef(false);
  const navigationPending=useRef(false),focusTarget=useRef<'heading'|keyof QuoteFormValues|null>(null),flowRef=useRef(flow);
  flowRef.current=flow;
- const furthestStep=Math.max(step,0,...flow.completed.map(i=>Math.min(5,i+1)));
+ const lastValidStep=quoteScheduleIssue(values)?4:5;
+ const furthestStep=Math.min(lastValidStep,Math.max(step,0,...flow.completed.map(i=>Math.min(5,i+1))));
  const progress=quoteProgress(flow,values);
  const proposal=useMemo(()=>result&&completedValues?quoteProposalText(completedValues,result):'',[result,completedValues]);
  function focusQuestion(){
@@ -188,7 +191,7 @@ export function QuoteStepperForm(){
        <header className="quote-question-header"><h2 id="quote-question" ref={headingRef} tabIndex={-1}>{result?'Tu propuesta preliminar':steps[step].title}</h2><p id="quote-question-description" className="quote-step-description">{result?'El alcance y el precio final se confirman después de revisar tu solicitud.':steps[step].description}</p></header>
        {result&&completedValues?<QuoteResultStep values={completedValues} result={result} busy={busy} savedId={savedId} authenticated={auth.user?.role==='client'||staffMode} staffRole={staffMode?auth.user?.role as 'admin'|'subadmin':undefined} proposal={proposal} onPreferenceChange={preference=>{if(savedId||busy)return;form.setValue('paymentPreference',preference);setCompletedValues(old=>old?{...old,paymentPreference:preference}:old);requestKey.current=null;}} onEdit={goTo} onRequest={()=>void requestAdvice()} onWhatsApp={()=>void shareWhatsApp()}/>:
         <form noValidate aria-labelledby="quote-question" aria-describedby="quote-question-description" onSubmit={event=>{if(step<5){event.preventDefault();void nextStep();}else void form.handleSubmit(finish,invalid)(event);}}>
-         {step>0&&<QuoteDictationNotice/>}
+         {step>0&&step<5&&<QuoteDictationNotice/>}
          <div className="quote-current-step" key={'questions-'+step}>{renderStep()}</div>
          {step>0&&step<5&&<QuoteNexiAi disabled={busy}/>}
          <details className="quote-history-disclosure"><summary>Deshacer o recuperar cambios de esta sesión</summary><QuoteProjectHistoryControls disabled={busy}/></details>

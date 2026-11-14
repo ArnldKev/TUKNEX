@@ -15,6 +15,7 @@ import { parse } from '../billing/dto';
 import { DocumentsModule } from '../documents/documents.module';
 import { PdfService } from '../documents/pdf.service';
 import { quoteFormSchema } from '../domain/quote/form';
+import { quoteSubmissionSchema } from '../domain/quote/submission';
 import { estimateQuote, PROJECT_TYPES } from '../domain/pricing';
 import { assertActiveStaff, lockTeamProject } from '../team/access';
 
@@ -102,6 +103,9 @@ export class QuoteRequestsService {
       if(existing.entrada_hash!==hash)throw new ConflictException('Esta solicitud ya se guardó con otras respuestas. Prepara una nueva cotización.');
       return staff?this.detailStaff(actor,existing.id):exposeQuoteRequest(existing);
     }
+    // Replay of an existing request remains valid after its date has passed.
+    // A new request must meet current scheduling rules before any write or PDF generation.
+    parse(quoteSubmissionSchema,input.values);
     if(!staff)await this.verification.assertReady(actor.id);
     const settings=await this.billing.settings(),estimate=estimateQuote(values,settings.prices||{});
     const result={...estimate,category:values.projectType,label:PROJECT_TYPES.find(p=>p.id===values.projectType)?.name||'Proyecto web',currency:'PEN',version:'3.0',validUntil:new Date(Date.now()+estimate.validityDays*86400000).toISOString()};

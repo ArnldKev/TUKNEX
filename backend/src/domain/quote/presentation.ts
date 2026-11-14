@@ -1,4 +1,5 @@
 import { previewFeedbackLabels, visualPreferenceSummary } from './visual';
+import {formatQuoteLaunchDate} from './schedule';
 import { FEATURES, PROJECT_TYPES, money } from '../pricing';
 import { paymentPreferenceLabels, type QuoteFormValues } from './form';
 import type { QuoteAnswer, QuoteResult } from './contracts';
@@ -43,8 +44,8 @@ export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources
     ['Competencia / marca de referencia', values.competitor || 'Sin indicar'],
     ['Primer mensaje al visitante', values.firstImpression || 'Por definir'],
     ['Prioridad', quoteChoiceLabel('timeline',values.timeline)],
-    ['Lanzamiento ideal', values.launchDate || 'Flexible'],
-    ['Fecha límite real', values.hardDeadline ? values.deadlineReason || 'Sí, por confirmar' : 'No'],
+    ['Lanzamiento ideal', values.launchDate ? formatQuoteLaunchDate(values.launchDate) : 'Por definir'],
+    ['Fecha límite real', values.hardDeadline ? `${values.launchDate?formatQuoteLaunchDate(values.launchDate):'Fecha pendiente de confirmar'} · Solicitada, por revisar con el equipo${values.deadlineReason?' · '+values.deadlineReason:''}` : 'No solicitada'],
     ['Presupuesto orientativo', budgetLabels[values.budget]],
     ['Frecuencia de pago preferida', paymentPreferenceLabels[values.paymentPreference||'unsure']],
     ['Dominio', values.domain === 'yes'&&values.existingDomain ? values.existingDomain : quoteChoiceLabel('domain',values.domain)],
@@ -104,4 +105,11 @@ export function quoteProposalText(values: QuoteFormValues, result: QuoteResult):
     result.conditions,
     'Propuesta preliminar: requiere revisión de TUKNEX y no constituye contratación ni aceptación de un precio definitivo.',
   ].join('\n');
+}
+
+// Priority and a requested fixed date are independent: this text never changes pricing.
+export function quoteTimingSummary(values:Pick<QuoteFormValues,'timeline'|'maintenance'> & Partial<Pick<QuoteFormValues,'launchDate'|'hardDeadline'>>):string{
+ const date=values.launchDate?formatQuoteLaunchDate(values.launchDate):'';
+ const timing=values.hardDeadline?`Fecha límite solicitada: ${date||'por confirmar con el equipo'}`:date?`Fecha ideal: ${date}`:'';
+ return [quoteChoiceLabel('timeline',values.timeline),timing,values.maintenance?'Mantenimiento por cotizar':''].filter(Boolean).join(' · ');
 }

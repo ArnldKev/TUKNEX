@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowUpRight, Menu, X, MessageCircle, UserRound, LogOut } from 'lucide-react';
@@ -13,7 +13,9 @@ import './future.css';
 import './account-projects.css';
 import './evolution.css';
 
-export const openNexi = () => window.dispatchEvent(new Event('open-tuknex-chat'));
+export const openNexi = (event: React.MouseEvent<HTMLButtonElement>) => {
+  window.dispatchEvent(new CustomEvent('open-tuknex-chat', { detail: event.currentTarget }));
+};
 export function OfficialBrand() {
   return (
     <Link className="xp-brand" href="/" aria-label="TUKNEX, inicio">
@@ -32,16 +34,35 @@ const links = [
 export function PublicShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  const navigationId = useId();
   const { user, logout, ready } = useDemoAuth();
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    navigationRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const active = document.activeElement;
+      // Let an active conversation or another dialog own its Escape key.
+      if (active instanceof HTMLElement && active.closest('[role="dialog"],[aria-modal="true"]')) return;
+      event.preventDefault();
+      setOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    window.addEventListener('keydown', keyboard);
+    return () => window.removeEventListener('keydown', keyboard);
+  }, [open]);
   return (
-    <div className="experience future-connected">
+    <div className="experience future-connected" data-public-page={pathname}>
       <a className="skip-link" href="#experiencia">
         Saltar al contenido
       </a>
       <header className="xp-header">
         <div className="xp-nav">
           <OfficialBrand />
-          <nav className={open ? 'xp-links open' : 'xp-links'} aria-label="Navegación principal">
+          <nav id={navigationId} ref={navigationRef} className={open ? 'xp-links open' : 'xp-links'} aria-label="Navegación principal">
             {links.map(([url, label]) => (
               <Link
                 key={url}
@@ -74,10 +95,13 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               Cotizar <ArrowUpRight size={15} />
             </Link>
             <button
+              type="button"
+              ref={menuButtonRef}
               className="xp-menu"
+              aria-controls={navigationId}
               aria-expanded={open}
               aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
-              onClick={() => setOpen(!open)}
+              onClick={() => setOpen(current => !current)}
             >
               {open ? <X size={21} /> : <Menu size={21} />}
             </button>

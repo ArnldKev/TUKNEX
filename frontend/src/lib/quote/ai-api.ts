@@ -2,6 +2,7 @@
 import {billingBase} from '../billing/api';
 import {aiEnvelopeSchema,AI_POLICY_VERSION,type AiConfig,type AiEnvelope} from './ai';
 import type {QuoteProject} from './project';
+import {readAiRequestError} from './ai-errors';
 
 export async function getAiConfig(signal:AbortSignal):Promise<AiConfig>{
  const res=await fetch(billingBase+'/api/quote-ai/config',{signal,credentials:'include',cache:'no-store'});
@@ -15,7 +16,7 @@ export async function analyzeAiProject(project:QuoteProject,signal:AbortSignal,d
   method:'POST',credentials:'include',cache:'no-store',signal,headers:{'Content-Type':'application/json'},
   body:JSON.stringify(draft?{version:draft.version,consent:true,policyVersion:AI_POLICY_VERSION}:{project,consent:true,policyVersion:AI_POLICY_VERSION}),
  });
- if(!res.ok){const error=await res.json().catch(()=>null);throw Error(error?.message||'NEXI no pudo analizar la idea. Las respuestas siguen disponibles.');}
+ if(!res.ok)throw await readAiRequestError(res,'NEXI no pudo analizar la idea. Tus respuestas siguen disponibles.');
  const parsed=aiEnvelopeSchema.safeParse(await res.json());
  if(!parsed.success||parsed.data.projectId!==project.id||parsed.data.baseRevision!==project.revision)throw Error('El análisis no corresponde a esta versión. Solicita uno nuevo.');
  return parsed.data;
