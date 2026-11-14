@@ -14,29 +14,36 @@ export function validateAiConfig(){
  if(!AI_MODELS.includes((process.env.NEXI_AI_MODEL||AI_MODELS[0]) as typeof AI_MODELS[number]))throw Error('Modelo NEXI_AI_MODEL no admitido para Groq.');
  if(!process.env.GROQ_API_KEY?.trim())throw Error('Configura GROQ_API_KEY en el backend antes de activar NEXI_AI_ENABLED.');
 }
-type JsonSchema={ [key:string]:unknown; properties?:Record<string,JsonSchema>; items?:JsonSchema; $defs?:Record<string,JsonSchema> };
-function providerSchema(schema:z.ZodType,context:Record<string,unknown>){
- const json=z.toJSONSchema(schema) as JsonSchema;
- const suggestions=json.properties!.suggestions,item=suggestions.items!,properties=item.properties!;
- const evidence=AI_FIELDS.filter(field=>{
-  const value=context[field];return value!==''&&value!==undefined&&value!==null&&(!Array.isArray(value)||value.length>0);
+type JsonSchema = {
+ type?: string;
+ enum?: readonly string[];
+ properties?: Record<string, JsonSchema>;
+ items?: JsonSchema;
+};
+
+function providerSchema(schema: z.ZodType, context: Record<string, unknown>) {
+ // Keep the wire schema simple for Groq's constrained decoder. The domain
+ // validators enforce text limits, evidence, and target-specific values.
+ const { $schema: _dialect, ...json } = z.toJSONSchema(schema, {
+  override: ({ jsonSchema }) => {
+   delete jsonSchema.minLength;
+   delete jsonSchema.maxLength;
+   delete jsonSchema.minItems;
+   delete jsonSchema.maxItems;
+  },
  });
- const values:Record<string,string[]>={
-  addFeature:FEATURES.map(feature=>feature.id),removeFeature:FEATURES.map(feature=>feature.id),
-  palette:['turquesa','azul','verde','naranja','rojo','morado','dorado','rosa'],
-  style:['modern','minimal','elegant','corporate','bold'],
-  ...Object.fromEntries(Object.entries(visualOptions).map(([target,option])=>[target,Object.keys(option.choices)])),
- };
- // Reuse prose/evidence schemas so target-value constraints do not multiply the prompt size.
- json.$defs={...json.$defs,nexiSuggestionTitle:properties.title,nexiSuggestionReason:properties.reason,
-  nexiSuggestionEvidence:{...properties.evidenceFields,items:{type:'string',enum:evidence.length?evidence:AI_FIELDS}},
- };
- suggestions.items={anyOf:Object.entries(values).map(([target,choices])=>({
-  type:'object',additionalProperties:false,required:['title','reason','evidenceFields','target','value'],
-  properties:{title:{$ref:'#/$defs/nexiSuggestionTitle'},reason:{$ref:'#/$defs/nexiSuggestionReason'},
-   evidenceFields:{$ref:'#/$defs/nexiSuggestionEvidence'},target:{type:'string',enum:[target]},value:{type:'string',enum:choices}},
- }))};
- if(!evidence.length)suggestions.maxItems=0;
+ const suggestion = (json as JsonSchema).properties!.suggestions.items!.properties!;
+ const evidence = AI_FIELDS.filter(field => {
+  const value = context[field];
+  return value !== '' && value !== undefined && value !== null && (!Array.isArray(value) || value.length > 0);
+ });
+ suggestion.evidenceFields.items = { type: 'string', enum: evidence.length ? evidence : AI_FIELDS };
+ suggestion.value.enum = [...new Set([
+  ...FEATURES.map(feature => feature.id),
+  'turquesa', 'azul', 'verde', 'naranja', 'rojo', 'morado', 'dorado', 'rosa',
+  'modern', 'minimal', 'elegant', 'corporate', 'bold',
+  ...Object.values(visualOptions).flatMap(option => Object.keys(option.choices)),
+ ])];
  return json;
 }
 export const AI_SYSTEM_PROMPT=[
@@ -77,7 +84,7 @@ async function requestStructured<T>(project:QuoteProject,schema:z.ZodType,prompt
    }),
   });
   providerStatus=res.status;
-  if(!res.ok){await cancelProviderBody(res.body);throw diagnoseProviderHttp(res);}
+  if(!res.ok)throw await diagnoseProviderHttp(res);
   if(Number(res.headers.get('content-length')||0)>32768){
    await cancelProviderBody(res.body);
    return rejectResponse('NEXI_AI_RESPONSE_TOO_LARGE');

@@ -1,5 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { inspectGroqBadRequest, type GroqErrorDetail } from './groq-error-detail';
+import { cancelProviderBody } from './provider-response';
 
 const diagnostics = {
   NEXI_AI_PROVIDER_REQUEST: [502, 'NEXI no pudo procesar el análisis. Puedes continuar y volver más tarde.'],
@@ -36,11 +38,11 @@ export class AiProviderError extends Error {
   get retryAfter() { return this.diagnostic?.retryAfter; }
 }
 
-export function diagnosticError(code: AiDiagnosticCode, providerStatus?: number, retryAfter?: number) {
+export function diagnosticError(code: AiDiagnosticCode, providerStatus?: number, retryAfter?: number, providerDetail?: GroqErrorDetail) {
   const [status, message] = diagnostics[code];
   const reference = randomUUID();
   // Use API-independent IDs and fixed categories. Never log upstream bodies or thrown values.
-  Logger.warn({ code, providerStatus: providerStatus ?? null, reference }, 'NexiAI');
+  Logger.warn({ code, providerStatus: providerStatus ?? null, reference, ...(providerDetail ? { providerDetail } : {}) }, 'NexiAI');
   return new AiProviderError(status, message, { code, reference, retryAfter });
 }
 
@@ -64,11 +66,13 @@ function readRetryAfter(value: string | null): number | undefined {
   if (Number.isFinite(seconds)) return Math.max(1, Math.min(3600, seconds));
 }
 
-export function diagnoseProviderHttp(response: Response) {
+export async function diagnoseProviderHttp(response: Response) {
   const { status } = response;
+  const providerDetail = status === 400 ? await inspectGroqBadRequest(response) : undefined;
+  if (status !== 400) await cancelProviderBody(response.body);
   const code = httpCodes[status] ?? (status >= 500 && status < 600
     ? 'NEXI_AI_PROVIDER_UNAVAILABLE' : 'NEXI_AI_PROVIDER_HTTP');
   const delay = code === 'NEXI_AI_PROVIDER_RATE_LIMIT' || code === 'NEXI_AI_PROVIDER_UNAVAILABLE'
     ? readRetryAfter(response.headers.get('retry-after')) : undefined;
-  return diagnosticError(code, status, delay ?? (status === 429 ? 60 : undefined));
+  return diagnosticError(code, status, delay ?? (status === 429 ? 60 : undefined), providerDetail);
 }
