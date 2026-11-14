@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-const {requestGroqReport,AiProviderError}=require('../dist/ai/groq.js');
+const {requestGroqReport,requestGroqOrganizedIdea,AiProviderError}=require('../dist/ai/groq.js');
 const {transcribeAudio}=require('../dist/ai/groq-audio.js');
 const {createQuoteProject}=require('../dist/domain/quote/project.js');
 const {quoteDefaults}=require('../dist/domain/quote/form.js');
@@ -103,30 +103,55 @@ test('text: a valid stopped report passes unchanged without an implicit retry',{
  });
 });
 
-test('text: generation schema constrains every suggestion value and excludes unavailable evidence',{concurrency:false},async()=>{
- await withTextResponse(()=>Response.json(textEnvelope()),async(captured)=>{
-  await requestGroqReport(project);assert.equal(captured.length,1);
-  const format=captured[0].body.response_format;assert.equal(format.type,'json_schema');assert.equal(format.json_schema.strict,true);
-  const schema=format.json_schema.schema;assert.equal(schema.additionalProperties,false);
-  const variants=schema.properties.suggestions.items.anyOf;assert.ok(Array.isArray(variants),'suggestions must carry complete target-specific schema alternatives');
-  const resolve=fragment=>{if(!fragment.$ref)return fragment;assert.ok(fragment.$ref.startsWith('#/$defs/'));const definition=schema.$defs?.[fragment.$ref.slice('#/$defs/'.length)];assert.ok(definition,'every shared schema reference must resolve');return definition;};
-  const byTarget=new Map();
-  for(const variant of variants){
-   assert.equal(variant.type,'object');assert.equal(variant.additionalProperties,false);
-   assert.deepEqual([...variant.required].sort(),['evidenceFields','reason','target','title','value']);
-   const target=variant.properties.target.const??variant.properties.target.enum?.[0];assert.ok(target);assert.ok(!byTarget.has(target));byTarget.set(target,variant);
-   const evidence=resolve(resolve(variant.properties.evidenceFields).items).enum;assert.ok(Array.isArray(evidence));
-   assert.ok(evidence.includes('problem'));assert.ok(evidence.includes('offering'));assert.ok(!evidence.includes('otherFunctions'),'empty fields must not be offered as evidence');
-   assert.ok(!evidence.includes('email'));assert.ok(!evidence.includes('businessName'));
-   assert.ok(Array.isArray(variant.properties.value.enum),'a suggestion must expose allowed values to the provider');
-  }
-  assert.equal(byTarget.size,10);
-  assert.deepEqual([...byTarget.get('font').properties.value.enum].sort(),['editorial','rounded','sans']);
-  assert.deepEqual([...byTarget.get('palette').properties.value.enum].sort(),['azul','dorado','morado','naranja','rojo','rosa','turquesa','verde']);
-  const features=FEATURES.map(feature=>feature.id).sort();
-  assert.deepEqual([...byTarget.get('addFeature').properties.value.enum].sort(),features);
-  assert.deepEqual([...byTarget.get('removeFeature').properties.value.enum].sort(),features);
+const organized = {
+ narrative: 'Un restaurante quiere mostrar su carta y recibir pedidos por WhatsApp.',
+ requirements: ['Mostrar la carta'], exclusions: [], questions: [], suggestions: [],
+};
+
+for(const [label, run, report, reportKeys] of [
+ ['analysis', requestGroqReport, validReport, Object.keys(validReport)],
+ ['idea organization', requestGroqOrganizedIdea, organized, Object.keys(organized)],
+]) {
+ test(`text: ${label} sends a simple strict schema with approved suggestion values and evidence`, async () => {
+  await withTextResponse(() => Response.json(textEnvelope(report)), async (captured) => {
+   assert.deepEqual(await run(project), report);
+   assert.equal(captured.length, 1);
+   const format = captured[0].body.response_format;
+   assert.equal(format.type, 'json_schema');
+   assert.equal(format.json_schema.strict, true);
+   const schema = format.json_schema.schema;
+   assert.deepEqual(Object.keys(schema.properties).sort(), reportKeys.sort());
+   function validateWireSchema(fragment) {
+    const allowed = {
+     object: ['type', 'properties', 'required', 'additionalProperties'],
+     array: ['type', 'items'],
+     string: ['type', 'enum'],
+    };
+    assert.ok(Object.keys(fragment).every(key => allowed[fragment.type]?.includes(key)));
+    if(fragment.type === 'array') validateWireSchema(fragment.items);
+    if(fragment.type === 'object') {
+     assert.equal(fragment.additionalProperties, false);
+     assert.deepEqual([...fragment.required].sort(), Object.keys(fragment.properties).sort());
+     Object.values(fragment.properties).forEach(validateWireSchema);
+    }
+   }
+   validateWireSchema(schema);
+   const suggestion = schema.properties.suggestions.items.properties;
+   assert.equal(suggestion.target.enum.length, 10);
+   assert.ok(suggestion.evidenceFields.items.enum.includes('offering'));
+   assert.ok(suggestion.evidenceFields.items.enum.includes('problem'));
+   for(const key of ['otherFunctions','email','businessName']) {
+    assert.ok(!suggestion.evidenceFields.items.enum.includes(key), key);
+   }
+   for(const value of [...FEATURES.map(feature => feature.id), 'turquesa', 'modern', 'sans']) {
+    assert.ok(suggestion.value.enum.includes(value), value);
+   }
+  });
  });
+}
+test('text: the local validator still rejects cross-target values from the compatible schema', async () => {
+ const invalid = {...validReport,suggestions:[{...suggestion,target:'font',value:'turquesa'}]};
+ await rejectedText(() => Response.json(textEnvelope(invalid)), 'NEXI_AI_VALIDATION');
 });
 
 
@@ -184,5 +209,74 @@ test('text: a cancelled request does not start a provider call',async()=>{
   await assert.rejects(requestGroqReport(project,AbortSignal.abort(privateMarker)),error=>
    error.diagnosticCode==='NEXI_AI_CANCELLED'&&!error.message.includes(privateMarker));
   assert.equal(captured.length,0);
+ });
+});
+
+test('text: classifies known Groq HTTP 400 details without logging the upstream body',async()=>{
+ const fixtures=[
+  [{code:'invalid_json_schema',param:'response_format.json_schema.schema'},{reason:'invalid_schema',parameter:'response_format.json_schema.schema'}],
+  [{code:'json_validate_failed',param:privateMarker},{reason:'invalid_generation'}],
+  [{param:'include_reasoning'},{reason:'invalid_parameter',parameter:'include_reasoning'}],
+  [{code:'__proto__',param:privateMarker},undefined],
+  [{code:'invalid_request_error',message:'Generated JSON does not match the expected schema. '+privateMarker},{reason:'invalid_generation'}],
+  [{code:'unknown',message:'Could not compile the JSON schema: '+privateMarker},{reason:'invalid_schema'}],
+ ];
+ for(const [fields,providerDetail] of fixtures){
+  const body={error:{message:privateMarker,failed_generation:{sample:privateMarker},...fields}};
+  await withTextResponse(()=>Response.json(body,{status:400}),async(captured,warnings)=>{
+   await assert.rejects(requestGroqReport(project),error=>{
+    assert.equal(error.status,502);
+    assert.equal(error.diagnosticCode,'NEXI_AI_PROVIDER_REQUEST');
+    assert.ok(!JSON.stringify(error).includes(privateMarker));
+    assert.deepEqual(warnings,[JSON.stringify({code:error.diagnosticCode,providerStatus:400,reference:error.reference,...(providerDetail?{providerDetail}:{})})+' NexiAI']);
+    assert.ok(!warnings.join(' ').includes('failed_generation'));
+    return true;
+   });
+   assert.equal(captured.length,1);
+  });
+ }
+});
+
+test('text: skips declared oversized HTTP 400 details and cancels the body',async()=>{
+ let cancelled=0;
+ const body={getReader(){assert.fail('a declared oversized body must not be read');},async cancel(){cancelled++;}};
+ const response={status:400,ok:false,headers:new Headers({'content-type':'application/json','content-length':'20000'}),body};
+ await withTextResponse(()=>response,async(_captured,warnings)=>{
+  await assert.rejects(requestGroqReport(project),error=>error.status===502&&error.diagnosticCode==='NEXI_AI_PROVIDER_REQUEST');
+  assert.ok(!warnings.join(' ').includes('providerDetail'));
+  assert.equal(cancelled,1);
+ });
+});
+
+test('text: cancels an oversized HTTP 400 stream and keeps the generic reference',async()=>{
+ let cancelled=0;
+ const stream=new ReadableStream({start(controller){controller.enqueue(new Uint8Array(17000));},cancel(){cancelled++;throw Error(privateMarker);}});
+ await withTextResponse(()=>new Response(stream,{status:400,headers:{'content-type':'application/json'}}),async(_captured,warnings)=>{
+  await assert.rejects(requestGroqReport(project),error=>error.status===502&&Boolean(error.reference));
+  assert.equal(cancelled,1);
+  assert.ok(!warnings.join(' ').includes('providerDetail'));
+  assert.ok(!warnings.join(' ').includes(privateMarker));
+ });
+});
+
+test('text: HTTP 400 keeps the generic reference for malformed or interrupted diagnostic bodies',async()=>{
+ const responses=[
+  ()=>new Response('{'+privateMarker,{status:400,headers:{'content-type':'application/json'}}),
+  ()=>new Response(new ReadableStream({pull(controller){controller.error(Error(privateMarker));}}),{status:400,headers:{'content-type':'application/json'}}),
+ ];
+ for(const response of responses) await withTextResponse(response,async(_captured,warnings)=>{
+  await assert.rejects(requestGroqReport(project),error=>error.status===502&&error.diagnosticCode==='NEXI_AI_PROVIDER_REQUEST'&&Boolean(error.reference));
+  assert.ok(!warnings.join(' ').includes('providerDetail'));
+  assert.ok(!warnings.join(' ').includes(privateMarker));
+ });
+});
+
+test('text: stops waiting for a stalled HTTP 400 diagnostic body',async()=>{
+ let cancelled=0;
+ const stream=new ReadableStream({cancel(){cancelled++;}});
+ await withTextResponse(()=>new Response(stream,{status:400,headers:{'content-type':'application/json'}}),async(_captured,warnings)=>{
+  await assert.rejects(requestGroqReport(project),error=>error.status===502&&error.diagnosticCode==='NEXI_AI_PROVIDER_REQUEST'&&Boolean(error.reference));
+  assert.equal(cancelled,1);
+  assert.ok(!warnings.join(' ').includes('providerDetail'));
  });
 });
