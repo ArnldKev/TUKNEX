@@ -4,7 +4,7 @@ import { FileText } from 'lucide-react';
 import { FEATURES, PROJECT_TYPES } from '@/lib/pricing';
 import type { QuoteFormValues } from '@/lib/quote/form';
 import type { QuoteResult } from '@/lib/quote/contracts';
-import { goalLabels } from '@/lib/quote/presentation';
+import { goalLabels, quoteTimingSummary } from '@/lib/quote/presentation';
 import {quoteChoiceLabel} from '@/lib/quote/commercial-labels';
 
 export type QuoteSummaryValues = Pick<
@@ -18,7 +18,7 @@ export type QuoteSummaryValues = Pick<
   | 'materials'
   | 'timeline'
   | 'maintenance'
->;
+> & Partial<Pick<QuoteFormValues,'launchDate'|'hardDeadline'>>;
 export function QuoteSummary({
   values,
   result,
@@ -47,7 +47,7 @@ export function QuoteSummary({
     },
     {
       label: 'Plazo / soporte',
-      value: `${quoteChoiceLabel('timeline',values.timeline)}${values.maintenance ? ' · Mantenimiento por cotizar' : ''}`,
+      value: quoteTimingSummary(values),
       step: 4,
     },
   ];

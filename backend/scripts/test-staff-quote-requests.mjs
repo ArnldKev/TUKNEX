@@ -39,13 +39,22 @@ try{
  async function client(n){const response=await call('auth/register','',{name:'Client '+n,email:'staff-request-client-'+n+'@example.test',password,phone:'90000000'+n,dni:'0000000'+n,privacyConsent:true});return{cookie:response.cookie,user:(await response.data()).user};}
  const c=await client(1),d=await client(2),e=await client(3);
  await db.query('UPDATE usuarios SET activo=false WHERE id=$1',[d.user.id]);
- const values={...quoteDefaults,businessName:'Restaurante QA Origen',offering:'Restaurante de prueba',sector:'food',colorsLiked:'azul',stylePreference:'elegant',firstImpression:'Sabores para compartir.',problem:'Quiero organizar pedidos del restaurante',privacyAcknowledged:true};
+ const values={...quoteDefaults,businessName:'Restaurante QA Origen',offering:'Restaurante de prueba',sector:'food',colorsLiked:'azul',stylePreference:'elegant',firstImpression:'Sabores para compartir.',problem:'Quiero organizar pedidos del restaurante',privacyAcknowledged:true,timeline:'flexible',launchDate:'2099-01-15',hardDeadline:true};
  const key=randomUUID(),body={values,idempotencyKey:key};
+ // Scheduling validation must apply to both client and staff creation without writing records.
+ const beforeScheduleCount=(await db.query('SELECT count(*)::int AS n FROM solicitudes_cotizacion')).rows[0].n;
+ for(const launchDate of ['', '2020-01-01','2099-02-30','not-a-date']){
+  const invalid={values:{...values,launchDate,hardDeadline:true},idempotencyKey:randomUUID()};
+  for(const [route,cookie] of [['account/quote-requests',c.cookie],['team/quote-requests',a.cookie]])await call(route,cookie,invalid,400);
+ }
+ equal((await db.query('SELECT count(*)::int AS n FROM solicitudes_cotizacion')).rows[0].n,beforeScheduleCount,'invalid scheduling writes no request');
  await call('team/quote-requests','',undefined,401);await call('team/quote-requests',c.cookie,undefined,403);
  await call('team/quote-requests',c.cookie,body,403);await call('account/quote-requests',a.cookie,body,403);
  await call('team/quote-requests',a.cookie,{...body,userId:c.user.id},400);
  const draft=await(await call('team/quote-requests',a.cookie,body)).data();
  equal([draft.userId,draft.clientId,draft.clientName,draft.clientEmail,draft.linkedAt],[null,null,null,null,null]);
+ equal([draft.values.launchDate,draft.values.hardDeadline,draft.values.timeline],['2099-01-15',true,'flexible'],'future deadline is stored without forcing urgency');
+ equal(draft.result.urgencyAmount,0,'a fixed date does not add an urgent surcharge');
  equal([draft.createdById,draft.createdByName,draft.createdByRole,draft.assigneeId,draft.revision],[staffA.id,'Staff A','subadmin',staffA.id,1]);
  equal([draft.values.name,draft.values.email],['',''],'staff identity must not fill customer intake');check(draft.teamProjectId,'auto project');equal(draft.clientLinked,false);
  const detail=await(await call('team/projects/'+draft.teamProjectId,a.cookie)).data();equal(detail.project.clientId,null);equal(detail.project.clientLinked,false);equal(detail.request.createdById,staffA.id);equal(detail.data.clients,[]);

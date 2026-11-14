@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {quoteDefaults,quoteFormSchema,QUOTE_STEP_FIELDS,type QuoteFormValues} from './form';
 import {projectAnswersSchema,projectVisualSchema} from './project';
+import {quoteScheduleIssue} from './schedule';
 export const QUOTE_RECOVERY_KEY='tuknex-quote-progress-v2';
 const DAY=86400000,MAX_BYTES=96000;
 const flowSchema=z.strictObject({step:z.number().int().min(0).max(5),completed:z.array(z.number().int().min(0).max(5)).max(6),goalChosen:z.boolean()});
@@ -9,6 +10,7 @@ export function initialQuoteFlow():QuoteFlowState{return {step:0,completed:[],go
 export function stageIsValid(index:number,values:QuoteFormValues,goalChosen:boolean){
  if(index===0&&!goalChosen)return false;
  if(index<0||index>5)return false;
+ if(index===4&&quoteScheduleIssue(values))return false;
  return QUOTE_STEP_FIELDS[index].every(key=>quoteFormSchema.shape[key].safeParse(values[key]).success);
 }
 export function advanceQuoteFlow(flow:QuoteFlowState,values:QuoteFormValues):QuoteFlowState{
@@ -43,7 +45,9 @@ export function parseQuoteRecovery(raw:string|null,now=Date.now()):{flow:QuoteFl
  try{
   const parsed=recoverySchema.parse(JSON.parse(raw));
   if(parsed.expiresAt<=now||parsed.expiresAt>now+DAY)return null;
-  return {flow:{...parsed.flow,completed:parsed.flow.completed.filter(index=>index<5)},values:{...quoteDefaults,...parsed.values,privacyAcknowledged:false,marketingConsent:false} as QuoteFormValues};
+  const values={...quoteDefaults,...parsed.values,privacyAcknowledged:false,marketingConsent:false} as QuoteFormValues;
+  const step=parsed.flow.step===5&&quoteScheduleIssue(values,new Date(now))?4:parsed.flow.step;
+  return {flow:{...parsed.flow,step,completed:parsed.flow.completed.filter(index=>index<5)},values};
  }catch{return null;}
 }
 

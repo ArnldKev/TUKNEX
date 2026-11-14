@@ -1,14 +1,17 @@
 'use client';
 
+import {useEffect} from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { Clock3, Check } from 'lucide-react';
 import { budgetLabels } from '@/lib/quote/presentation';
 import type { QuoteFormValues } from '@/lib/quote/form';
+import {quoteToday} from '@/lib/quote/schedule';
 import { QuoteCheckboxField, QuoteDetails, QuoteSelectField, QuoteStepHelp, QuoteTextField, type QuoteStepProps } from './shared';
 
 export function QuoteTimingStep({ prices }: QuoteStepProps) {
-  const { control, setValue } = useFormContext<QuoteFormValues>();
-  const [timeline, domain] = useWatch({ control, name: ['timeline', 'domain'], exact: true });
+  const { control, setValue, trigger } = useFormContext<QuoteFormValues>();
+  const [timeline, domain, hardDeadline] = useWatch({ control, name: ['timeline', 'domain', 'hardDeadline'], exact: true });
+  useEffect(()=>{void trigger('launchDate');},[hardDeadline,trigger]);
   return <>
     <div className="quote-timing-options" role="group" aria-label="¿Cuándo te gustaría tenerlo?">
       {[
@@ -26,7 +29,7 @@ export function QuoteTimingStep({ prices }: QuoteStepProps) {
       <QuoteSelectField name="budget" label="¿Qué presupuesto tienes en mente? (opcional)" help="Nos ayuda a priorizar. No determina el precio calculado.">
         {Object.entries(budgetLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
       </QuoteSelectField>
-      <QuoteTextField name="launchDate" label="Fecha ideal (opcional)" type="date" />
+      <QuoteTextField name="launchDate" label={hardDeadline?"Fecha límite solicitada":"Fecha ideal (opcional)"} type="date" min={quoteToday()} required={hardDeadline} help="Usamos la fecha de Perú. Indicar una fecha no cambia automáticamente la prioridad ni el precio." />
       <QuoteCheckboxField name="hardDeadline">Necesito que esté listo para esa fecha.</QuoteCheckboxField>
       <QuoteTextField name="deadlineReason" label="¿Hay algo que debamos saber sobre esa fecha? (opcional)" placeholder="Ej. La inauguración de mi local. La fecha todavía puede cambiar." multiline />
     </div>

@@ -1,5 +1,8 @@
+import { pageMetadata } from '@/lib/seo';
 import { AssistantExperience } from '@/components/experience/information';
-export const metadata = { title: 'NEXI | Tu compañero digital' };
+
+export const metadata = pageMetadata('/asistente');
+
 export default function Page() {
   return <AssistantExperience />;
 }

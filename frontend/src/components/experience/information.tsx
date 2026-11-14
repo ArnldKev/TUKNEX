@@ -208,6 +208,9 @@ export function ContactExperience() {
           </div>
         </div>
         <div className="xp-contact-form">
+          <button type="button" className="xp-contact-assistant" onClick={openNexi}>
+            <MessageCircle size={18} aria-hidden="true" /> ¿Necesitas orientación? Hablar con NEXI
+          </button>
           {sent ? (
             <div className="xp-contact-success" role="status">
               <CheckCheck size={44} />
@@ -290,7 +293,7 @@ export function ContactExperience() {
               </label>
               <label className="xp-checkbox">
                 <input type="checkbox" {...form.register('consent')} />
-                <span>Acepto que TUKNEX use mis datos para responder esta consulta.</span>
+                <span>Acepto que TUKNEX use mis datos para responder esta consulta. <Link href="/privacidad" target="_blank" rel="noopener noreferrer">Cómo usamos tus datos</Link>.</span>
               </label>
               {form.formState.errors.consent && (
                 <small className="xp-error">{form.formState.errors.consent.message}</small>

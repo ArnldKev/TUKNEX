@@ -143,7 +143,7 @@ export function QuoteDictationProvider({children,scopeKey,disabled=false,onTrans
 export function QuoteDictationNotice(){
  const value=useContext(Context);if(!value)return null;
  return <div className="qfd-notice" id="quote-dictation-notice">
-  <p>Escribe o usa el micrófono de cada respuesta. Al dictar, envías tu voz a Groq para transcribirla y añadirla al campo sin borrar lo escrito. TUKNEX no guarda la grabación.</p>
+  <p>Puedes escribir o dictar. El micrófono envía tu voz a Groq para añadir la transcripción sin borrar tu texto; TUKNEX no guarda la grabación.</p>
   <details><summary>Límites y uso de tu voz</summary><p>Hasta 60 segundos y 4 MB. Puedes detener o cancelar. No dictes contraseñas, DNI ni datos de otras personas. Revisa nombres, cifras y contactos: la voz no se anonimiza. No enviamos el texto previo ni usamos una segunda IA para reformularlo. <a href="/privacidad">Cómo usamos tus datos</a>.</p><p>Hasta 20 intentos al día y 4 por minuto por conexión. Los intentos fallidos o cancelados pueden consumir cuota. No hay reintentos automáticos.</p></details>
   {value.enabled===null&&!value.configError&&<p role="status">Comprobando disponibilidad del dictado…</p>}
   {value.enabled===false&&<p role="status">El dictado no está activado. Puedes responder por escrito.</p>}

@@ -1,5 +1,6 @@
 import {z} from 'zod';
-import {Logger} from '@nestjs/common';
+import {AiProviderError, diagnoseProviderHttp, diagnosticError} from './provider-errors';
+export {AiProviderError} from './provider-errors';
 import {cancelProviderBody} from './provider-response';
 import {AI_FIELDS,aiContext,aiReportSchema,validateAiReport,aiOrganizedReportSchema,validateAiOrganizedReport,type AiReport,type AiOrganizedEnvelope} from '../domain/quote/ai';
 import {FEATURES} from '../domain/pricing';
@@ -12,21 +13,6 @@ export function validateAiConfig(){
  if((process.env.NEXI_AI_PROVIDER||'groq')!=='groq')throw Error('NEXI_AI_PROVIDER debe ser groq en esta entrega.');
  if(!AI_MODELS.includes((process.env.NEXI_AI_MODEL||AI_MODELS[0]) as typeof AI_MODELS[number]))throw Error('Modelo NEXI_AI_MODEL no admitido para Groq.');
  if(!process.env.GROQ_API_KEY?.trim())throw Error('Configura GROQ_API_KEY en el backend antes de activar NEXI_AI_ENABLED.');
-}
-export type AiDiagnosticCode='NEXI_AI_TRUNCATED'|'NEXI_AI_FORMAT'|'NEXI_AI_VALIDATION'|'NEXI_AI_REFUSED';
-export class AiProviderError extends Error{
- constructor(public status:number,message:string,public diagnosticCode?:AiDiagnosticCode){super(message);}
-}
-const responseErrors:Record<AiDiagnosticCode,string>={
- NEXI_AI_TRUNCATED:'La IA no terminó de escribir el análisis. Puedes volver a intentarlo con una descripción más breve.',
- NEXI_AI_FORMAT:'La IA devolvió un formato que no podemos leer. No se guardó el análisis; puedes intentarlo de nuevo.',
- NEXI_AI_VALIDATION:'La IA propuso datos o sugerencias que no cumplen las opciones de esta cotización. No se guardó el análisis; puedes intentarlo de nuevo.',
- NEXI_AI_REFUSED:'La IA no pudo responder a esta consulta. Revisa la descripción o continúa sin IA.',
-};
-function rejectResponse(code:AiDiagnosticCode):never{
- // Fixed categories only: never log provider text, reasoning, project data, keys or validation values.
- Logger.warn(code,'NexiAI');
- throw new AiProviderError(502,responseErrors[code],code);
 }
 type JsonSchema={ [key:string]:unknown; properties?:Record<string,JsonSchema>; items?:JsonSchema; $defs?:Record<string,JsonSchema> };
 function providerSchema(schema:z.ZodType,context:Record<string,unknown>){
@@ -76,8 +62,11 @@ export async function requestGroqOrganizedIdea(project:QuoteProject,signal?:Abor
 }
 async function requestStructured<T>(project:QuoteProject,schema:z.ZodType,prompt:string,name:string,validate:(raw:unknown)=>T,signal?:AbortSignal,terms?:Record<string,string>):Promise<T>{
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ let providerStatus: number | undefined;
+ const rejectResponse=(code: Parameters<typeof diagnosticError>[0]): never=>{throw diagnosticError(code,providerStatus);};
  const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)controller.abort();
  try{
+  controller.signal.throwIfAborted();
   const context=aiContext(project);
   const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
    method:'POST',signal:controller.signal,
@@ -87,12 +76,15 @@ async function requestStructured<T>(project:QuoteProject,schema:z.ZodType,prompt
     response_format:{type:'json_schema',json_schema:{name,strict:true,schema:providerSchema(schema,context)}},
    }),
   });
-  if(res.status===429){await cancelProviderBody(res.body);throw new AiProviderError(429,'La cuota gratuita de NEXI está ocupada. Puedes seguir respondiendo y probar más tarde.');}
-  if(!res.ok){await cancelProviderBody(res.body);throw new AiProviderError(503,'NEXI no pudo consultar la IA. Conservamos tus respuestas; puedes seguir con el cuestionario.');}
-  if(Number(res.headers.get('content-length')||0)>32768){await cancelProviderBody(res.body);throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa. Puedes intentarlo de nuevo.');}
-  if(!res.body)rejectResponse('NEXI_AI_FORMAT');
+  providerStatus=res.status;
+  if(!res.ok){await cancelProviderBody(res.body);throw diagnoseProviderHttp(res);}
+  if(Number(res.headers.get('content-length')||0)>32768){
+   await cancelProviderBody(res.body);
+   return rejectResponse('NEXI_AI_RESPONSE_TOO_LARGE');
+  }
+  if(!res.body)return rejectResponse('NEXI_AI_FORMAT');
   const reader=res.body.getReader(),chunks:Uint8Array[]=[];let size=0;
-  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await cancelProviderBody(reader);throw new AiProviderError(502,'La IA devolvió una respuesta demasiado extensa.');}chunks.push(value);}}
+  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await cancelProviderBody(reader);return rejectResponse('NEXI_AI_RESPONSE_TOO_LARGE');}chunks.push(value);}}
   finally{reader.releaseLock();}
   let data;
   try{data=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{rejectResponse('NEXI_AI_FORMAT');}
@@ -106,6 +98,6 @@ async function requestStructured<T>(project:QuoteProject,schema:z.ZodType,prompt
   try{return validate(raw);}catch{return rejectResponse('NEXI_AI_VALIDATION');}
  }catch(error){
   if(error instanceof AiProviderError)throw error;
-  throw new AiProviderError(503,controller.signal.aborted?'Se canceló o agotó el tiempo de NEXI. Tus respuestas siguen en el cuestionario.':'La IA no está disponible. Puedes continuar sin ella y probar más tarde.');
+  throw diagnosticError(signal?.aborted?'NEXI_AI_CANCELLED':controller.signal.aborted?'NEXI_AI_TIMEOUT':'NEXI_AI_NETWORK',providerStatus);
  }finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
 }

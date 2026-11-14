@@ -34,12 +34,18 @@ export function QuoteTextField({
   placeholder,
   multiline = false,
   type = 'text',
+  min,
+  required,
+  help,
 }: {
   name: QuoteTextFieldName;
   label: string;
   placeholder?: string;
   multiline?: boolean;
   type?: string;
+  min?: string;
+  required?: boolean;
+  help?: string;
 }) {
   const { register, control, getFieldState } = useFormContext<QuoteFormValues>();
   const state = useFormState({ control, name, exact: true });
@@ -49,7 +55,8 @@ export function QuoteTextField({
     id: `quote-${name}`,
     placeholder,
     'aria-invalid': invalid,
-    'aria-describedby': `quote-error-${name}`,
+    'aria-describedby': [`quote-error-${name}`, help?`quote-help-${name}`:''].filter(Boolean).join(' '),
+    'aria-required': required || undefined,
   };
   return (
     <div className="quote-field">
@@ -60,11 +67,14 @@ export function QuoteTextField({
         <input
           {...props}
           type={type}
+          min={min}
+          required={required}
           autoComplete={
             name === 'email' ? 'email' : name === 'phone' ? 'tel' : name === 'name' ? 'name' : 'off'
           }
         />
       )}
+      {help && <small id={`quote-help-${name}`} className="quote-inline-help">{help}</small>}
       <QuoteFieldError name={name} />
       {type !== 'date' && isDictationField(name) && <QuoteFieldDictation field={name} label={label} />}
     </div>

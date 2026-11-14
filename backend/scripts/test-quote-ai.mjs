@@ -19,7 +19,10 @@ const originalFetch=globalThis.fetch;
 globalThis.fetch=async(url,options)=>{
  if(String(url)==='https://api.groq.com/openai/v1/chat/completions'){
   captured.push(JSON.parse(options.body));
-  if(mode==='rate')return new Response('private provider error',{status:429});
+  if(mode==='rate')return new Response('private provider error',{status:429,headers:{'Retry-After':'75'}});
+  if(mode==='unauthorized'||mode==='forbidden'){
+   return Response.json({error:{failed_generation:'private upstream content'}},{status:mode==='unauthorized'?401:403});
+  }
   if(mode==='outage')throw Error('private key must never appear');
   if(mode==='slow')return new Promise((_,reject)=>options.signal.addEventListener('abort',()=>reject(options.signal.reason),{once:true}));
   if(mode==='large')return new Response('x'.repeat(40000));
@@ -32,7 +35,7 @@ function check(value,message){assert.ok(value,message);checks++;}
 async function call(route,{value,method=value===undefined?'GET':'POST',status=value===undefined?200:201,cookie='',requestOrigin=origin,ip='198.51.100.'+(++sequence%200+1)}={}){
  const r=await originalFetch(base+'/api/'+route,{method,headers:{'Content-Type':'application/json',Origin:requestOrigin,'X-Forwarded-For':ip,...(cookie?{Cookie:cookie}:{})},...(value===undefined?{}:{body:JSON.stringify(value)}),signal:AbortSignal.timeout(30000)});
  assert.equal(r.status,status,route+': '+(r.status===status?'':await r.clone().text()));checks++;
- return {data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]||''};
+ return {data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]||'',headers:r.headers};
 }
 async function reset(){await db.query('DELETE FROM cotizador_ia_cuotas');}
 try{
@@ -60,12 +63,20 @@ try{
  check(!metadata.includes('198.51.100')&&!metadata.includes(project.answers.problem),'quota stores neither raw IP nor project text');
  await reset();mode='invalid';const bad=await call('quote-ai/analyze',{value:body,status:502});check(!JSON.stringify(bad).includes('private'),'invalid provider output is rejected without leaking details');
  await reset();mode='evidence';await call('quote-ai/analyze',{value:body,status:502});
- await reset();mode='rate';await call('quote-ai/analyze',{value:body,status:429});
+ await reset();mode='rate';const rate=await call('quote-ai/analyze',{value:body,status:429});
+ check(rate.headers.get('retry-after')==='75','provider rate limit exposes sanitized retry wait');
+ check(rate.headers.get('access-control-expose-headers').toLowerCase().includes('x-nexi-reference'),'allowed origins can read the safe reference header');
+ check(/^[a-f0-9-]{36}$/.test(rate.headers.get('x-nexi-reference')),'provider rejection exposes a safe reference');
+ check(!rate.headers.get('set-cookie'),'provider rate limit never modifies a session');
+ check(!JSON.stringify(rate.data).includes('private'),'provider quota response excludes the error body');
  await reset();mode='outage';await call('quote-ai/analyze',{value:body,status:503});
  await reset();mode='large';await call('quote-ai/analyze',{value:body,status:502});
  await reset();mode='ok';
+ const beforeConcurrent=captured.length;
  const concurrent=await Promise.all([1,2,3].map(()=>originalFetch(base+'/api/quote-ai/analyze',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Forwarded-For':'198.51.100.210'},body:JSON.stringify(body)})));
  check(concurrent.filter(r=>r.status===201).length===1&&concurrent.filter(r=>r.status===429).length===2,'concurrent requests share persistent visitor limits');
+ check(captured.length-beforeConcurrent===1,'three simultaneous requests send only one provider call');
+ check(concurrent.filter(r=>r.status===429).every(r=>Number(r.headers.get('retry-after'))>=1&&Number(r.headers.get('retry-after'))<=60),'local minute quota exposes its remaining wait');
  await reset();
  for(let i=0;i<5;i++){await db.query("DELETE FROM cotizador_ia_cuotas WHERE scope LIKE '%minute%'");await call('quote-ai/analyze',{value:body,ip:'198.51.100.211'});}
  await db.query("DELETE FROM cotizador_ia_cuotas WHERE scope LIKE '%minute%'");await call('quote-ai/analyze',{value:body,ip:'198.51.100.211',status:429});
@@ -83,6 +94,15 @@ try{
  await call('billing/quote-ai/'+project.id+'/analyze',{value:{version:99,consent:true,policyVersion},cookie:admin.cookie,status:404});
  const adminReport=(await call('billing/quote-ai/'+project.id+'/analyze',{value:{version:1,consent:true,policyVersion},cookie:admin.cookie})).data;
  check(adminReport.projectId===project.id&&adminReport.baseRevision===0,'admin analyzes server snapshot, not supplied text');
+ for(const upstream of ['unauthorized','forbidden']){
+  await reset();mode=upstream;
+  const response=await call('billing/quote-ai/'+project.id+'/analyze',{value:{version:1,consent:true,policyVersion},cookie:admin.cookie,status:503});
+  check(/^[a-f0-9-]{36}$/.test(response.headers.get('x-nexi-reference')),'provider access error exposes a safe reference');
+  check(!response.headers.get('set-cookie'),'provider access error never modifies session cookies');
+  check(!JSON.stringify(response.data).match(/private|failed_generation|groq/i),'provider access error exposes only a safe public message');
+  await call('auth/me',{cookie:admin.cookie});
+ }
+ mode='ok';
  await call('billing/quote-ai/'+project.id+'/analyze',{value:{version:1,consent:true,policyVersion,project},cookie:admin.cookie,status:400});
  check((await db.query('SELECT version FROM cotizador_borradores WHERE id=$1',[project.id])).rows[0].version===1,'analysis never mutates client draft');
  check((await db.query('SELECT count(*)::int AS n FROM solicitudes_cotizacion')).rows[0].n===0,'analysis creates no quotes or contracts');

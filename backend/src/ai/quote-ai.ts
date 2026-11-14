@@ -57,13 +57,25 @@ export class QuoteAiService implements OnModuleInit,OnModuleDestroy{
   await this.db.transaction(async tx=>{
    for(const [scope,window,limit] of [['global-day',day,40],['global-minute',minute,2],['visitor-day:'+actor,day,5],['visitor-minute:'+actor,minute,1]] as const){
     const counter=await tx.query('INSERT INTO cotizador_ia_cuotas(scope,window_start,hits) VALUES($1,$2,1) ON CONFLICT(scope,window_start) DO UPDATE SET hits=cotizador_ia_cuotas.hits+1 WHERE cotizador_ia_cuotas.hits<$3 RETURNING hits',[scope,window,limit]);
-    if(!counter.rows.length)throw new HttpException('Se alcanzó el límite de consultas gratuitas. Puedes continuar sin IA y volver más tarde.',429);
+    if(!counter.rows.length){
+     const windowDuration=window===day?86400000:60000;
+     const retryAfter=Math.max(1,Math.ceil((Date.parse(window)+windowDuration-now.getTime())/1000));
+     if(!res.destroyed&&!res.headersSent)res.setHeader('Retry-After',retryAfter);
+     throw new HttpException('Se alcanzó el límite de consultas gratuitas. Puedes continuar sin IA y volver más tarde.',429);
+    }
    }
   });
   if(controller.signal.aborted)throw new HttpException('Consulta cancelada. Tus respuestas no cambiaron.',503);
    const report=mode==='organize'?await requestGroqOrganizedIdea(project,controller.signal):await requestGroqReport(project,controller.signal,terms);
    return {id:randomUUID(),projectId:project.id,baseRevision:project.revision,provider:'groq',model:quoteAiConfig().model,generatedAt:new Date().toISOString(),report};
-  }catch(error){if(error instanceof AiProviderError)throw new HttpException(error.message,error.status);throw error;}
+  }catch(error){
+   if(!(error instanceof AiProviderError))throw error;
+   if(!res.destroyed&&!res.headersSent){
+    if(error.reference)res.setHeader('X-Nexi-Reference',error.reference);
+    if(error.retryAfter!==undefined)res.setHeader('Retry-After',error.retryAfter);
+   }
+   throw new HttpException(error.message,error.status);
+  }
   finally{res.off('close',cancel);}
  }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   ArrowRight,
@@ -65,6 +65,14 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
   const panelRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const close = useCallback(() => {
+    if (embedded) return;
+    setOpen(false);
+    const opener = openerRef.current;
+    if (opener?.isConnected && opener.getClientRects().length) opener.focus();
+    else launcherRef.current?.focus();
+  }, [embedded]);
 
   useEffect(() => {
     setMessages([
@@ -73,7 +81,12 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
         `¡Hola! Soy ${brand.assistantName}, ${brand.assistantSubtitle.toLowerCase()} 🐾 Cuéntame qué hace tu negocio y qué te gustaría mejorar. Te acompaño con palabras simples.`,
       ),
     ]);
-    const openChat = () => setOpen(true);
+    const openChat = (event: Event) => {
+      const opener: unknown = event instanceof CustomEvent ? event.detail : null;
+      if (opener instanceof HTMLElement) openerRef.current = opener;
+      else if (document.activeElement instanceof HTMLElement) openerRef.current = document.activeElement;
+      setOpen(true);
+    };
     window.addEventListener('open-tuknex-chat', openChat);
     const media = window.matchMedia('(max-width: 600px)');
     const syncMobile = () => setMobile(media.matches);
@@ -105,8 +118,10 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
     if (mobile) document.body.style.overflow = 'hidden';
     const keyboard = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setOpen(false);
-        launcherRef.current?.focus();
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+        return;
       }
       if (event.key === 'Tab' && mobile) {
         const controls = panelRef.current?.querySelectorAll<HTMLElement>(
@@ -128,7 +143,7 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', keyboard);
     };
-  }, [open, mobile, embedded]);
+  }, [open, mobile, embedded, close]);
 
   function persist(next: AssistantMessage[]) {
     try {
@@ -205,11 +220,6 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
         'No se pudo copiar el mensaje. Puedes escribir a tu contacto de TUKNEX para solicitar asesoría.',
       );
     }
-  }
-  function close() {
-    if (embedded) return;
-    setOpen(false);
-    launcherRef.current?.focus();
   }
   function confirmRecommendation(recommendation: AssistantRecommendation) {
     const search = recommendationUrl(recommendation).split('?')[1] ?? '';
@@ -424,7 +434,10 @@ export function ChatbotWidget({ embedded = false }: { embedded?: boolean } = {})
           ref={launcherRef}
           type="button"
           className={`chat-launcher ${open ? 'is-open' : ''}`}
-          onClick={() => setOpen((current) => !current)}
+          onClick={(event) => {
+            if (open) close();
+            else { openerRef.current = event.currentTarget; setOpen(true); }
+          }}
           aria-label={
             open
               ? `Minimizar ${brand.assistantName}`

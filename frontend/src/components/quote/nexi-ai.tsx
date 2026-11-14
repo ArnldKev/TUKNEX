@@ -9,6 +9,7 @@ import {projectFromFormalQuote} from '@/lib/billing/formal-quote-analysis';
 import type {QuoteFormValues} from '@/lib/quote/form';
 import {useQuoteProjectSession} from './project-session';
 import './nexi-ai.css';
+import {useNexiRetry} from './use-nexi-retry';
 import dynamic from 'next/dynamic';
 import type {NexiReportSource} from '@/lib/quote/nexi-reports';
 const NexiIdeaOrganizer=dynamic(()=>import('./nexi-idea-organizer').then(module=>module.NexiIdeaOrganizer),{ssr:false,loading:()=> <p role="status">Cargando ayuda opcional para ordenar tu idea…</p>});
@@ -40,6 +41,7 @@ export function NexiAiPanel({project,draft,sourceRevision,disabled=false,onAccep
  const [result,setResult]=useState<AiEnvelope|null>(null),[dismissed,setDismissed]=useState<number[]>([]),[applied,setApplied]=useState<number|null>(null),[configAttempt,setConfigAttempt]=useState(0);
  const run=useRef(0),request=useRef<AbortController|null>(null),timeout=useRef<ReturnType<typeof setTimeout>|null>(null);
  const key=project.id+':'+project.revision+':'+(draft?.source??'local')+':'+(draft?.teamProjectId??'')+':'+(draft?.version??'client')+':'+(sourceRevision??''),latest=useRef(key);latest.current=key;
+ const retry=useNexiRetry();
  const current=!!result&&resultKey===key&&isCurrentAiResult(result,project);
  const reportSource:NexiReportSource|undefined=draft?.source?{kind:draft.source==='formal'||draft.source==='team-formal'?'formal':'request',id:project.id,revision:draft.source==='formal'||draft.source==='team-formal'?draft.version:sourceRevision||1}:undefined;
  useEffect(()=>{
@@ -59,7 +61,7 @@ export function NexiAiPanel({project,draft,sourceRevision,disabled=false,onAccep
   setBusy(false);setConsent(false);setNotice('Consulta cancelada. Tus respuestas no cambiaron. La consulta puede haber consumido cuota.');setError('');
  }
  async function analyze(){
-  if(!config?.enabled||!consent||busy||disabled)return;
+  if(!config?.enabled||!consent||request.current||retry.isWaiting()||disabled)return;
   const captured=key,sequence=++run.current,controller=new AbortController();request.current=controller;
   timeout.current=setTimeout(()=>controller.abort(),25000);setBusy(true);setError('');setNotice('');setDismissed([]);
   try{
@@ -67,7 +69,10 @@ export function NexiAiPanel({project,draft,sourceRevision,disabled=false,onAccep
    if(run.current!==sequence||controller.signal.aborted||latest.current!==captured)return;
    setResult(next);setResultKey(captured);setApplied(null);setNotice(draft?'Análisis listo para revisión interna. La idea original no cambió.':'Análisis listo. Revisa las sugerencias antes de aplicarlas.');
   }catch(e){
-   if(run.current===sequence)setError(controller.signal.aborted?'NEXI agotó el tiempo de espera. Puedes continuar sin IA y volver a intentarlo.':e instanceof Error?e.message:'No pudimos analizar la idea.');
+   if(run.current===sequence){
+    retry.remember(e);
+    setError(controller.signal.aborted?'NEXI agotó el tiempo de espera. Puedes continuar sin IA y volver a intentarlo.':e instanceof Error?e.message:'No pudimos analizar la idea.');
+   }
   }finally{if(run.current===sequence){if(timeout.current)clearTimeout(timeout.current);request.current=null;setBusy(false);setConsent(false);}}
  }
  function accept(index:number){
@@ -104,13 +109,13 @@ export function NexiAiPanel({project,draft,sourceRevision,disabled=false,onAccep
      <label htmlFor={id+'-consent'}><input id={id+'-consent'} type="checkbox" checked={consent} disabled={busy||disabled} onChange={event=>setConsent(event.target.checked)}/><span>Autorizo esta consulta de IA para revisar la idea. Es independiente del guardado y no autoriza publicidad.</span></label>
      <a href="/privacidad" target="_blank" rel="noreferrer">Cómo se usan las respuestas</a>
     </div>
-    <div className="nai-actions"><button type="button" className="nai-primary" disabled={!consent||busy||disabled||(!project.answers.offering.trim()&&!project.answers.problem.trim())} onClick={()=>void analyze()}><Sparkles size={17} aria-hidden="true"/>{busy?'Analizando…':draft?'Analizar esta revisión':result?'Actualizar análisis':'Analizar mi idea'}</button>
+    <div className="nai-actions"><button type="button" className="nai-primary" disabled={!consent||busy||disabled||retry.waiting||(!project.answers.offering.trim()&&!project.answers.problem.trim())} onClick={()=>void analyze()}><Sparkles size={17} aria-hidden="true"/>{busy?'Analizando…':retry.waiting?retry.label:draft?'Analizar esta revisión':result?'Actualizar análisis':'Analizar mi idea'}</button>
      {busy&&<button type="button" onClick={cancel}><X size={17} aria-hidden="true"/>Cancelar consulta</button>}
     </div>
     <p className="nai-note">Prueba gratuita con cupo limitado: hasta {config.perVisitorDailyLimit} consultas al día por conexión y {config.dailyLimit} para la aplicación. El proveedor puede limitar antes. Puedes continuar sin IA.</p>
    </>}
    <div aria-live="polite" aria-atomic="true">{busy&&<p className="nai-pending">NEXI está preparando ideas para esta versión…</p>}{notice&&<p className="nai-note">{notice}</p>}</div>
-   {error&&<p role="alert" className="nai-error">{error} Tus respuestas se conservan.</p>}
+   {error&&<p role="alert" className="nai-error">{error}</p>}
    {result&&report&&<section className="nai-result" aria-label="Análisis de NEXI">
     <header><div><span className="nai-tag">{current?'Sugerencias por revisar':'Análisis anterior'}</span><h4>Una dirección para tu proyecto</h4></div><small>Versión del boceto {result.baseRevision+1} · Groq</small></header>
     {!current&&<p className="nai-stale" role="status">Tus respuestas cambiaron. Este análisis ya no se puede aplicar; solicita uno nuevo.</p>}
