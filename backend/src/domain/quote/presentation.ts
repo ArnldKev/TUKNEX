@@ -8,8 +8,9 @@ import {quoteChoiceLabels,quoteChoiceLabel,quoteChoiceList,quoteOriginLabel,type
 export const sectorLabels=quoteChoiceLabels.sector;
 export const goalLabels=quoteChoiceLabels.goal;
 export const budgetLabels=quoteChoiceLabels.budget;
-export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources): QuoteAnswer[] {
-  const pairs: [string, string][] = [
+export type QuoteAnswerGroup='business'|'functions'|'design'|'timing'|'details';
+export function quoteAnswersByGroup(values: QuoteFormValues,sources?:QuoteAnswerSources): Record<QuoteAnswerGroup,QuoteAnswer[]> {
+  const pairs: Record<QuoteAnswerGroup,[string,string][]> = { business: [
     ['Objetivo', goalLabels[values.goal]],
     ['Negocio', values.businessName || 'Sin indicar'],
     ['Qué ofrece', values.offering],
@@ -20,6 +21,7 @@ export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources
     ['Canales actuales', quoteChoiceList('salesChannels',values.salesChannels,'Sin canales indicados')],
     ['Venta actual', values.salesProcess || 'Sin indicar'],
     ['Problema a resolver', values.problem],
+  ], functions: [
     [
       'Funciones',
       FEATURES.filter((item) => values.features.includes(item.id))
@@ -32,6 +34,7 @@ export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources
     ],
     ['Usuarios', values.projectType === 'system' ? quoteChoiceLabel('userRange',values.userRange) : 'No aplica'],
     ['Otras funciones', values.otherFunctions || 'Ninguna adicional'],
+  ], design: [
     ['Material disponible', quoteChoiceList('materials',values.materials,'Por preparar')],
     ['Diseño', quoteChoiceLabel('design',values.design)],
     ['Estilo', quoteChoiceLabel('stylePreference',values.stylePreference)],
@@ -43,11 +46,13 @@ export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources
     ['Referencias', values.references || 'Sin indicar'],
     ['Competencia / marca de referencia', values.competitor || 'Sin indicar'],
     ['Primer mensaje al visitante', values.firstImpression || 'Por definir'],
+  ], timing: [
     ['Prioridad', quoteChoiceLabel('timeline',values.timeline)],
     ['Lanzamiento ideal', values.launchDate ? formatQuoteLaunchDate(values.launchDate) : 'Por definir'],
     ['Fecha límite real', values.hardDeadline ? `${values.launchDate?formatQuoteLaunchDate(values.launchDate):'Fecha pendiente de confirmar'} · Solicitada, por revisar con el equipo${values.deadlineReason?' · '+values.deadlineReason:''}` : 'No solicitada'],
     ['Presupuesto orientativo', budgetLabels[values.budget]],
     ['Frecuencia de pago preferida', paymentPreferenceLabels[values.paymentPreference||'unsure']],
+  ], details: [
     ['Dominio', values.domain === 'yes'&&values.existingDomain ? values.existingDomain : quoteChoiceLabel('domain',values.domain)],
     ['Hosting', quoteChoiceLabel('hosting',values.hosting)],
     ['Gestión del contenido', quoteChoiceLabel('management',values.management)],
@@ -59,10 +64,20 @@ export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources
       'Consentimiento comercial opcional',
       values.marketingConsent ? 'Autorizado para contacto comercial sobre este proyecto' : 'No otorgado',
     ],
-  ];
+  ] };
   const provenance:Record<string,keyof QuoteFormValues>={'Objetivo':'goal','Rubro':'sector','Canales actuales':'salesChannels','Volumen de productos':'productsRange','Usuarios':'userRange','Material disponible':'materials','Diseño':'design','Estilo':'stylePreference','Prioridad':'timeline','Presupuesto orientativo':'budget','Frecuencia de pago preferida':'paymentPreference','Dominio':'domain','Hosting':'hosting','Gestión del contenido':'management'};
   // Old saved requests lack provenance; never claim that their defaults were explicitly chosen.
-  return pairs.map(([question,value])=>({question,value:sources&&provenance[question]?value+' · '+quoteOriginLabel(sources[provenance[question]]):value}));
+  const format=(entries:[string,string][]):QuoteAnswer[]=>entries.map(([question,value])=>({question,value:sources&&provenance[question]?value+' · '+quoteOriginLabel(sources[provenance[question]]):value}));
+  return {
+    business:format(pairs.business),
+    functions:format(pairs.functions),
+    design:format(pairs.design),
+    timing:format(pairs.timing),
+    details:format(pairs.details),
+  };
+}
+export function quoteAnswers(values: QuoteFormValues,sources?:QuoteAnswerSources): QuoteAnswer[] {
+  return Object.values(quoteAnswersByGroup(values,sources)).flat();
 }
 export function quoteProposalText(values: QuoteFormValues, result: QuoteResult): string {
   const project = PROJECT_TYPES.find((item) => item.id === values.projectType)!;

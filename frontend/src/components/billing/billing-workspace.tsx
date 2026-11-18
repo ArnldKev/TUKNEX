@@ -8,6 +8,7 @@ import {ProjectDossier} from './project-dossier';
 import {ProjectTrackingEditor} from '@/components/projects/project-tracking';
 import {ClientAccountAssociation} from './client-account-association';
 import {ContractAcceptanceSummary} from './contract-acceptance-summary';
+import {ContractWorkflowActions} from './contract-workflow-actions';
 import {ClientProjectRecords} from './client-project-records';
 import {PaymentProofHistory} from './payment-proof-history';
 import {formatPaymentDate} from '@/lib/billing/payment-evidence';
@@ -51,10 +52,8 @@ import {
 import { useBilling } from '@/lib/billing/use-billing';
 import { amount, todayLima, addDays } from '@/lib/billing/finance';
 import {
-  contractTransitions,
-  type ContractStatus,
+  contractStatusLabel,
   paymentModes,
-  statusLabels,
   serviceLabels,
   type BillingData,
   type BillingClient,
@@ -242,7 +241,6 @@ export function BillingWorkspace({
   useEffect(() => {
     const p = new URLSearchParams(location.search);
     setOrigin(p.get('origen') || '');
-    setSelected(p.get('contrato') || '');
     setFilter(p.get('contrato') || '');
   }, []);
   useEffect(
@@ -350,6 +348,7 @@ export function BillingWorkspace({
   }
   const {user:linkActor}=useDemoAuth();
   const quoteLinkNotice=usePrivateRecordLink({parameter:'cotizacion',records:data?.quotes||[],ready:!!linkActor&&!!data&&!loading&&!error,scopeKey:'billing:'+linkActor?.id,onOpen:item=>{setView('quotes');setRecord({kind:'quote',id:item.id});setProblem('');}});
+  const contractLinkNotice=usePrivateRecordLink({parameter:'contrato',records:data?.contracts||[],ready:section==='contracts'&&!!linkActor&&!!data&&!loading&&!error,scopeKey:'billing:contracts:'+linkActor?.id,onOpen:item=>{setSelected(item.id);setNotice('');setProblem('');}});
   if (!data)
     return (
       <div className={'billing-workspace ' + (embedded ? 'embedded' : '')}>
@@ -450,7 +449,7 @@ export function BillingWorkspace({
           {problem || error}
         </p>
       )}
-      {quoteLinkNotice&&<p className="platform-info" role="status">{quoteLinkNotice}</p>}
+      {(quoteLinkNotice||contractLinkNotice)&&<p className="platform-info" role="status">{quoteLinkNotice||contractLinkNotice}</p>}
       {legacyOrigin && (
         <div className="billing-callout">
           <div>
@@ -584,17 +583,24 @@ export function BillingWorkspace({
       {view === 'contracts' && (
         <>
           <div className="billing-section-actions"><p>Acuerdos y documentos de tus proyectos</p><button className="platform-button" disabled={!data.clients.length} onClick={() => setEditor({ kind: 'contract' })}><Plus size={17}/>Nuevo contrato</button></div>
-          <RecordList items={data.contracts} getKey={c => c.id} getSearchText={c => [c.number, c.client.name, c.projectName, serviceLabels[c.service], statusLabels[c.status]].join(' ')} searchLabel="Buscar contratos" emptyMessage="Crea un contrato o convierte una cotización aceptada. Sus cuotas se generan automáticamente." renderItem={c => <div className="billing-record-row">
+          <RecordList items={data.contracts} getKey={c => c.id} getSearchText={c => [c.number, c.client.name, c.projectName, serviceLabels[c.service], contractStatusLabel(c)].join(' ')} searchLabel="Buscar contratos" emptyMessage="Crea un contrato o convierte una cotización aceptada. Sus cuotas se generan automáticamente." renderItem={c => <div className="billing-record-row">
             <div className="billing-record-primary"><strong>{c.number}</strong><span>{c.projectName}</span><small>{c.client.name}{c.isDemo && !/demo/i.test(c.client.name) ? ' · Demo' : ''}</small></div>
             <div className="billing-record-meta"><small>Entrega</small><span>{c.deliveryDate}</span></div>
-            <span className={'billing-badge ' + c.status}>{statusLabels[c.status]}</span>
+            <span className={'billing-badge ' + c.status}>{contractStatusLabel(c)}</span>
             <strong className="billing-record-amount">{amount(c.totalCents)}</strong>
             <button className="platform-secondary" aria-label={'Ver detalles de contrato ' + c.number} onClick={() => setSelected(c.id)}><Eye size={16}/>Ver detalles</button>
           </div>}/>
           {contract && (
-            <RecordDetail title={contract.projectName} subtitle={<>{contract.number} · {contract.client.name} · {statusLabels[contract.status]}</>} onClose={() => setSelected('')} className="billing-workspace billing-record-detail">
+            <RecordDetail title={contract.projectName} subtitle={<>{contract.number} · {contract.client.name} · {contractStatusLabel(contract)}</>} onClose={() => setSelected('')} className="billing-workspace billing-record-detail">
             {feedback()}
-            <ContractAcceptanceSummary contract={contract}/><ContractAddenda contract={contract} onChanged={()=>{void refresh();}}/>{contract.projectId&&<ProjectDossier kind="billing" projectId={contract.projectId}/>}
+            <ContractAcceptanceSummary contract={contract}/>
+            <ContractWorkflowActions key={contract.id+':'+contract.version} contract={contract} deliveryPath={'billing/contracts/'+contract.id+'/delivery'} busy={busy} allowAssociation onStatus={async change=>!!await run(
+              ()=>billingRequest<Contract>('billing/contracts/'+contract.id+'/status',{method:'POST',body:JSON.stringify(change)}),
+              change.status==='enviado'
+                ? change.recipientUserId?'Contrato disponible en la cuenta del cliente. El aviso quedó registrado.':'Envío externo registrado.'
+                : 'Estado del contrato actualizado.',
+            )}/>
+            <ContractAddenda contract={contract} onChanged={()=>{void refresh();}}/>{contract.projectId&&<ProjectDossier kind="billing" projectId={contract.projectId}/>}
             {contract.projectId&&<details><summary>Seguimiento del desarrollo</summary><ProjectTrackingEditor kind="billing" projectId={contract.projectId}/></details>}
             <article className="billing-detail">
               <div className="billing-metrics">
@@ -664,47 +670,6 @@ export function BillingWorkspace({
                     </button>
                   )}
               </div>
-              <form
-                className="billing-status-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const status = new FormData(e.currentTarget).get('status');
-                  void run(
-                    () =>
-                      billingRequest('billing/contracts/' + contract.id + '/status', {
-                        method: 'POST',
-                        body: JSON.stringify({ status, version: contract.version }),
-                      }),
-                    'Estado administrativo actualizado.',
-                  );
-                }}
-              >
-                <label>
-                  Registrar siguiente estado
-                  <select name="status" defaultValue="">
-                    <option value="" disabled>
-                      Seleccionar estado
-                    </option>
-                    {Object.entries(statusLabels)
-                      .filter(([key]) => contractTransitions[contract.status].includes(key as ContractStatus)&&!(contract.signatureMode==='online'&&key==='firmado_cliente'))
-                      .map(([key, label]) => (
-                        <option key={key} value={key}>
-                          {label}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <button
-                  disabled={busy || ['finalizado', 'cancelado'].includes(contract.status)}
-                  className="platform-secondary"
-                >
-                  Actualizar estado
-                </button>
-                <small>
-                  {contract.signatureMode==='online'?'La conformidad del cliente se registra desde su cuenta. Activar requiere ambas conformidades; finalizar':'Las firmas se obtienen fuera de la plataforma. Activar requiere registrar ambas; finalizar'}
-                  requiere saldo cero.
-                </small>
-              </form>
             </article>
             </RecordDetail>
           )}

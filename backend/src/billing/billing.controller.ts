@@ -62,6 +62,9 @@ export class BillingController {
   @Patch('contracts/:id') editContract(@Param('id') id: string, @Body() b: unknown) {
     return this.service.createContract(b, id);
   }
+  @Get('contracts/:id/delivery') delivery(@Param('id') id: string) {
+    return this.service.contractDelivery(id);
+  }
   @Post('contracts/:id/status') status(@Param('id') id: string, @Body() b: unknown) {
     return this.service.status(id, b);
   }

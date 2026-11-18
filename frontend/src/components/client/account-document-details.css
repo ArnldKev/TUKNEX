@@ -1,0 +1,81 @@
+.account-doc-detail {
+  display: grid;
+  gap: 22px;
+  max-width: 1200px;
+  min-width: 0;
+}
+.account-doc-overview,.account-doc-section,.account-doc-more {
+  min-width: 0;
+  padding: clamp(16px,2.5vw,26px);
+  border: 1px solid #355167;
+  border-radius: 14px;
+  background: #111f32;
+}
+.account-doc-overview { border-top: 3px solid #55d5d0; }
+.account-doc-next { margin-bottom: 20px; }
+.account-doc-next h3 { margin: 13px 0 5px; font-size: 1.125rem; }
+.account-doc-next p { margin: 0; color: #c1d4e6; line-height: 1.6; }
+.account-doc-metrics,.account-doc-fields {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 14px 20px;
+  margin: 0;
+}
+.account-doc-metrics { grid-template-columns: repeat(auto-fit,minmax(min(100%,175px),1fr)); }
+.account-doc-metrics>div {
+  padding: 14px;
+  border: 1px solid #304d63;
+  border-radius: 10px;
+  background: #0b182a;
+}
+.account-doc-metrics dt,.account-doc-fields dt { font-size: .875rem; font-weight: 650; line-height: 1.45; color: #b8cbdd; }
+.account-doc-metrics dt { display: flex; align-items: center; gap: 7px; }
+.account-doc-metrics dd,.account-doc-fields dd { margin: 6px 0 0; line-height: 1.55; }
+.account-doc-fields dd { white-space: pre-wrap; }
+.account-doc-money dd { font-size: clamp(1.15rem,2.1vw,1.6rem); font-weight: 700; color: #a4f4e8; }
+.account-doc-money small { display: block; font-size: .8125rem; font-weight: 400; color: #b8cbdd; line-height: 1.5; }
+.account-doc-section-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; align-items: start; }
+.account-doc-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+.account-doc-section h3 svg { flex: none; color: #85e6df; }
+.account-doc-fields>div { min-width: 0; padding-top: 10px; border-top: 1px solid #30475e; }
+.account-doc-more summary { cursor: pointer; padding-block: 8px; font-weight: 650; color: #a7f1e8; }
+.account-doc-more .account-doc-fields { margin-top: 12px; }
+.account-doc-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(min(100%,275px),1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.account-doc-links a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  min-height: 52px;
+  border: 1px solid #48728b;
+  border-radius: 9px;
+  background: #0b182a;
+  color: #e9f4ff;
+}
+.account-doc-links a:hover { background: #18364a; }
+.account-doc-links a>span:first-child { flex: 1; min-width: 90px; }
+.account-doc-links small { display: block; margin-top: 3px; color: #b8cbdd; }
+.account-doc-links a>svg { color: #a7f1e8; flex: none; }
+.account-doc-unavailable { padding: 16px; border: 1px solid #43637b; border-radius: 10px; }
+@media (max-width: 820px) {
+  .account-doc-section-grid { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 460px) {
+  .account-doc-fields { grid-template-columns: minmax(0,1fr); }
+  .account-doc-links a>span:first-child { flex-basis: 100%; }
+}

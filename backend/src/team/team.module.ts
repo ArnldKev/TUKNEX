@@ -165,6 +165,12 @@ export class TeamService {
    await tx.query('UPDATE contratos SET equipo_proyecto_id=$2 WHERE id=$1',[c.id,pid]);await tx.query('UPDATE equipo_proyectos SET updated_at=now() WHERE id=$1',[pid]);return c;
   });
  }
+ async contractDelivery(a:Account,pid:string,id:string){
+  return this.scoped(a,pid,async(tx,_r,b)=>{
+   await this.scopedRecord(tx,'contratos',pid,id);
+   return b.contractDelivery(id);
+  });
+ }
  async contractStatus(a:Account,pid:string,id:string,body:unknown){
   return this.scoped(a,pid,async(tx,_r,b)=>{
    if(!_r.cliente_id)throw new BadRequestException('Vincula primero una cuenta de cliente a esta solicitud.');
@@ -211,6 +217,7 @@ class TeamController {
  @Post('projects/:pid/contracts') contract(@Req()r:ActorRequest,@Param('pid')pid:string,@Body()b:unknown){return this.service.contract(r.account,pid,b);}
  @Patch('projects/:pid/contracts/:id') editContract(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Body()b:unknown){return this.service.contract(r.account,pid,b,id);}
  @Post('projects/:pid/quotes/:id/contract') convert(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string){return this.service.convert(r.account,pid,id);}
+ @Get('projects/:pid/contracts/:id/delivery') delivery(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string){return this.service.contractDelivery(r.account,pid,id);}
  @Post('projects/:pid/contracts/:id/status') status(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Body()b:unknown){return this.service.contractStatus(r.account,pid,id,b);}
  @Post('projects/:pid/analyze') analyze(@Req()r:ActorRequest,@Param('pid')pid:string,@Body()b:unknown,@Res({passthrough:true})res:Response){return this.service.analyze(r.account,pid,r,res,b);}
  @Post('projects/:pid/quotes/:id/analyze') analyzeFormal(@Req()r:ActorRequest,@Param('pid')pid:string,@Param('id')id:string,@Body()b:unknown,@Res({passthrough:true})res:Response){return this.service.analyzeFormal(r.account,pid,id,r,res,b);}

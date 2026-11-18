@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {billingRequest,pdfBlob,savePdf} from '@/lib/billing/api';
-import {amount} from '@/lib/billing/finance';
+import {amount,todayLima} from '@/lib/billing/finance';
 import type {BillingQuote} from '@/lib/billing/types';
 import './quote-responses.css';
 export const quoteDecisionLabels={request_changes:'Cambios solicitados',decline:'No desea continuar',confirm_proposal:'Propuesta confirmada'} as const;
@@ -22,6 +22,7 @@ export function QuoteResponsePanel({quote,onChanged}:{quote:BillingQuote;onChang
 export function QuoteDecisionForm({quote,blocked,onChanged}:{quote:BillingQuote;blocked:boolean;onChanged:()=>void|Promise<void>}){
  const [decision,setDecision]=useState<Decision>('request_changes'),[comment,setComment]=useState(''),[key,setKey]=useState(()=>crypto.randomUUID()),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  async function submit(event:React.FormEvent){event.preventDefault();if(blocked||busy)return;setBusy(true);setError('');try{await billingRequest('account/quotes/'+quote.id+'/responses',{method:'POST',body:JSON.stringify({version:quote.version,decision,comment,idempotencyKey:key})});setNotice('Tu respuesta quedó registrada para la versión '+quote.version+'.');await onChanged();}catch(e){setError(e instanceof Error?e.message:'No pudimos registrar tu respuesta.');}finally{setBusy(false);}}
+ if(quote.status==='sent'&&quote.validUntil<todayLima())return <p>Esta versión venció. Solicita al equipo una propuesta actualizada para responder.</p>;
  if(quote.status!=='sent'||blocked)return <p>Las respuestas quedan asociadas a su versión. Para cambiar una decisión, solicita al equipo una propuesta actualizada.</p>;
  return <form className="quote-response-form" onSubmit={submit}><label>¿Cómo deseas continuar?<select value={decision} disabled={busy} onChange={e=>{setDecision(e.target.value as Decision);setKey(crypto.randomUUID());}}><option value="request_changes">Solicitar cambios</option><option value="decline">No continuar</option><option value="confirm_proposal">Confirmar propuesta y solicitar contrato</option></select></label><label>{decision==='request_changes'?'¿Qué debemos ajustar?':'Comentario (opcional)'}<textarea value={comment} disabled={busy} minLength={decision==='request_changes'?5:undefined} required={decision==='request_changes'} maxLength={2000} onChange={e=>{setComment(e.target.value);setKey(crypto.randomUUID());}}/></label><p>Responderás a la versión {quote.version}. Confirmar expresa tu conformidad con esta propuesta y permite preparar el contrato; la aceptación del contrato se realiza después por separado.</p>{error&&<p className="platform-error" role="alert">{error}</p>}{notice&&<p className="platform-success" role="status">{notice}</p>}<button className="platform-button" disabled={busy}>{busy?'Registrando…':'Enviar mi respuesta'}</button></form>;
 }

@@ -1,6 +1,7 @@
 import {BadRequestException,Body,ConflictException,Controller,Get,Inject,Injectable,Module,NotFoundException,Param,Post,Req,Res,UseGuards} from '@nestjs/common';
 import type {Request,Response} from 'express';import {createHash,randomUUID} from 'node:crypto';import {z} from 'zod';
 import {Database,type Sql} from '../database/database';import {DatabaseModule} from '../database/database.module';import {AuthModule} from '../auth/auth.module';import {SessionGuard,TeamGuard,type Account} from '../auth/auth';import {allowedClientIds} from '../auth/client-access';import {assertActiveStaff,lockTeamProject} from '../team/access';import {parse} from '../billing/dto';import {DocumentsModule} from './documents.module';import {PdfService} from './pdf.service';import {buildSolutionPreview} from '../domain/quote/preview';import {quoteFormSchema} from '../domain/quote/form';import {zipFiles} from './zip';
+import {visibleClientContract} from '../billing/contract-visibility';
 type Kind='team'|'billing';type R=Request&{account:Account};type Entry={key:string;name:string;label:string;version:number;type:string;bytes?:Buffer;payload?:any};
 const hash=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
 const requestDto=z.object({idempotencyKey:z.uuid(),selection:z.array(z.string().max(120)).min(1).max(60)}).strict().refine(v=>new Set(v.selection).size===v.selection.length,'Selecciona cada documento una sola vez.');
@@ -10,12 +11,12 @@ export class DossierService{
  private async scope(tx:Sql,a:Account,kind:Kind,id:string,client:boolean){
   parse(z.enum(['team','billing']),kind);parse(z.uuid(),id);let row:any;
   if(kind==='team'){if(client)row=(await tx.query('SELECT * FROM equipo_proyectos WHERE id=$1 AND cliente_id=ANY($2::uuid[])',[id,await allowedClientIds(tx,a)])).rows[0];else row=await lockTeamProject(tx,a,id);}
-  else{row=(await tx.query('SELECT * FROM proyectos WHERE id=$1',[id])).rows[0];if(row&&client){if(!(await allowedClientIds(tx,a)).includes(row.cliente_id)||!(await tx.query("SELECT id FROM contratos WHERE proyecto_id=$1 AND estado<>'borrador'",[id])).rows.length)row=null;}else if(row){await assertActiveStaff(tx,a);if(a.role!=='admin')throw new NotFoundException('Abre el expediente desde el proyecto del equipo asignado.');}}
+  else{row=(await tx.query('SELECT * FROM proyectos WHERE id=$1',[id])).rows[0];if(row&&client){if(!(await allowedClientIds(tx,a)).includes(row.cliente_id)||!(await tx.query("SELECT c.id FROM contratos c WHERE c.proyecto_id=$1 AND "+visibleClientContract,[id])).rows.length)row=null;}else if(row){await assertActiveStaff(tx,a);if(a.role!=='admin')throw new NotFoundException('Abre el expediente desde el proyecto del equipo asignado.');}}
   if(!row)throw new NotFoundException('Expediente no disponible.');return row;
  }
  private async entries(tx:Sql,a:Account,kind:Kind,id:string,client:boolean){
   const scope=await this.scope(tx,a,kind,id,client),items:Entry[]=[];
-  const contracts=(await tx.query('SELECT * FROM contratos WHERE '+(kind==='team'?'equipo_proyecto_id':'proyecto_id')+'=$1 AND cliente_id=$2'+(client?" AND estado<>'borrador'":'')+' ORDER BY created_at',[id,scope.cliente_id])).rows;
+  const contracts=(await tx.query('SELECT c.* FROM contratos c WHERE '+(kind==='team'?'c.equipo_proyecto_id':'c.proyecto_id')+'=$1 AND c.cliente_id=$2'+(client?' AND '+visibleClientContract:'')+' ORDER BY c.created_at',[id,scope.cliente_id])).rows;
   const requestIds=[...new Set([kind==='team'?scope.solicitud_id:null,...contracts.map(c=>c.datos.sourceRequestId)].filter(Boolean))];
   for(const rid of requestIds){const row=(await tx.query('SELECT * FROM solicitudes_cotizacion WHERE id=$1 AND cliente_id=$2',[rid,scope.cliente_id])).rows[0];if(!row)continue;const version=Number(row.revision);items.push({key:'request:'+rid+':'+version,name:'solicitud/'+row.numero+'-r'+version+'.json',label:row.numero+' · Respuestas de revisión '+version,version,type:'request',payload:{number:row.numero,revision:version,values:row.respuestas,result:row.estimacion}});const values=quoteFormSchema.safeParse(row.respuestas);if(values.success){items.push({key:'preview:'+rid+':'+version,name:'boceto/'+row.numero+'-r'+version+'.pdf',label:'Boceto orientativo · '+row.numero+' r'+version,version,type:'preview',payload:buildSolutionPreview(values.data,values.data.businessName,values.data)});}}
   const quoteIds=[...new Set(contracts.flatMap(c=>[c.cotizacion_id,c.datos.sourceQuoteId]).filter(Boolean))];

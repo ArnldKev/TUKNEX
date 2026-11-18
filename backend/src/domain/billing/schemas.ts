@@ -81,7 +81,7 @@ export const contractDto = z
   .refine(v=>!!v.sourceRequestId===!!v.sourceRequestRevision,'Indica la revisión de la solicitud de origen.')
   .refine(v=>!!v.sourceQuoteVersion===!!v.sourceQuoteId,'Indica la versión de la cotización formal de origen.');
 export const statusDto = z
-  .object({ status: z.enum(contractStatuses), version: z.number().int().min(1) })
+  .object({ status: z.enum(contractStatuses), version: z.number().int().min(1), recipientUserId: id.nullable().optional() })
   .strict();
 export const paymentDto = z
   .object({

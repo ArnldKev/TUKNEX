@@ -12,6 +12,7 @@ import {assertActiveStaff,lockTeamProject} from '../team/access';
 import {DocumentsModule} from '../documents/documents.module';
 import {PdfService} from '../documents/pdf.service';
 import {parse} from './dto';
+import {visibleClientContract} from './contract-visibility';
 import {validateReceipt,MAX_RECEIPT_BYTES} from './receipt-validation';
 const draftDto=z.object({contractVersion:z.number().int().positive(),expectedRevision:z.number().int().nonnegative(),reason:z.string().trim().min(5).max(2000),addedScope:z.string().trim().max(5000),removedScope:z.string().trim().max(5000),deltaCents:z.number().int().min(-1000000000).max(1000000000),deliveryImpact:z.string().trim().min(3).max(2000),conditions:z.string().trim().min(5).max(5000),mode:z.enum(['online','physical'])}).strict().refine(v=>!!(v.addedScope||v.removedScope),'Describe el alcance añadido o retirado.');
 const versionDto=z.object({version:z.number().int().positive()}).strict();
@@ -26,9 +27,9 @@ export class AddendaService{
  constructor(@Inject(Database)private db:Database,@Inject(PdfService)private pdf:PdfService){}
  private async access(tx:Sql,a:Account,id:string,client=false){
   parse(z.uuid(),id);
-  const row=(await tx.query('SELECT * FROM contratos WHERE id=$1 FOR UPDATE',[id])).rows[0];
+  const row=(await tx.query('SELECT c.* FROM contratos c WHERE c.id=$1'+(client?' AND '+visibleClientContract:'')+' FOR UPDATE OF c',[id])).rows[0];
   if(!row)throw new NotFoundException('Contrato no disponible.');
-  if(client){if(!(await allowedClientIds(tx,a)).includes(row.cliente_id)||row.estado==='borrador')throw new NotFoundException('Contrato no disponible.');}
+  if(client){if(!(await allowedClientIds(tx,a)).includes(row.cliente_id))throw new NotFoundException('Contrato no disponible.');}
   else{await assertActiveStaff(tx,a);if(a.role!=='admin'){if(!row.equipo_proyecto_id)throw new NotFoundException('Contrato no disponible.');await lockTeamProject(tx,a,row.equipo_proyecto_id);}}
   return row;
  }
