@@ -11,6 +11,8 @@ import {activityContext} from '../auth/activity-context';
 import {BillingModule} from './billing.module';
 import {BillingService} from './billing.service';
 import {parse} from './dto';
+import {clientContractView,lockContractProject,visibleClientContract} from './contract-visibility';
+import {notifyContractAccepted} from '../notifications/in-app';
 import {DocumentsModule} from '../documents/documents.module';
 import {PdfService} from '../documents/pdf.service';
 import {contractAcceptanceText,type Contract,type ContractAcceptance} from '../domain/billing/types';
@@ -21,16 +23,18 @@ type ActorRequest=Request&{account:Account};
 @Injectable()
 export class OnlineContractService {
  constructor(@Inject(Database)private db:Database,@Inject(PdfService)private pdf:PdfService,@Inject(BillingService)private billing:BillingService){}
- private async contract(tx:Sql,a:Account,id:string){
+ private async contract(tx:Sql,a:Account,id:string,accepting=false){
   parse(z.uuid(),id);
   if(a.role!=='client'||!a.clientId)throw new ForbiddenException('La aceptación debe realizarse desde la cuenta del cliente.');
-  const user=(await tx.query('SELECT rol,activo,cliente_id FROM usuarios WHERE id=$1 FOR UPDATE',[a.id])).rows[0];
-  if(!user?.activo||user.rol!=='client'||user.cliente_id!==a.clientId)throw new ForbiddenException('Esta cuenta ya no tiene acceso al contrato.');
-  const row=(await tx.query("SELECT datos FROM contratos WHERE id=$1 AND cliente_id=ANY($2::uuid[]) AND estado<>'borrador' FOR UPDATE",[id,await allowedClientIds(tx,a)])).rows[0];
+  const clientIds=await allowedClientIds(tx,a);
+  if(accepting)await lockContractProject(tx,id,clientIds);
+  const row=(await tx.query(`SELECT c.datos,c.cliente_id,c.equipo_proyecto_id FROM contratos c WHERE c.id=$1 AND c.cliente_id=ANY($2::uuid[]) AND ${visibleClientContract} FOR UPDATE OF c`,[id,clientIds])).rows[0];
   if(!row)throw new NotFoundException('Contrato no disponible.');
+  const user=(await tx.query('SELECT id FROM usuarios WHERE id=$1 FOR UPDATE',[a.id])).rows[0];
+  if(!user||!(await allowedClientIds(tx,a)).includes(row.cliente_id))throw new NotFoundException('Contrato no disponible.');
   const c=row.datos as Contract;
   if(c.signatureMode!=='online')throw new ConflictException('Este contrato utiliza firma presencial o externa.');
-  return c;
+  return { c, teamProjectId: row.equipo_proyecto_id as string | null };
  }
  private actionable(c:Contract,version:number){
   if(c.version!==version)throw new ConflictException('El contrato cambió. Actualiza y revisa su PDF vigente.');
@@ -39,7 +43,7 @@ export class OnlineContractService {
  async review(a:Account,id:string,body:unknown){
   const input=parse(reviewDto,body);
   return this.db.transaction(async tx=>{
-   const c=await this.contract(tx,a,id);this.actionable(c,input.version);
+   const {c}=await this.contract(tx,a,id);this.actionable(c,input.version);
    let row=(await tx.query('SELECT documento_id,sha256 FROM contrato_revisiones WHERE contrato_id=$1 AND version=$2',[id,c.version])).rows[0];
    if(!row){
     const bytes=await this.pdf.contractPdf(c),documentId=randomUUID(),sha256=createHash('sha256').update(bytes).digest('hex');
@@ -53,7 +57,7 @@ export class OnlineContractService {
  async document(a:Account,id:string,documentId:string){
   parse(z.uuid(),documentId);
   return this.db.transaction(async tx=>{
-   const c=await this.contract(tx,a,id);
+   const {c}=await this.contract(tx,a,id);
    const row=(await tx.query('SELECT d.contenido,d.sha256,r.version FROM contrato_revisiones r JOIN documentos d ON d.id=r.documento_id WHERE r.documento_id=$1 AND r.contrato_id=$2',[documentId,id])).rows[0];
    if(!row||(!(c.clientAcceptance?.documentId===documentId)&&row.version!==c.version))throw new NotFoundException('Versión de revisión no disponible. Actualiza el contrato.');
    return{bytes:Buffer.from(row.contenido),filename:c.number+'-version-'+row.version+'.pdf'};
@@ -62,10 +66,10 @@ export class OnlineContractService {
  async accept(a:Account,id:string,body:unknown){
   const input=parse(acceptDto,body);
   return this.db.transaction(async tx=>{
-   const c=await this.contract(tx,a,id);
+   const {c,teamProjectId}=await this.contract(tx,a,id,true);
    if(c.clientAcceptance){
     const old=c.clientAcceptance;
-    if(old.acceptedByUserId===a.id&&old.documentId===input.documentId&&old.documentSha256===input.sha256&&old.acceptedVersion===input.version&&normalized(old.signerName)===normalized(input.signerName))return c;
+    if(old.acceptedByUserId===a.id&&old.documentId===input.documentId&&old.documentSha256===input.sha256&&old.acceptedVersion===input.version&&normalized(old.signerName)===normalized(input.signerName))return clientContractView(c);
     throw new ConflictException('La aceptación de este contrato ya quedó registrada.');
    }
    this.actionable(c,input.version);
@@ -77,7 +81,8 @@ export class OnlineContractService {
    c.clientAcceptance=acceptance;c.clientSignedAt=acceptance.acceptedAt;c.status='firmado_cliente';c.version++;
    await tx.query('UPDATE contratos SET estado=$2,datos=$3,version=$4,updated_at=now() WHERE id=$1',[id,c.status,JSON.stringify(c),c.version]);
    await activityContext.run({actor:a},()=>this.billing.audit(tx,'contrato_aceptado_en_linea',id,{documentId:acceptance.documentId,sha256:acceptance.documentSha256,acceptedVersion:acceptance.acceptedVersion,acceptedAt:acceptance.acceptedAt}));
-   return c;
+   await notifyContractAccepted(tx,{id,projectName:c.projectName,version:acceptance.acceptedVersion,teamProjectId});
+   return clientContractView(c);
   });
  }
 }

@@ -48,7 +48,7 @@ try{
  const admin=await call('auth/login','',{email:'owner-nexi@example.test',password});
  const client=await call('auth/register','',{name:'Client synthetic',email:'client-nexi@example.test',password,phone:'900000001',dni:'00000001',privacyConsent:true});
  const a=await call('team/members',admin.cookie,{name:'Developer A',email:'dev-nexi-a@example.test',password}),b=await call('team/members',admin.cookie,{name:'Developer B',email:'dev-nexi-b@example.test',password});
- const staffA=await call('auth/login','',{email:'dev-nexi-a@example.test',password}),staffB=await call('auth/login','',{email:'dev-nexi-b@example.test',password});
+ let staffA=await call('auth/login','',{email:'dev-nexi-a@example.test',password});const staffB=await call('auth/login','',{email:'dev-nexi-b@example.test',password});
  const approved={id:ordered.data.id,sourceProjectId:project.id,sourceRevision:project.revision,approvedAt:new Date().toISOString(),original:{offering:values.offering,problem:values.problem,otherFunctions:values.otherFunctions,customers:values.customers},reviewed:{narrative:organized.narrative,requirements:organized.requirements,exclusions:organized.exclusions,questions:organized.questions},protectedDetails:[]};
  const request=(await call('account/quote-requests',client.cookie,{values:{...values,approvedIdea:approved},idempotencyKey:randomUUID()})).data;
  check(request.values.approvedIdea.id===ordered.data.id,'approved organization persists only with explicit request submit');
@@ -81,6 +81,16 @@ try{
  await call(source+'/'+generated.id+'/reviews',staffA.cookie,{...review,idempotencyKey:randomUUID()},409);
  const reopened=(await call(source,admin.cookie)).data.reports[0];check(reopened.reviews[0].reviewed.summary==='Resumen humano revisado.'&&reopened.envelope.report.summary===analysis.summary,'reopen separates reviewed report from original generation');
  check(reopened.reviews[0].internalNote===review.internalNote,'internal note retained privately');
+ const beforeReopenCalls=providerCalls;
+ await call('auth/logout',staffA.cookie,{},201);
+ await call(source,staffA.cookie,undefined,401);
+ staffA=await call('auth/login','',{email:'dev-nexi-a@example.test',password});
+ process.env.NEXI_AI_ENABLED='false';
+ try {
+  const afterLogin=(await call(source,staffA.cookie)).data.reports[0];
+  check(afterLogin.id===generated.id&&afterLogin.reviews[0].approved,'same report and approval survive a new authenticated session while AI is disabled');
+  check(providerCalls===beforeReopenCalls,'reopening saved reports never calls the provider');
+ } finally { process.env.NEXI_AI_ENABLED='true'; }
  check(!JSON.stringify((await call('account/overview',client.cookie)).data).includes('INTERNAL_ONLY_SYNTHETIC_NOTE'),'client overview never exposes internal notes');
  await assert.rejects(()=>db.query('UPDATE nexi_informes SET generado=$2 WHERE id=$1',[generated.id,'{}']),/conservan|historial/i);checks++;
  await assert.rejects(()=>db.query('DELETE FROM nexi_informe_revisiones WHERE informe_id=$1',[generated.id]),/conservan|historial/i);checks++;
@@ -94,4 +104,4 @@ try{
  await call('team/projects/'+work.id+'/assignment',admin.cookie,{assigneeId:b.data.id,revision:work.revision},200,'PATCH');
  await call('nexi-reports/formal/'+formal.id,staffA.cookie,undefined,404);check((await call('nexi-reports/formal/'+formal.id,staffB.cookie)).data.reports.length===1,'current assignment controls historical report visibility');
  console.log(JSON.stringify({result:'PASS',checks,stubProviderCalls:providerCalls,realProviderCalls:0,realEmailCalls:0,realDatabaseCalls:0},null,2));
-}finally{globalThis.fetch=realFetch;await app?.close();assert.equal(path.dirname(temporary),tmpdir());assert.ok(path.basename(temporary).startsWith('tuknex-nexi-'));await rm(temporary,{recursive:true,force:true});}
+}finally{globalThis.fetch=realFetch;await app?.close();assert.equal(path.dirname(temporary),tmpdir());assert.ok(path.basename(temporary).startsWith('tuknex-nexi-'));await rm(temporary,{recursive:true,force:true,maxRetries:5,retryDelay:100});}

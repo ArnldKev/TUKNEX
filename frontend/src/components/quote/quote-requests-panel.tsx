@@ -7,6 +7,8 @@ import {ContractDraftDialog} from '@/components/billing/contract-draft-dialog';
 import {draftFromRequest,type ContractDraft} from '@/lib/billing/contract-draft';
 import type {BillingData} from '@/lib/billing/types';
 import {AccountResourceFeedback} from '@/components/client/account-resource-feedback';
+import {AccountQuoteRequestDetail} from '@/components/client/account-quote-request-detail';
+import type {AccountRelatedDocuments} from '@/components/client/account-related-documents';
 import type {AccountResource} from '@/lib/client/account-resources';
 import type {AiEnvelope} from '@/lib/quote/ai';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -34,8 +36,9 @@ const nextSteps: Record<SavedQuoteRequest['status'], string> = {
   closed: 'Esta solicitud se ha cerrado. Puedes consultar aquí sus detalles y su PDF.',
 };
 export interface QuoteRequestRecordContext { busy: boolean; refresh: () => Promise<void>; }
+type ClientQuoteRequestResource={resource:AccountResource<SavedQuoteRequest[]>;onRetry:()=>void;documents:AccountRelatedDocuments};
 export interface QuoteRequestsPanelProps {
-  clientResource?:{resource:AccountResource<SavedQuoteRequest[]>;onRetry:()=>void};
+  clientResource?:ClientQuoteRequestResource;
   admin?: boolean;
   staff?: boolean;
   origin?: QuoteRequestOrigin;
@@ -70,13 +73,75 @@ function RequestRow({ item, onOpen, onAssign }: { item: SavedQuoteRequest; onOpe
 }
 
 export function QuoteRequestsPanel(props:QuoteRequestsPanelProps){
- return props.clientResource&&!props.admin&&!props.staff?<ClientQuoteRequests resource={props.clientResource.resource} onRetry={props.clientResource.onRetry} limit={props.limit}/>:<IndependentQuoteRequestsPanel {...props}/>;
+ return props.clientResource&&!props.admin&&!props.staff?<ClientQuoteRequests {...props.clientResource} limit={props.limit}/>:<IndependentQuoteRequestsPanel {...props}/>;
 }
-function ClientQuoteRequests({resource,onRetry,limit}:{resource:AccountResource<SavedQuoteRequest[]>;onRetry:()=>void;limit?:number}){
- const [selectedId,setSelectedId]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const records=resource.data||[],selected=records.find(item=>item.id===selectedId);
- async function download(item:SavedQuoteRequest){setBusy(true);setError('');try{const doc=await pdfBlob('account/quote-requests/'+item.id+'/pdf?preview=current');savePdf(doc.blob,doc.filename);}catch(e){setError(e instanceof Error?e.message:'No pudimos descargar la propuesta. Puedes intentarlo de nuevo.');}finally{setBusy(false);}}
- return <section className="portal-panel quote-requests-panel qrr-client-records" aria-label="Mis solicitudes del cotizador"><div className="quote-request-heading"><div><p className="platform-kicker">EL INICIO DE TU PROYECTO</p><h2>Mis solicitudes del cotizador</h2><p>Consulta tus ideas enviadas, su estimación y el seguimiento del equipo.</p></div><Link className="platform-secondary" href="/cotizar">Crear una solicitud</Link></div><AccountResourceFeedback resource={resource} onRetry={onRetry} label="solicitudes" announce={false}/>{error&&!selected&&<p className="platform-error" role="alert">{error}</p>}{resource.data&&<RecordList items={limit?records.slice(0,limit):records} getKey={item=>item.id} getSearchText={requestSearch} searchLabel="Buscar solicitudes por proyecto o número" emptyMessage="Aún no has enviado solicitudes. Puedes preparar tu idea en el cotizador." pageSize={10} renderItem={item=><div className="account-compact-row"><div><strong>{item.values.businessName||item.result.label}</strong><span>{item.number} · {createdDate(item.createdAt)}</span></div><StatusBadge status={item.status}/><strong>{estimateLabel(item)}</strong><button type="button" className="platform-secondary" onClick={()=>{setError('');setSelectedId(item.id);}}>Ver detalles<span className="sr-only"> de {item.number}</span></button></div>}/>}{selected&&<RecordDetail title={selected.values.businessName||selected.result.label} subtitle={selected.number} onClose={()=>setSelectedId(null)} actions={<button type="button" className="platform-secondary" disabled={busy} onClick={()=>void download(selected)}><Download size={16} aria-hidden="true"/>Descargar propuesta PDF</button>}><div className="qrr-detail-content">{error&&<p className="platform-error" role="alert">{error}</p>}<StatusBadge status={selected.status}/><p>{nextSteps[selected.status]}</p><div className="quote-request-summary"><div className="quote-request-estimate"><span>Inversión estimada</span><strong>{estimateLabel(selected)}</strong><small>Sujeta a revisión del alcance.</small></div><dl><div><dt>Preferencia de pago</dt><dd>{paymentPreferenceLabels[selected.values.paymentPreference||'unsure']}</dd></div><div><dt>Creada el</dt><dd>{createdDate(selected.createdAt)}</dd></div></dl></div><h3>Respuestas y alcance</h3><dl className="qrr-answer-grid">{quoteAnswers(selected.values).map((answer,index)=><div key={index}><dt>{answer.question}</dt><dd>{answer.value||'Sin indicar'}</dd></div>)}</dl></div></RecordDetail>}</section>;
+function ClientQuoteRequests({resource,onRetry,documents,limit}:ClientQuoteRequestResource&{limit?:number}){
+  const {user}=useDemoAuth();
+  const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const records=resource.data||[];
+  const selected=records.find(item=>item.id===selectedId);
+  function open(item:SavedQuoteRequest){setError('');setSelectedId(item.id);}
+  const linkNotice=usePrivateRecordLink({
+    parameter:'solicitud',
+    records,
+    ready:!!resource.data&&!resource.loading&&!resource.error,
+    scopeKey:user?.id||'',
+    onOpen:open,
+  });
+
+  async function download(item:SavedQuoteRequest){
+    setBusy(true);
+    setError('');
+    try{
+      const doc=await pdfBlob('account/quote-requests/'+item.id+'/pdf?preview=current');
+      savePdf(doc.blob,doc.filename);
+    }catch(e){
+      setError(e instanceof Error?e.message:'No pudimos descargar la propuesta. Puedes intentarlo de nuevo.');
+    }finally{
+      setBusy(false);
+    }
+  }
+
+  const quotes=selected?documents.quotes.filter(quote=>quote.sourceRequestId===selected.id):[];
+  const quoteIds=new Set(quotes.map(quote=>quote.id));
+  const contracts=selected?documents.contracts.filter(contract=>
+    contract.sourceRequestId===selected.id||quoteIds.has(contract.sourceQuoteId||contract.quoteId||''),
+  ):[];
+
+  return <section className="portal-panel quote-requests-panel qrr-client-records" aria-label="Mis solicitudes del cotizador">
+    <div className="quote-request-heading">
+      <div><p className="platform-kicker">EL INICIO DE TU PROYECTO</p><h2>Mis solicitudes del cotizador</h2><p>Consulta tus ideas enviadas, su estimación y el seguimiento del equipo.</p></div>
+      <Link className="platform-secondary" href="/cotizar">Crear una solicitud</Link>
+    </div>
+    <AccountResourceFeedback resource={resource} onRetry={onRetry} label="solicitudes" announce={false}/>
+    {linkNotice&&<p className="account-doc-unavailable" role="status">{linkNotice}</p>}
+    {error&&!selected&&<p className="platform-error" role="alert">{error}</p>}
+    {resource.data&&<RecordList
+      items={limit?records.slice(0,limit):records}
+      getKey={item=>item.id}
+      getSearchText={requestSearch}
+      searchLabel="Buscar solicitudes por proyecto o número"
+      emptyMessage="Aún no has enviado solicitudes. Puedes preparar tu idea en el cotizador."
+      pageSize={10}
+      renderItem={item=><div className="account-compact-row">
+        <div><strong>{item.values.businessName||item.result.label}</strong><span>{item.number} · {createdDate(item.createdAt)}</span></div>
+        <StatusBadge status={item.status}/>
+        <strong>{estimateLabel(item)}</strong>
+        <button type="button" className="platform-secondary" onClick={()=>open(item)}>Ver detalles<span className="sr-only"> de {item.number}</span></button>
+      </div>}
+    />}
+    {selected&&<RecordDetail
+      title={selected.values.businessName||selected.result.label}
+      subtitle={selected.number}
+      onClose={()=>setSelectedId(null)}
+      actions={<button type="button" className="platform-secondary" disabled={busy} onClick={()=>void download(selected)}><Download size={16} aria-hidden="true"/>Descargar propuesta PDF</button>}
+    >
+      {error&&<p className="platform-error" role="alert">{error}</p>}
+      <AccountQuoteRequestDetail record={selected} estimate={estimateLabel(selected)} date={createdDate(selected.createdAt)} nextStep={nextSteps[selected.status]} related={{quotes,contracts}}/>
+    </RecordDetail>}
+  </section>;
 }
 function IndependentQuoteRequestsPanel({ admin = false, staff = false, origin = 'all', limit, renderRecordActions, renderRecordMetadata }: QuoteRequestsPanelProps) {
   const router=useRouter();

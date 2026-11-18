@@ -1,0 +1,168 @@
+.console-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.account-notifications {
+  position: relative;
+  flex: none;
+}
+
+.account-notifications-trigger,
+.account-notifications-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid #3b5e73;
+  border-radius: 9px;
+  color: #d9edf9;
+  background: #14293c;
+}
+
+.account-notifications-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.account-notifications-trigger:hover,
+.account-notifications-icon:hover,
+.account-notifications-trigger[aria-expanded="true"] {
+  color: #a5f4e9;
+  border-color: #53bcb6;
+  background: #173d4b;
+}
+
+.account-notifications-count {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  place-items: center;
+  border: 2px solid #132435;
+  border-radius: 999px;
+  color: #0b2632;
+  background: #75ebe1;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.account-notifications-panel {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 12px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(370px, calc(100vw - 28px));
+  max-height: min(565px, calc(100dvh - 92px));
+  overflow: hidden;
+  border: 1px solid #3c596e;
+  border-radius: 15px;
+  color: #dcebf6;
+  background: #102034;
+  box-shadow: 0 20px 45px #040b16aa;
+}
+
+.account-notifications-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2b4559;
+}
+
+.account-notifications-heading h2 {
+  margin: 0;
+  color: #f4f9fd;
+  font-size: 16px;
+}
+
+.account-notifications-heading span,
+.account-notifications-list span,
+.account-notifications-list time,
+.account-notifications-message {
+  color: #acc5d9;
+  font-size: 12px;
+}
+
+.account-notifications-mark-all,
+.account-notifications-message button {
+  align-self: flex-start;
+  padding: 8px 16px;
+  color: #9df3ea;
+  background: transparent;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.account-notifications-message {
+  margin: 0;
+  padding: 12px 16px;
+}
+
+.account-notifications-message[role="alert"] {
+  color: #ffd0b3;
+}
+
+.account-notifications-list {
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-notifications-list li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-inline-end: 9px;
+  border-top: 1px solid #2b4559;
+}
+
+.account-notifications-list li[data-unread="true"] {
+  background: #163347;
+  box-shadow: inset 3px 0 #6addd2;
+}
+
+.account-notifications-list a,
+.account-notifications-item {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+  padding: 11px 14px 11px 16px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.account-notifications-list a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+  .console-account-actions {
+    gap: 8px;
+  }
+
+  .account-notifications {
+    position: static;
+  }
+
+  .account-notifications-panel {
+    inset-inline: 14px;
+    width: auto;
+    top: calc(100% + 5px);
+  }
+}

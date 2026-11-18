@@ -112,6 +112,12 @@ export interface ContractAcceptance {
  id:string;acceptedAt:string;acceptedVersion:number;signerName:string;acceptedByUserId:string;
  documentId:string;documentSha256:string;consentText:string;
 }
+export interface ContractDelivery {
+  sentAt: string;
+  sentVersion: number;
+  recipientUserId?: string;
+  recipientName?: string;
+}
 export interface Contract {
   id: string;
   number: string;
@@ -121,6 +127,7 @@ export interface Contract {
   clientSignedAt?:string;
   issuerSignedAt?:string;
   clientAcceptance?:ContractAcceptance;
+  delivery?: ContractDelivery;
   sourceRequestId?:string;
   sourceRequestRevision?:number;
   sourceQuoteId?:string;

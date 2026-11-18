@@ -22,7 +22,18 @@ try{
  const manual=await billing.createClient({name:'Cliente Igual',taxId:'00000001',phone:'',email:'account-a@example.test',address:'Ficha manual QA',isDemo:true}),foreign=await billing.createClient({name:'Cliente Igual',taxId:'00000002',phone:'',email:'account-a@example.test',address:'Otra ficha QA',isDemo:true});
  const plan={mode:'cash',rate:0,count:1,firstDueDate:'2026-11-10'},terms={clientId:manual.id,projectName:'Proyecto manual QA',service:'landing',scope:'Alcance guardado para probar acceso privado.',conditions:'Condiciones QA',observations:'Notas QA',issuedDate:'2026-11-09',startDate:'2026-11-10',deliveryDate:'2026-11-20',baseCents:5000,plan,isDemo:true};
  const {startDate:unusedStart,deliveryDate:unusedDelivery,...quoteTerms}=terms;
- const q=await billing.createQuote({...quoteTerms,status:'sent',delivery:'10 dias',validUntil:'2026-11-30'}),physical=await billing.createContract(terms),sentPhysical=await billing.status(physical.id,{status:'enviado',version:physical.version}),pending=await billing.createContract({...terms,signatureMode:'online'}),sentPending=await billing.status(pending.id,{status:'enviado',version:pending.version});
+ const q=await billing.createQuote({...quoteTerms,status:'sent',delivery:'10 dias',validUntil:'2026-11-30'}),physical=await billing.createContract(terms),sentPhysical=await billing.status(physical.id,{status:'enviado',version:physical.version}),pending=await billing.createContract({...terms,signatureMode:'online'});
+ const pendingPath='billing/contracts/'+pending.id;
+ await call(pendingPath+'/delivery',{token:a.token,status:403});
+ const delivery=await call(pendingPath+'/delivery',{token:admin.token});
+ check(!delivery.recipient&&delivery.issues.some(issue=>issue.includes('cuenta')),'a matching name and email do not infer the delivery account');
+ await call(pendingPath+'/status',{token:admin.token,value:{status:'enviado',version:pending.version,recipientUserId:null},status:400});
+ // Simulate a historical contract published while its billing record had no account link.
+ const sentPending={...pending,status:'enviado',version:pending.version+1};
+ await db.query("UPDATE contratos SET estado='enviado',datos=$2,version=$3 WHERE id=$1",[pending.id,JSON.stringify(sentPending),sentPending.version]);
+ const draftCancelled=await billing.createContract({...terms,clientId:a.user.clientId,projectName:'Borrador cancelado antes de enviar'});
+ await billing.status(draftCancelled.id,{status:'cancelado',version:draftCancelled.version});
+ await call('account/contracts/'+draftCancelled.id+'/pdf',{token:a.token,status:404});
  const beforePhysical=structuredClone(sentPhysical),beforeQuote=structuredClone(q),beforePending=structuredClone(sentPending);
  const receiptId=randomUUID(),paymentId=randomUUID();await db.query("INSERT INTO comprobantes(id,nombre,mime,contenido,sha256) VALUES($1,'qa.png','image/png',$2,'synthetic')",[receiptId,Buffer.from('synthetic-receipt')]);await db.query("INSERT INTO pagos(id,contrato_id,monto,fecha_pago,metodo_pago,comprobante_id,idempotency_key) VALUES($1,$2,1000,'2026-11-10','yape',$3,$4)",[paymentId,physical.id,receiptId,randomUUID()]);
  const requestId=randomUUID();await db.query("INSERT INTO solicitudes_cotizacion(id,numero,usuario_id,cliente_id,creado_por_id,clave_idempotencia,entrada_hash,respuestas,estimacion,pdf) VALUES($1,'TK-S-ASOCIACION',$3,$2,$3,$4,'qa',$5,'{}',$6)",[requestId,manual.id,admin.user.id,randomUUID(),JSON.stringify({businessName:'Proyecto manual QA'}),Buffer.from('%PDF-QA')]);
@@ -37,6 +48,8 @@ try{
  await call(path+'/confirm',{token:a.token,value:{previewId:preview.previewId,confirmed:true,reason:'Identidad comprobada manualmente'},status:403});
  const confirmed=await call(path+'/confirm',{token:admin.token,value:{previewId:preview.previewId,confirmed:true,reason:'Identidad comprobada manualmente'}});check(confirmed.revision===1&&!confirmed.replayed,'explicit admin confirmation links once');
  check((await call(path+'/confirm',{token:admin.token,value:{previewId:preview.previewId,confirmed:true,reason:'Identidad comprobada manualmente'}})).replayed,'duplicate confirm is idempotent');
+ const linkedDraft=await billing.createContract({...terms,signatureMode:'online'}),linkedDelivery=await billing.contractDelivery(linkedDraft.id);
+ check(linkedDelivery.recipient.id===a.user.id&&!linkedDelivery.issues.length,'explicitly linked billing record resolves the correct account');
  const state=await call(path,{token:admin.token});check(state.account.id===a.user.id&&state.history.length===1&&state.history[0].accountName===a.user.name&&Date.parse(state.history[0].createdAt)>0,'linked account and attributed history visible');
  const overview=await call('account/overview',{token:a.token});check(overview.client.id===a.user.clientId&&overview.requests.length===1&&overview.quotes.length===1&&overview.contracts.length===2&&overview.payments.length===1&&Date.parse(overview.updatedAt)>0,'single overview snapshot includes associated docs but preserves primaryprofile');
  check((await call('account/quote-requests',{token:a.token})).some(r=>r.id===requestId),'manual request visible by explicit ficha association');check((await call('account/quote-requests/'+requestId+'/pdf',{token:a.token})).toString()==='%PDF-QA','associated request PDF accessible');

@@ -13,11 +13,27 @@ let checks=0,providerCalls=0;const eq=(a,b,msg)=>{assert.deepEqual(a,b,msg);chec
 const originalFetch=globalThis.fetch;globalThis.fetch=()=>{throw Error('External network blocked by isolated communications tests');};
 try{
  await engine.waitReady;
- for(const name of (await readdir('migrations')).filter(n=>n.endsWith('.sql')&&n.slice(0,3)<='014').sort())await engine.exec(await readFile(resolve('migrations',name),'utf8'));
+ for(const name of (await readdir('migrations')).filter(n=>n.endsWith('.sql')&&n.slice(0,3)<'020').sort())await engine.exec(await readFile(resolve('migrations',name),'utf8'));
  await billing.initialize();
  const client=await billing.createClient({name:'Cliente Respuestas QA',taxId:'00000001',phone:'',email:'client@example.test',address:'',isDemo:true}),other=await billing.createClient({name:'Cliente Ajeno QA',taxId:'00000002',phone:'',email:'other@example.test',address:'',isDemo:true});
  const admin={id:randomUUID(),name:'Titular QA',role:'admin',clientId:null},customer={id:randomUUID(),name:client.name,role:'client',clientId:client.id,email:'client@example.test'},stranger={id:randomUUID(),name:other.name,role:'client',clientId:other.id,email:'other@example.test'},staff={id:randomUUID(),name:'Responsable QA',role:'subadmin',clientId:null},unassigned={id:randomUUID(),name:'Otro equipo QA',role:'subadmin',clientId:null};
  for(const a of [admin,customer,stranger,staff,unassigned])await db.query('INSERT INTO usuarios(id,nombre,correo,password_hash,rol,cliente_id) VALUES($1,$2,$3,$4,$5,$6)',[a.id,a.name,a.email||a.id+'@example.test','synthetic-no-login',a.role,a.clientId]);
+ const migration=await readFile(resolve('migrations/020_in_app_notifications.sql'),'utf8');
+ const rollbackFixture=new Error('rollback historical notification fixture');
+ await assert.rejects(()=>engine.transaction(async tx=>{
+  const verified=randomUUID(),unclear=randomUUID(),draft=randomUUID();
+  for(const [id,status,number] of [[verified,'enviado','QA-HIST-1'],[unclear,'enviado','QA-HIST-2'],[draft,'borrador','QA-HIST-3']]){
+   await tx.query(`INSERT INTO contratos
+     (id,numero_contrato,cliente_id,fecha_emision,fecha_inicio,fecha_entrega,servicio,alcance,monto_base,tipo_pago,porcentaje_financiamiento,monto_financiado,monto_total,estado,datos)
+     VALUES($1,$2,$3,current_date,current_date,current_date,'catalog','QA',25000,'cash',0,0,25000,$4,'{"isDemo":false,"projectName":"Histórico QA"}')`,[id,number,client.id,status]);
+  }
+  await tx.query("INSERT INTO auditoria(id,accion,entidad_id,datos) VALUES($1,'estado_contrato',$2,'{\"status\":\"enviado\"}')",[randomUUID(),verified]);
+  await tx.exec(migration);
+  const historical=(await tx.query('SELECT entidad_id,destinatario_id,tipo,canal FROM notificaciones_salida')).rows;
+  eq(historical,[{entidad_id:verified,destinatario_id:customer.id,tipo:'contract_sent',canal:'cuenta'}],'upgrade recovers proven delivery only');
+  throw rollbackFixture;
+ }),error=>error===rollbackFixture);
+ await engine.exec(migration);
  const fakePdf={preliminary:async()=>({bytes:Buffer.from('%PDF-QA')})},requests=new QuoteRequestsService(db,billing,fakePdf,{assertReady:async()=>{}}),values={...quoteDefaults,businessName:'Negocio Sintetico QA',offering:'Productos',sector:'commerce',problem:'Organizar consultas',privacyAcknowledged:true};
  await requests.createStaff(admin,{values,idempotencyKey:randomUUID()});eq((await db.query('SELECT * FROM notificaciones_salida')).rows.length,0,'staff intake is not a client submission notification');
  const input={values,idempotencyKey:randomUUID()},saved=await requests.create(customer,input);await requests.create(customer,input);

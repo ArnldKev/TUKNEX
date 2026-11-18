@@ -23,7 +23,14 @@ try{
  await reject(()=>online.review(actor,pSent.id,{version:pSent.version}),409);
  const draft=await billing.createContract(input);
  await reject(()=>online.review(actor,draft.id,{version:draft.version}),404);
- const sent=await billing.status(draft.id,{status:'enviado',version:draft.version});
+ const delivery=await billing.contractDelivery(draft.id);
+ check(delivery.recipient.id===actor.id&&!delivery.issues.length,'prepare delivery with the confirmed recipient');
+ await reject(()=>billing.status(draft.id,{status:'enviado',version:draft.version,recipientUserId:stranger.id}),409);
+ const sent=await billing.status(draft.id,{status:'enviado',version:draft.version,recipientUserId:actor.id});
+ check(sent.delivery.recipientUserId===actor.id&&sent.delivery.sentVersion===sent.version&&Date.parse(sent.delivery.sentAt)>0,'publication records the recipient, version and time');
+ const replayed=await billing.status(draft.id,{status:'enviado',version:draft.version,recipientUserId:actor.id});
+ assert.deepEqual(replayed.delivery,sent.delivery);checks++;
+ check((await db.query("SELECT count(*) AS n FROM notificaciones_salida WHERE entidad_id=$1 AND destinatario_id=$2 AND tipo='contract_sent'",[draft.id,actor.id])).rows[0].n===1,'repeat delivery keeps one client notification');
  await reject(()=>online.review(admin,sent.id,{version:sent.version}),403);
  await reject(()=>online.review(stranger,sent.id,{version:sent.version}),404);
  await reject(()=>online.review(actor,sent.id,{version:sent.version-1}),409);
@@ -45,6 +52,8 @@ try{
  check(signed.version===sent.version+1,'state increments optimistic version');
  check(signed.clientAcceptance.acceptedVersion===sent.version,'evidence points to original reviewed version');
  check(signed.clientAcceptance.acceptedByUserId===actor.id,'evidence has authenticated client identity');
+ check(!signed.delivery.recipientUserId&&signed.delivery.sentVersion===sent.version,'client response contains delivery version without staff recipient metadata');
+ check((await db.query("SELECT count(*) AS n FROM notificaciones_salida WHERE entidad_id=$1 AND destinatario_id=$2 AND tipo='contract_accepted'",[sent.id,admin.id])).rows[0].n===1,'authorization and acceptance save an internal notice to the administrator');
  assert.deepEqual(signed.schedule,sent.schedule);checks++;
  check((await online.accept(actor,sent.id,consent)).clientAcceptance.id===signed.clientAcceptance.id,'duplicate acceptance is idempotent');
  check((await db.query('SELECT count(*) AS n FROM contrato_aceptaciones WHERE contrato_id=$1',[sent.id])).rows[0].n===1,'one immutable acceptance');

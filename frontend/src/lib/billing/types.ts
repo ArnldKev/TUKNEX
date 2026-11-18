@@ -112,6 +112,12 @@ export interface ContractAcceptance {
  id:string;acceptedAt:string;acceptedVersion:number;signerName:string;acceptedByUserId:string;
  documentId:string;documentSha256:string;consentText:string;
 }
+export interface ContractDelivery {
+  sentAt: string;
+  sentVersion: number;
+  recipientUserId?: string;
+  recipientName?: string;
+}
 export interface Contract {
   id: string;
   number: string;
@@ -121,6 +127,7 @@ export interface Contract {
   clientSignedAt?:string;
   issuerSignedAt?:string;
   clientAcceptance?:ContractAcceptance;
+  delivery?: ContractDelivery;
   sourceRequestId?:string;
   sourceRequestRevision?:number;
   sourceQuoteId?:string;
@@ -185,6 +192,17 @@ export interface BillingData {
     outstandingCents: number;
     overdueCents: number;
   };
+}
+
+export function contractStatusLabel(contract: Contract): string {
+  if (contract.status === 'borrador') return 'Borrador · sin enviar';
+  if (contract.signatureMode === 'online') {
+    if (contract.clientAcceptance && ['firmado_cliente', 'firmado_tuknex'].includes(contract.status))
+      return 'Aceptado en línea';
+    if (['enviado', 'firmado_tuknex'].includes(contract.status)) return 'Pendiente de aceptación';
+  }
+  if (contract.status === 'enviado') return contract.delivery?.recipientUserId ? 'Disponible en su cuenta' : 'Enviado · firma externa';
+  return statusLabels[contract.status];
 }
 
 export const contractTransitions: Record<ContractStatus, ContractStatus[]> = {

@@ -1,4 +1,6 @@
 import {saveQuoteVersion} from './quote-versions';
+import {notifyContractSent} from '../notifications/in-app';
+import {lockContractProject} from './contract-visibility';
 import {
   BadRequestException,
   ConflictException,
@@ -416,7 +418,7 @@ export class BillingService {
         number: previous?.number || (await this.number(tx, 'TK-C')),
         projectId,
         client: await this.client(source.clientId, tx),
-        issuer: previous?.issuer || quote?.issuer || settings.issuer,
+        issuer: previous?.issuer?.taxId && previous.issuer.address ? previous.issuer : quote?.issuer?.taxId && quote.issuer.address ? quote.issuer : settings.issuer,
         status: 'borrador',
         version: (previous?.version || 0) + 1,
       };
@@ -492,25 +494,61 @@ export class BillingService {
       isDemo: quote.isDemo,
     });
   }
+  private async deliveryDetails(tx: Sql, contract: Contract) {
+    const {rows} = await tx.query(
+      "SELECT DISTINCT u.id,u.nombre,u.correo FROM usuarios u WHERE u.rol='client' AND u.activo AND u.cliente_id IS NOT NULL AND (u.cliente_id=$1 OR EXISTS(SELECT 1 FROM cliente_cuenta_asociaciones a WHERE a.cliente_id=$1 AND a.usuario_id=u.id AND a.activo)) LIMIT 2",
+      [contract.clientId],
+    );
+    const recipient = rows.length === 1 ? { id: String(rows[0].id), name: String(rows[0].nombre), email: String(rows[0].correo) } : null;
+    const issues: string[] = [];
+    if (rows.length > 1) issues.push('La ficha tiene más de una cuenta con acceso. Revisa sus asociaciones antes de enviar.');
+    if (contract.signatureMode === 'online' && !rows.length)
+      issues.push('Vincula esta ficha a una cuenta de cliente activa antes de enviar el contrato virtual.');
+    if (!contract.isDemo) {
+      if (!contract.client.taxId || !contract.client.address)
+        issues.push('Completa el DNI/RUC y la dirección del cliente, y vuelve a guardar el borrador.');
+      if (!contract.issuer.taxId || !contract.issuer.address)
+        issues.push('Completa el RUC y la dirección de TUKNEX en Configuración, y vuelve a guardar el borrador.');
+    }
+    return { recipient, issues };
+  }
+  async contractDelivery(id: string) {
+    parse(z.uuid(), id);
+    const contract = await this.contract(id);
+    if (contract.status !== 'borrador') throw new ConflictException('Este contrato ya salió de borrador. Actualiza el detalle.');
+    return { version: contract.version, ...await this.deliveryDetails(this.db, contract) };
+  }
   async status(id: string, body: unknown) {
+    parse(z.uuid(), id);
     const input = parse(statusDto, body);
     return this.db.transaction(async (tx) => {
-      const contract = (await queryOne(tx, 'SELECT datos FROM contratos WHERE id=$1 FOR UPDATE', [id]))
-        .datos as Contract & { clientSignedAt?: string; issuerSignedAt?: string };
+      await lockContractProject(tx,id);
+      const row = await queryOne(tx, 'SELECT datos,equipo_proyecto_id FROM contratos WHERE id=$1 FOR UPDATE', [id]);
+      const contract = row.datos as Contract;
+      if (input.status === 'enviado' && contract.delivery?.sentVersion === input.version + 1 &&
+          (input.recipientUserId === undefined || input.recipientUserId === (contract.delivery.recipientUserId || null))) return contract;
       if (input.version !== contract.version)
         throw new ConflictException('El contrato cambió. Actualiza la página.');
       const transitions = contractTransitions;
       if (!transitions[contract.status].includes(input.status))
         throw new ConflictException('La transición de estado no corresponde al estado actual.');
-      if (
-        input.status === 'enviado' &&
-        !contract.isDemo &&
-        (!contract.client.taxId ||
-          !contract.client.address ||
-          !contract.issuer.taxId ||
-          !contract.issuer.address)
-      )
-        throw new BadRequestException('Completa DNI/RUC y dirección de ambas partes antes de enviar.');
+      if (input.status === 'enviado') {
+        // The same client row is locked when an explicit account association changes.
+        await queryOne(tx, 'SELECT id FROM clientes WHERE id=$1 FOR UPDATE', [contract.clientId]);
+        const {recipient, issues} = await this.deliveryDetails(tx, contract);
+        if (issues.length) throw new BadRequestException(issues.join(' '));
+        if (input.recipientUserId !== undefined && input.recipientUserId !== (recipient?.id || null))
+          throw new ConflictException('La cuenta destinataria cambió. Vuelve a revisar el envío.');
+        contract.delivery = {
+          sentAt: new Date().toISOString(),
+          sentVersion: contract.version + 1,
+          ...(recipient ? { recipientUserId: recipient.id, recipientName: recipient.name } : {}),
+        };
+        if (recipient) await notifyContractSent(tx, {
+          id, projectName: contract.projectName, version: contract.delivery.sentVersion,
+          clientId: contract.clientId, recipientId: recipient.id, teamProjectId: row.equipo_proyecto_id,
+        });
+      }
       if(contract.signatureMode==='online'&&input.status==='firmado_cliente')throw new ConflictException('El cliente debe aceptar la versión virtual desde su propia cuenta.');
       if(contract.signatureMode==='online'&&input.status==='activo'&&!contract.clientAcceptance)throw new ConflictException('Falta la aceptación en línea del cliente.');
       if (input.status === 'firmado_cliente') contract.clientSignedAt = new Date().toISOString();
@@ -540,7 +578,11 @@ export class BillingService {
         json(contract),
         contract.version,
       ]);
-      await this.audit(tx, 'estado_contrato', id, { status: input.status, externalSignatureOnly: true });
+      await this.audit(tx, 'estado_contrato', id, {
+        status: input.status,
+        version: contract.version,
+        ...(input.status === 'enviado' ? { delivery: contract.delivery } : {}),
+      });
       return contract;
     });
   }

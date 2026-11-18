@@ -20,6 +20,7 @@ try{
  await provisionAdmin(db,{name:'Titular HTTP QA',email:'comm-owner@example.test',password});const owner=await call('auth/login','',{email:'comm-owner@example.test',password});
  const one=await call('auth/register','',{name:'Cliente Uno QA',email:'comm-one@example.test',password,phone:'900000001',dni:'00000001',privacyConsent:true}),two=await call('auth/register','',{name:'Cliente Dos QA',email:'comm-two@example.test',password,phone:'900000002',dni:'00000002',privacyConsent:true}),customer=(await one.json()).user;
  const staff=await (await call('team/members',owner.cookie,{name:'Equipo HTTP QA',email:'comm-team@example.test',password})).json(),team=await call('auth/login','',{email:staff.email,password});
+ const otherStaff=await (await call('team/members',owner.cookie,{name:'Otro equipo HTTP QA',email:'comm-team-two@example.test',password})).json(),otherTeam=await call('auth/login','',{email:otherStaff.email,password});
  await call('billing/notifications','',undefined,401);await call('billing/notifications',one.cookie,undefined,403);await call('billing/notifications',team.cookie,undefined,403);const inbox=await (await call('billing/notifications',owner.cookie)).json();assert.equal(inbox.enabled,false);checks++;
  const quoteInput={clientId:customer.clientId,projectName:'Propuesta HTTP QA',service:'catalog',scope:'Catalogo con busqueda y contacto',conditions:'No incluye licencias externas',observations:'Azul acordado',delivery:'15 dias',baseCents:45000,plan:{mode:'half',rate:0,count:2,firstDueDate:'2026-11-10'},status:'sent',issuedDate:'2026-11-09',validUntil:'2099-12-31',isDemo:false};
  const q=await (await call('billing/quotes',owner.cookie,quoteInput)).json(),path='account/quotes/'+q.id;
@@ -27,8 +28,59 @@ try{
  await call(path+'/responses',one.cookie);await call('billing/quote-responses/'+q.id,owner.cookie);await call(path+'/versions/1/pdf',two.cookie,undefined,404);const pdf=await call(path+'/versions/1/pdf',one.cookie);assert.ok(pdf.response.headers.get('content-type').includes('application/pdf'));checks++;
  const answer={version:q.version,decision:'confirm_proposal',comment:'Conforme con esta propuesta',idempotencyKey:randomUUID()};await call(path+'/responses',two.cookie,answer,404);const confirmed=await (await call(path+'/responses',one.cookie,answer)).json();assert.equal(confirmed.quote.status,'accepted');checks++;await call(path+'/responses',one.cookie,answer);await call(path+'/responses',one.cookie,{...answer,idempotencyKey:randomUUID()},409);await call(path+'/responses',one.cookie,{...answer,baseCents:1},400);
  const history=await (await call(path+'/responses',one.cookie)).json();assert.equal(history.responses[0].authorName,'Cliente Uno QA');assert.equal(history.responses[0].version,q.version);checks+=2;
- const values={...quoteDefaults,businessName:'Negocio HTTP QA',offering:'Productos',sector:'commerce',problem:'Necesito organizar las consultas',privacyAcknowledged:true};await call('account/quote-requests',one.cookie,{values,idempotencyKey:randomUUID()});const pending=await (await call('billing/notifications',owner.cookie)).json();assert.ok(pending.items.some(n=>n.kind==='quote_request'&&n.status==='pending'));checks++;
+ const values={...quoteDefaults,businessName:'Negocio HTTP QA',offering:'Productos',sector:'commerce',problem:'Necesito organizar las consultas',privacyAcknowledged:true};const request=await (await call('account/quote-requests',one.cookie,{values,idempotencyKey:randomUUID()})).json();const pending=await (await call('billing/notifications',owner.cookie)).json();assert.ok(pending.items.some(n=>n.kind==='quote_request'&&n.status==='pending'));checks++;
  const notice=pending.items.find(n=>n.status==='pending');await call('billing/notifications/'+notice.id+'/retry',one.cookie,{},403);await call('billing/notifications/'+notice.id+'/retry',owner.cookie,{});await call('billing/notifications/'+notice.id+'/retry',owner.cookie,{secret:'unexpected'},400);
  const state=await (await call('billing/state',owner.cookie)).json();assert.equal(state.contracts.length,0);assert.equal(state.payments.length,0);checks+=2;
+
+ const inboxRoute='account/notifications';
+ const userInbox=async cookie=>(await call(inboxRoute,cookie)).json();
+ await call(inboxRoute,'',undefined,401);
+ const ownerBefore=await userInbox(owner.cookie);
+ assert.ok(ownerBefore.items.some(item=>item.kind==='quote_request'&&item.route.endsWith(request.id)));
+ assert.ok(ownerBefore.unread>=1);
+ assert.deepEqual(await userInbox(one.cookie),{items:[],unread:0});
+ checks+=3;
+ await call(inboxRoute+'/read-all',owner.cookie,{});
+ assert.equal((await userInbox(owner.cookie)).unread,0);checks++;
+
+ await call('billing/settings',owner.cookie,{issuer:{...state.issuer,taxId:'00000000',address:'Dirección sintética del emisor'},rates:state.rates},200,'PATCH');
+ await call('account/profile',one.cookie,{name:'Cliente Uno QA',phone:'+51900000001',address:'Dirección sintética del cliente'},200,'PATCH');
+ const project=await (await call('team/projects',owner.cookie,{requestId:request.id,assigneeId:staff.id})).json();
+ const contractInput={clientId:customer.clientId,sourceRequestId:request.id,sourceRequestRevision:request.revision,projectName:'Contrato HTTP QA',service:'catalog',scope:'Catálogo de prueba',conditions:'Condiciones acordadas',observations:'',baseCents:45000,plan:quoteInput.plan,issuedDate:'2026-11-09',startDate:'2026-11-10',deliveryDate:'2026-11-30',signatureMode:'online',isDemo:false};
+ const teamContracts='team/projects/'+project.id+'/contracts';
+ const draft=await (await call(teamContracts,team.cookie,contractInput)).json();
+ assert.deepEqual(await userInbox(one.cookie),{items:[],unread:0});checks++;
+ const sent=await (await call(teamContracts+'/'+draft.id+'/status',team.cookie,{version:draft.version,status:'enviado'})).json();
+ const clientInbox=await userInbox(one.cookie);
+ assert.equal(clientInbox.unread,1);
+ assert.equal(clientInbox.items[0].kind,'contract_sent');
+ assert.equal(clientInbox.items[0].route,'/mi-cuenta/proyectos?contrato='+sent.id);
+ assert.deepEqual(await userInbox(two.cookie),{items:[],unread:0});
+ checks+=4;
+ const sentNotice=clientInbox.items[0].id;
+ await call(inboxRoute+'/'+sentNotice+'/read',two.cookie,{},404);
+ await call('billing/notifications/'+sentNotice+'/retry',owner.cookie,{},404);
+ const firstRead=await (await call(inboxRoute+'/'+sentNotice+'/read',one.cookie,{})).json();
+ assert.deepEqual(await (await call(inboxRoute+'/'+sentNotice+'/read',one.cookie,{})).json(),firstRead);
+ const freshLogin=await call('auth/login','',{email:'comm-one@example.test',password});
+ assert.equal((await userInbox(freshLogin.cookie)).unread,0);
+ checks+=2;
+
+ const review=await (await call('account/contracts/'+sent.id+'/acceptance-review',one.cookie,{version:sent.version})).json();
+ const consent={version:review.version,documentId:review.documentId,sha256:review.sha256,signerName:'Cliente Uno QA',accepted:true,acknowledgedPdf:true};
+ await call('account/contracts/'+sent.id+'/accept',one.cookie,consent);
+ await call('account/contracts/'+sent.id+'/accept',one.cookie,consent);
+ const accepted=(await userInbox(owner.cookie)).items.filter(item=>item.kind==='contract_accepted');
+ assert.equal(accepted.length,1);
+ assert.equal(accepted[0].route,'/admin/contratos?contrato='+sent.id);
+ const staffAccepted=(await userInbox(team.cookie)).items.filter(item=>item.kind==='contract_accepted');
+ assert.equal(staffAccepted.length,1);
+ assert.equal(staffAccepted[0].route,'/equipo?proyecto='+project.id+'&contrato='+sent.id);
+ assert.equal((await userInbox(otherTeam.cookie)).items.length,0);
+ assert.ok(!(await (await call('billing/notifications',owner.cookie)).json()).items.some(item=>item.kind.startsWith('contract_')));
+ checks+=6;
+ await call('team/projects/'+project.id+'/assignment',owner.cookie,{assigneeId:otherStaff.id,revision:project.revision},200,'PATCH');
+ assert.ok(!(await userInbox(team.cookie)).items.some(item=>item.id===staffAccepted[0].id));checks++;
+ await call(inboxRoute+'/'+staffAccepted[0].id+'/read',team.cookie,{},404);
  console.log('Communications HTTP: '+checks+' checks passed; authenticated local requests, temporary database, no real providers.');
 }finally{await app?.close();globalThis.fetch=originalFetch;const target=resolve(temp);if(dirname(target)!==resolve(tmpdir())||!basename(target).startsWith('tuknex-communications-http-'))throw Error('Unexpected cleanup target');await rm(target,{recursive:true,force:true});}

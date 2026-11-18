@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import {billingRequest,pdfBlob,savePdf} from '@/lib/billing/api';
 import {recordsForClient} from '@/lib/billing/client-records';
 import {amount} from '@/lib/billing/finance';
-import type {BillingClient,BillingQuote,Contract} from '@/lib/billing/types';
+import {contractStatusLabel,type BillingClient,type BillingQuote,type Contract} from '@/lib/billing/types';
 import type {SavedQuoteRequest} from '@/lib/quote/requests';
 import {StatusBadge} from '@/components/ui/status-badge';
 import './client-project-records.css';
@@ -17,6 +17,6 @@ export function ClientProjectRecords({client,quotes,contracts,onOpenQuote,onOpen
  {error&&<p role="alert" className="billing-error">{error} <button type="button" className="platform-secondary" onClick={()=>setAttempt(n=>n+1)}>Reintentar</button></p>}
  <h3>Solicitudes del cotizador</h3>{loaded===client.id&&!own.requests.length&&<p>No hay solicitudes vinculadas a esta cuenta.</p>}{own.requests.map(item=><article className="client-project-record" key={item.id}><div><strong>{item.values.businessName||item.result.label}</strong><span>{item.number} · {item.result.label}</span></div><StatusBadge status={item.status}/><button type="button" className="platform-secondary" disabled={busy} onClick={()=>void pdf(item.id)}>Ver propuesta PDF</button></article>)}
  <h3>Cotizaciones formales</h3>{!own.quotes.length&&<p>No hay cotizaciones formales de este cliente.</p>}{own.quotes.map(item=><article className="client-project-record" key={item.id}><div><strong>{item.projectName}</strong><span>{item.number} · {amount(item.totalCents)}</span></div><StatusBadge status={item.status}/><button type="button" className="platform-secondary" onClick={()=>onOpenQuote(item)}>Ver cotización</button></article>)}
- <h3>Contratos</h3>{!own.contracts.length&&<p>No hay contratos guardados de este cliente.</p>}{own.contracts.map(item=><article className="client-project-record" key={item.id}><div><strong>{item.projectName}</strong><span>{item.number} · {amount(item.totalCents)}</span></div><StatusBadge status={item.status}/><button type="button" className="platform-secondary" onClick={()=>onOpenContract(item)}>Ver contrato</button></article>)}
+ <h3>Contratos</h3>{!own.contracts.length&&<p>No hay contratos guardados de este cliente.</p>}{own.contracts.map(item=><article className="client-project-record" key={item.id}><div><strong>{item.projectName}</strong><span>{item.number} · {amount(item.totalCents)}</span></div><StatusBadge status={item.status} label={contractStatusLabel(item)}/><button type="button" className="platform-secondary" onClick={()=>onOpenContract(item)}>Ver contrato</button></article>)}
  </section>;
 }
