@@ -1,0 +1,291 @@
+/* Editorial treatment for the six-step quote route. The form and preview keep their own state. */
+.experience.future-connected .quote-workshop {
+  --quote-page-width: 1220px;
+  --quote-page-gutter: clamp(16px, 3.5vw, 34px);
+  --quote-active-bg: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  --background: var(--tk-paper, #f3f7fa);
+  --surface: var(--tk-paper-raised, #fff);
+  --foreground: var(--tk-ink, #132a3e);
+  --secondary: var(--tk-muted, #506479);
+  --line: var(--tk-line, #ccdce4);
+  --primary: var(--tk-action, #076f75);
+  --focus: var(--primary);
+  font-family: var(--tk-body, 'Segoe UI', sans-serif);
+  padding-block: clamp(24px, 4.5vw, 58px) clamp(48px, 6vw, 84px);
+}
+
+.experience.future-connected .quote-workshop :is(.quote-route-intro, .xp-quote-route) {
+  width: 100%;
+  max-width: var(--quote-page-width);
+  margin-inline: auto;
+  padding-inline: var(--quote-page-gutter);
+}
+
+.experience.future-connected .quote-workshop .quote-route-intro {
+  margin-block: 0 clamp(18px, 2.5vw, 28px);
+  border: 0;
+}
+
+.experience.future-connected .quote-workshop .quote-route-intro h1 {
+  max-width: 28ch;
+  margin: 0 0 8px;
+  font-family: var(--tk-display, inherit);
+  font-size: clamp(1.8rem, 4vw, 3.15rem);
+  line-height: 1.1;
+  letter-spacing: -.04em;
+  color: var(--foreground);
+}
+
+.experience.future-connected .quote-workshop .quote-route-intro p {
+  margin: 0;
+  font-size: clamp(.9375rem, 1.5vw, 1.0625rem);
+}
+
+.experience.future-connected .quote-workshop .quote-v4.quote-guided {
+  grid-template-columns: minmax(0, 1.68fr) minmax(19rem, 1fr);
+  grid-template-areas: "timeline timeline" "questions preview";
+  gap: clamp(16px, 2.5vw, 28px);
+  margin-block: 0;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline {
+  grid-area: timeline;
+  min-width: 0;
+  border-block: 1px solid var(--line);
+  scroll-margin-top: calc(var(--fc-header-height, 84px) + 12px);
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-sidebar {
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-steps {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-steps button {
+  min-width: 0;
+  min-height: var(--tk-touch, 44px);
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--tk-radius-control, 9px);
+  font-size: .875rem;
+  text-align: left;
+  transition: none;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-steps button:disabled {
+  color: var(--secondary);
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-steps li.active button {
+  background: var(--quote-active-bg);
+  border-color: var(--line);
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-step-number {
+  width: 25px;
+  height: 25px;
+  flex-basis: 25px;
+  font-size: .75rem;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-progress-shell {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: static;
+  z-index: auto;
+  padding: 0 0 10px;
+  background: transparent;
+  border: 0;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-v4-progress {
+  flex: 1;
+  gap: 5px 10px;
+  min-width: 0;
+  font-size: .8125rem;
+  line-height: 1.35;
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-v4-progress > div {
+  height: 4px;
+  margin-top: 0;
+  background: var(--line);
+}
+
+.experience.future-connected .quote-workshop .quote-timeline .quote-v4-progress i {
+  transition: none;
+}
+
+.experience.future-connected .quote-workshop .quote-quick-preview {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  min-height: var(--tk-touch, 44px);
+  border: 1px solid var(--primary);
+  border-radius: var(--tk-radius-control, 9px);
+  background: var(--surface);
+  color: var(--primary);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 650;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-layout {
+  border: 1px solid var(--line);
+  border-radius: var(--tk-radius-panel, 15px);
+  box-shadow: none;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-main {
+  padding: clamp(16px, 3.3vw, 34px);
+}
+
+.experience.future-connected .quote-workshop #quote-question {
+  font-family: var(--tk-display, inherit);
+  font-weight: 670;
+  font-size: clamp(1.55rem, 3vw, 2.3rem);
+  line-height: 1.15;
+  scroll-margin-top: calc(var(--fc-header-height, 84px) + 16px);
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-objective-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-block-start: 1px solid var(--line);
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-objective {
+  align-items: center;
+  min-height: 60px;
+  padding: 10px 12px;
+  border: 0;
+  border-inline-start: 2px solid transparent;
+  border-block-end: 1px solid var(--line);
+  border-radius: 0;
+  transition: none;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-objective.selected {
+  border-color: var(--line);
+  border-inline-start-color: var(--primary);
+  background: var(--quote-active-bg);
+  box-shadow: none;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-objective small {
+  margin-top: 2px;
+  font-size: .875rem;
+  line-height: 1.4;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-objective > .quote-radio {
+  position: static;
+  flex-shrink: 0;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-form-footer {
+  position: static;
+  z-index: auto;
+  flex-wrap: wrap;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-form-footer .quote-primary {
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.experience.future-connected .quote-workshop :is(.live-solution-preview, .quote-preview-intro, .quote-live-price) {
+  border-radius: var(--tk-radius-panel, 15px);
+  box-shadow: none;
+}
+
+.experience.future-connected .quote-workshop .quote-v4 .quote-preview-intro {
+  padding: clamp(16px, 2.3vw, 26px);
+  background: var(--surface);
+}
+
+.experience.future-connected .quote-workshop :is(.quote-preview-intro h2, .lp-panel-heading h3) {
+  margin: 0;
+  color: var(--primary);
+  font-size: .9375rem;
+  font-weight: 740;
+}
+
+.experience.future-connected .quote-workshop .quote-preview-empty {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 124px;
+  margin-top: 12px;
+  padding: 18px;
+  border-top: 3px solid var(--tk-accent, #43dce0);
+  border-radius: 10px;
+  background: var(--tk-navy-raised, #15243b);
+  color: var(--tk-ink-on-dark, #edf5ff);
+}
+
+.experience.future-connected .quote-workshop .quote-preview-empty svg {
+  color: var(--tk-accent, #43dce0);
+}
+
+.experience.future-connected .quote-workshop .quote-preview-empty p {
+  margin: 0;
+  color: inherit;
+  font-size: .9375rem;
+  line-height: 1.55;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .experience.future-connected .quote-workshop .quote-quick-preview:hover {
+    background: var(--quote-active-bg);
+  }
+}
+
+@media (max-width: 1023px) {
+  .experience.future-connected .quote-workshop .quote-v4.quote-guided {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "timeline" "questions" "preview";
+  }
+
+  .experience.future-connected .quote-workshop .quote-quick-preview { display: inline-flex; }
+}
+
+@media (max-width: 767px) {
+  .experience.future-connected .quote-workshop .quote-timeline .quote-steps button {
+    justify-content: center;
+    padding: 4px;
+  }
+
+  .experience.future-connected .quote-workshop .quote-timeline .quote-steps button > span:last-child {
+    display: none;
+  }
+
+  .experience.future-connected .quote-workshop .quote-timeline .quote-progress-shell { gap: 10px; }
+}
+
+@media (max-width: 359px) {
+  .experience.future-connected .quote-workshop .quote-progress-label {
+    display: none;
+  }
+}
+
+/* The header keeps NEXI available while the quote preview stays unobstructed. */
+.experience.future-connected:has(.quote-workshop) .chat-launcher {
+  display: none;
+}

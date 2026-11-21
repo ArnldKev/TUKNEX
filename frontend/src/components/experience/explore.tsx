@@ -98,7 +98,6 @@ export function ExploreExperience() {
                 onKeyDown={(event) => onTabKey(event, position)}
                 onClick={() => setKind(service.id)}
               >
-                <span>{service.number}</span>
                 <ServiceIcon size={20} />
                 <strong>{service.title}</strong>
               </button>
@@ -171,7 +170,6 @@ export function ExploreExperience() {
               <SolutionPreview key={kind} kind={kind} />
             </div>
             <div className="v5-service-difference">
-              <span>{selected.number} / 05</span>
               <p>{selected.difference}</p>
               <div>
                 <button type="button" aria-label="Servicio anterior" onClick={() => choose(index - 1)}>
@@ -195,11 +193,13 @@ export function ExploreExperience() {
           type="button"
           onClick={() => setCompare(!compare)}
           aria-expanded={compare}
+          aria-controls="comparacion-servicios"
         >
           Comparar las cinco soluciones <ChevronDown size={18} />
         </button>
-        {compare && (
-          <div className="xp-comparison">
+        <div id="comparacion-servicios" hidden={!compare}>
+          <p className="xp-comparison-hint">Desliza la tabla para ver las referencias de precio.</p>
+          <div className="xp-comparison" tabIndex={0} role="region" aria-label="Tabla comparativa de servicios">
             <table>
               <thead>
                 <tr>
@@ -219,7 +219,7 @@ export function ExploreExperience() {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
         <div className="v5-services-help">
           <div>
             <span className="xp-eyebrow">NO TIENES QUE DECIDIRLO SOLO</span>

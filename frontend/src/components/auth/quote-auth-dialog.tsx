@@ -1,14 +1,16 @@
 'use client';
 import {useState} from 'react';
 import {X,LockKeyhole} from 'lucide-react';
-import {AuthScreen} from './auth-screen';
-import {VerificationPanel} from './verification-panel';
+import {loadQuoteComponent} from '../quote/load-quote-component';
 import {useAccessibleModal} from './use-accessible-modal';
 import {useDemoAuth} from '@/lib/platform/auth';
 import {billingRequest} from '@/lib/billing/api';
 import {canSaveQuote,type VerificationStatus} from '@/lib/platform/verification';
 import type {User} from '@/lib/platform/types';
+import './platform.css';
 import './production.css';
+const AuthScreen=loadQuoteComponent(()=>import('./auth-screen').then(module=>module.AuthScreen),{loading:'Cargando acceso seguro…',error:'No pudimos cargar el acceso. Tus respuestas siguen aquí; puedes cerrar esta ventana o volver a intentarlo.',loadingClassName:'platform-info',errorClassName:'platform-error',retryClassName:'platform-secondary'});
+const VerificationPanel=loadQuoteComponent(()=>import('./verification-panel').then(module=>module.VerificationPanel),{loading:'Cargando verificación de tu cuenta…',error:'No pudimos cargar la verificación. Tus respuestas siguen aquí; puedes cerrar esta ventana o volver a intentarlo.',loadingClassName:'platform-info',errorClassName:'platform-error',retryClassName:'platform-secondary'});
 export function QuoteAuthDialog({onClose,onSave}:{onClose:()=>void;onSave:()=>Promise<void>}) {
   const auth=useDemoAuth(),[mode,setMode]=useState<'login'|'register'|'reset'>('login'),[error,setError]=useState(''),[busy,setBusy]=useState(false);
   useAccessibleModal(true,()=>{if(!busy)onClose();});

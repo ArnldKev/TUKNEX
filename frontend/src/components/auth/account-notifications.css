@@ -15,26 +15,27 @@
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: var(--tk-touch);
+  height: var(--tk-touch);
   padding: 0;
   border: 1px solid #3b5e73;
   border-radius: 9px;
-  color: #d9edf9;
-  background: #14293c;
+  color: var(--tk-ink-on-dark);
+  background: var(--tk-navy);
 }
 
-.account-notifications-icon {
-  width: 36px;
-  height: 36px;
-}
-
-.account-notifications-trigger:hover,
-.account-notifications-icon:hover,
 .account-notifications-trigger[aria-expanded="true"] {
-  color: #a5f4e9;
-  border-color: #53bcb6;
-  background: #173d4b;
+  color: var(--tk-focus);
+  border-color: var(--tk-focus);
+  background: var(--tk-navy-raised);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .account-notifications-trigger:hover,
+  .account-notifications-icon:hover {
+    color: var(--tk-focus);
+    border-color: var(--tk-focus);
+  }
 }
 
 .account-notifications-count {
@@ -66,9 +67,21 @@
   overflow: hidden;
   border: 1px solid #3c596e;
   border-radius: 15px;
-  color: #dcebf6;
-  background: #102034;
-  box-shadow: 0 20px 45px #040b16aa;
+  color: var(--tk-ink-on-dark);
+  background: var(--tk-navy);
+  box-shadow: 0 18px 32px #040b1670;
+  transform-origin: right top;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .account-notifications-panel[data-pointer-open="true"] {
+    animation: account-notifications-in var(--tk-motion-panel) var(--tk-ease-out);
+  }
+
+  @keyframes account-notifications-in {
+    from { opacity: 0; transform: translateY(-3px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
 }
 
 .account-notifications-heading {
@@ -97,6 +110,7 @@
 .account-notifications-mark-all,
 .account-notifications-message button {
   align-self: flex-start;
+  min-height: var(--tk-touch);
   padding: 8px 16px;
   color: #9df3ea;
   background: transparent;
@@ -164,5 +178,6 @@
     inset-inline: 14px;
     width: auto;
     top: calc(100% + 5px);
+    transform-origin: 75% top;
   }
 }

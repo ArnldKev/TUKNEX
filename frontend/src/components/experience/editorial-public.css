@@ -1,0 +1,181 @@
+/* Public pages share the editorial palette. Interactive demos keep their dark surfaces. */
+.experience.future-connected > .xp-header {
+  background: var(--tk-night);
+  border-color: var(--tk-line-on-dark);
+  backdrop-filter: none;
+}
+.experience.future-connected > .xp-footer {
+  background: var(--tk-night);
+  border-color: var(--tk-line-on-dark);
+}
+.experience.future-connected .xp-links a[aria-current='page'] { color: var(--tk-ink-on-dark); }
+.experience.future-connected .xp-links a { overflow-wrap: anywhere; }
+.experience.future-connected.editorial-public > #experiencia {
+  --fc-paper: var(--tk-paper);
+  --fc-paper-ink: var(--tk-ink);
+  --fc-bg: var(--tk-paper);
+  --fc-panel: var(--tk-paper-raised);
+  --fc-raised: #e8f2f4;
+  --fc-ink: var(--tk-ink);
+  --fc-muted: var(--tk-muted);
+  --fc-line: var(--tk-line);
+  --fc-accent: var(--tk-action);
+  --fc-focus: var(--tk-action);
+  --fc-display: var(--tk-display);
+  --fc-body: var(--tk-body);
+  --fc-ease: var(--tk-ease-out);
+  --fc-duration: var(--tk-motion-control);
+  --foreground: var(--tk-ink);
+  --xp-muted: var(--tk-muted);
+  --xp-line: var(--tk-line);
+  --xp-cyan: var(--tk-action);
+  --xp-teal: var(--tk-action);
+  color: var(--tk-ink);
+  background: var(--tk-paper);
+  color-scheme: light;
+}
+.experience.future-connected.editorial-public {
+  #experiencia .xp-page-intro { padding-block: clamp(28px, 5vw, 64px) clamp(35px, 5vw, 64px); }
+  #experiencia .xp-page-intro .xp-back { margin-bottom: 18px; }
+  #experiencia .xp-page-intro h1 { color: var(--tk-ink); text-wrap: balance; font-weight: 710; }
+  #experiencia .xp-page-intro h1 > span { color: var(--tk-action); }
+  #experiencia .xp-page-intro > p { border-left-color: var(--tk-action); }
+  #experiencia .xp-eyebrow > i { background: var(--tk-action); }
+
+  #experiencia :is(.button-primary, .button-outline) {
+    border-radius: var(--tk-radius-control);
+    min-height: var(--tk-touch);
+  }
+  #experiencia .button-primary { background: var(--tk-action); border-color: var(--tk-action); color: var(--tk-paper-raised); }
+  #experiencia .button-outline { color: var(--tk-ink); border-color: var(--tk-line); }
+  #experiencia .xp-text-link { color: var(--tk-action); }
+  #experiencia :is(button, .button):not(:disabled) { touch-action: manipulation; }
+  #experiencia .button:active:not(:disabled) { transform: scale(.98); }
+  #experiencia .xp-about-intro { animation: none; }
+  #experiencia :is(.xp-about-intro, .xp-faq, .xp-assistant-copy) h2 > span { color: var(--tk-action); }
+
+  #experiencia :is(.fc-demo-frame, .v5-service-visual, .xp-assistant-model) {
+    --fc-bg: var(--tk-night);
+    --fc-panel: var(--tk-navy);
+    --fc-raised: var(--tk-navy-raised);
+    --fc-ink: var(--tk-ink-on-dark);
+    --fc-muted: var(--tk-muted-on-dark);
+    --fc-line: var(--tk-line-on-dark);
+    --fc-accent: var(--tk-accent);
+    --fc-focus: var(--tk-focus);
+    --xp-muted: var(--tk-muted-on-dark);
+    --xp-line: var(--tk-line-on-dark);
+    --xp-cyan: var(--tk-accent);
+    --xp-teal: var(--tk-focus);
+    background: var(--tk-navy);
+    color: var(--tk-ink-on-dark);
+    color-scheme: dark;
+  }
+
+  #experiencia .v5-service-tabs { margin-bottom: 30px; }
+  #experiencia .v5-service-tabs > button { min-height: 84px; }
+  #experiencia .v5-service-tabs > button > svg { position: static; }
+  #experiencia .v5-service-tabs > button > span, #experiencia .v5-service-difference > span { display: none; }
+  #experiencia .v5-service-difference button { min-width: var(--tk-touch); min-height: var(--tk-touch); }
+  #experiencia .v5-service-visual::before { content: none; }
+  #experiencia .v5-screen-stage > .xp-demo,
+  #experiencia .v5-service-showcase[data-solution='system'] .v5-screen-stage > .xp-demo { transform: none; box-shadow: none; }
+  #experiencia .xp-comparison table { min-width: 40rem; }
+  #experiencia .xp-comparison thead { background: #e8f2f4; }
+  #experiencia .xp-comparison thead th { background: #e8f2f4; color: var(--tk-ink); }
+  #experiencia .xp-explore-proof { background: transparent; }
+  #experiencia .xp-comparison-hint { display: none; color: var(--tk-muted); font-size: .94rem; margin-bottom: 10px; }
+
+  #experiencia .xp-project-overview { border-top: 1px solid var(--tk-line); padding-top: 25px; }
+  #experiencia .xp-project-body { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+  #experiencia .xp-project-live { border: 1px solid var(--tk-line); box-shadow: none; }
+  #experiencia .xp-project-live-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; border-top: 1px solid var(--tk-line); gap: 0 12px; }
+  #experiencia .xp-project-live-actions > * { border-top: 0; }
+  #experiencia .xp-project-browser button[aria-pressed='true'] { box-shadow: inset 0 0 0 1px var(--tk-action); }
+  #experiencia .xp-project-restore { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tk-touch); padding-inline: 12px; color: var(--tk-action); font-size: .875rem; font-weight: 650; }
+
+  #experiencia .purpose-cards { border: 1px solid var(--tk-line); }
+  #experiencia .purpose-card:first-child { background: #e7f1f3; }
+  #experiencia .purpose-project-image { box-shadow: none; border: 1px solid var(--tk-line); }
+  #experiencia .purpose-project-image:first-child, #experiencia .purpose-project-image:last-child { transform: none; }
+  #experiencia .xp-process-grid article { border-top: 1px solid var(--tk-line); }
+  #experiencia .xp-faq h3 > button { min-height: var(--tk-touch); }
+
+  #experiencia .xp-contact-form { background: var(--tk-paper-raised); border: 1px solid var(--tk-line); box-shadow: none; }
+  #experiencia .xp-contact-form .xp-checkbox { min-height: var(--tk-touch); align-items: flex-start; }
+  #experiencia .xp-contact-form .xp-checkbox > span { min-width: 0; }
+  #experiencia .xp-contact-success h2:focus { outline: none; }
+  #experiencia .xp-contact-success h2:focus-visible { outline: 2px solid var(--tk-action); outline-offset: 5px; }
+  #experiencia .xp-contact-info > a { color: var(--tk-ink); }
+  #experiencia .xp-assistant-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+  #experiencia .xp-assistant-page .xp-assistant-copy h2 { font: 700 clamp(2rem, 4vw, 3.5rem)/1.04 var(--tk-display); letter-spacing: -.045em; margin-block: 0 20px; }
+  #experiencia .xp-assistant-page .xp-assistant-copy p { color: var(--tk-muted); max-width: 43ch; line-height: 1.65; }
+  #experiencia .xp-assistant-page .xp-assistant-copy small { display: block; color: var(--tk-muted); margin-top: 16px; max-width: 43ch; }
+
+  #experiencia .public-reviews h1 { text-wrap: balance; }
+  #experiencia .public-reviews .public-reviews-intro { margin-bottom: 36px; }
+  #experiencia .published-opinions { border-top: 1px solid var(--tk-line); padding-top: 27px; }
+  #experiencia .public-opinions-grid .portal-panel, #experiencia .public-opinion-compose > .portal-panel {
+    background: var(--tk-paper-raised);
+    color: var(--tk-ink);
+    border: 1px solid var(--tk-line);
+  }
+  #experiencia .public-opinions-grid .platform-kicker { color: var(--tk-action); }
+  #experiencia .public-opinion footer { border-color: var(--tk-line); }
+  #experiencia :is(.public-opinion time, .public-opinion > blockquote p) { color: var(--tk-muted); }
+  #experiencia .public-opinion > blockquote { border-color: var(--tk-line); }
+  #experiencia .public-reviews #escribir-opinion .opinion-invite > a.platform-button,
+  #experiencia .public-reviews #escribir-opinion .opinion-invite > a.platform-button > svg { color: var(--tk-paper-raised) !important; }
+  #experiencia .public-reviews #escribir-opinion .opinion-invite > a.platform-button { background: var(--tk-action); border-color: var(--tk-action); }
+  #experiencia .opinion-invite .platform-text-link { color: var(--tk-action); }
+
+  @media (hover: hover) and (pointer: fine) {
+    #experiencia .button-primary:hover:not(:disabled) { background: #085e64; border-color: #085e64; color: var(--tk-paper-raised); transform: none; }
+    #experiencia .button-outline:hover, #experiencia .xp-text-link:hover { border-color: var(--tk-action); color: var(--tk-action); }
+    #experiencia .button:active:not(:disabled) { transform: scale(.98); }
+  }
+  @media (max-width: 900px) {
+    #experiencia :is(.xp-project-body, .xp-real-project:nth-child(even) .xp-project-body, .xp-assistant-page) { grid-template-columns: minmax(0, 1fr); }
+    #experiencia .xp-real-project:nth-child(even) :is(.xp-project-live, .xp-project-info) { grid-column: auto; grid-row: auto; }
+    #experiencia .xp-project-body { gap: 24px; }
+  }
+  @media (max-width: 740px) {
+    #experiencia .xp-comparison-hint { display: block; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #experiencia .button:active:not(:disabled) { transform: none; }
+  }
+}
+@media (max-width: 1120px) {
+  .experience.future-connected .xp-links.open {
+    max-height: calc(100dvh - var(--fc-header-height) - 16px);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.experience.future-connected.editorial-public {
+  #experiencia .public-opinions-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px 24px; }
+  #experiencia .public-opinions-heading h2 { margin: 0 0 10px; font: 690 clamp(1.6rem, 3vw, 2.7rem)/1.12 var(--tk-display); letter-spacing: -.04em; }
+  #experiencia .public-opinions-heading p { color: var(--tk-muted); line-height: 1.6; }
+  #experiencia #escribir-opinion { scroll-margin-top: calc(var(--fc-header-height) + 24px); }
+}
+
+.experience.future-connected.editorial-public {
+  #experiencia .real-opinions { --text-secondary: var(--tk-muted); --text-primary: var(--tk-ink); }
+  #experiencia .opinions-intro > p { color: var(--tk-muted); }
+  #experiencia .real-opinions .opinion-form { background: var(--tk-paper-raised); color: var(--tk-ink); border: 1px solid var(--tk-line); border-radius: var(--tk-radius-panel); }
+  #experiencia .real-opinions :is(legend, label, .platform-field) { color: var(--tk-ink); }
+  #experiencia .real-opinions :is(input:not([type='checkbox']), textarea) { background: var(--tk-paper-raised); color: var(--tk-ink); border: 1px solid #8095a6; font-size: 1rem; border-radius: var(--tk-radius-control); }
+  #experiencia .real-opinions :is(input, textarea)::placeholder { color: var(--tk-muted); opacity: 1; }
+  #experiencia .real-opinions :is(.opinion-current, .opinion-current blockquote) { background: #e8f2f4; border-color: var(--tk-line); color: var(--tk-ink); }
+  #experiencia .real-opinions .platform-check { min-height: var(--tk-touch); color: var(--tk-ink); }
+  #experiencia .real-opinions .opinion-subjects button { background: var(--tk-paper-raised); color: var(--tk-ink); border-color: var(--tk-line); }
+  #experiencia .real-opinions .opinion-subjects button[aria-pressed='true'] { background: #e8f2f4; color: var(--tk-action); border-color: var(--tk-action); box-shadow: inset 0 0 0 1px var(--tk-action); }
+  #experiencia .real-opinions .opinion-rating button { color: #8c6415; }
+  #experiencia .real-opinions .opinion-rating button[aria-pressed='true'] { background: #fff4d5; color: #785600; border-color: #b18b34; }
+  #experiencia .real-opinions .opinion-fields > .platform-button { background: var(--tk-action); border-color: var(--tk-action); }
+  #experiencia .public-opinion .platform-rating .filled { color: #8c6415; }
+}
+
+.experience.future-connected #preguntas-frecuentes { scroll-margin-top: calc(var(--fc-header-height, 80px) + 24px); }

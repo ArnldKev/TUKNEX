@@ -1,0 +1,32 @@
+@font-face {
+  font-family: TUKNEX Display;
+  src: url('/fonts/tuknex-display.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: optional;
+}
+
+:root {
+  --tk-paper: #f3f7fa;
+  --tk-paper-raised: #fff;
+  --tk-ink: #132a3e;
+  --tk-muted: #506479;
+  --tk-line: #ccdce4;
+  --tk-action: #076f75;
+  --tk-night: #070c18;
+  --tk-navy: #101b2d;
+  --tk-navy-raised: #15243b;
+  --tk-ink-on-dark: #edf5ff;
+  --tk-muted-on-dark: #a5b6cd;
+  --tk-line-on-dark: #2c4354;
+  --tk-accent: #43dce0;
+  --tk-focus: #73e8e3;
+  --tk-display: 'TUKNEX Display', 'Segoe UI', sans-serif;
+  --tk-body: 'Segoe UI', system-ui, sans-serif;
+  --tk-ease-out: cubic-bezier(.23, 1, .32, 1);
+  --tk-motion-control: 140ms;
+  --tk-motion-panel: 180ms;
+  --tk-touch: 44px;
+  --tk-radius-control: 9px;
+  --tk-radius-panel: 15px;
+}

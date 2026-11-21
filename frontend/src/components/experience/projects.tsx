@@ -8,23 +8,32 @@ import { PublicShell, PageIntro } from './public-shell';
 
 export function ProjectsExperience() {
   const [expanded, setExpanded] = useState<string | null>('el-gringo');
-  const [mobile, setMobile] = useState(false);
+  const [mobileByProject, setMobileByProject] = useState<Record<string, boolean>>({});
   const [preview, setPreview] = useState<string | null>(null);
+  function setDevice(projectId: string, mobile: boolean) {
+    setMobileByProject((previous) => ({ ...previous, [projectId]: mobile }));
+  }
+  function togglePreview(projectId: string, show: boolean) {
+    setPreview(show ? projectId : null);
+    window.requestAnimationFrame(() => {
+      document.getElementById((show ? 'restore-' : 'load-') + projectId)?.focus();
+    });
+  }
   return (
     <PublicShell>
       <PageIntro
         eyebrow="PROYECTOS DESARROLLADOS"
         title={
           <>
-            El siguiente nivel
+            Proyectos que ya
             <br />
-            <span>ya tiene dirección.</span>
+            <span>están en línea.</span>
           </>
         }
-        text="Dos negocios, necesidades concretas y experiencias digitales propias. Visita los proyectos reales y descubre cómo cada idea encontró su forma."
+        text="Conoce cómo una pollería acerca su carta a sus clientes y un negocio deportivo muestra su catálogo en internet."
       />
       <section className="xp-projects xp-container">
-        {portfolio.map((project, index) => (
+        {portfolio.map((project) => (
           <article
             key={project.id}
             id={project.id}
@@ -32,7 +41,7 @@ export function ProjectsExperience() {
             style={{ '--project-color': project.color } as React.CSSProperties}
           >
             <div className="xp-project-overview">
-              <span className="xp-project-index">0{index + 1} / PROYECTO REAL</span>
+
               <div>
                 <h2>{project.name}</h2>
                 <span>{project.tagline}</span>
@@ -54,35 +63,35 @@ export function ProjectsExperience() {
                   className="xp-case-toggle"
                   onClick={() => setExpanded(expanded === project.id ? null : project.id)}
                   aria-expanded={expanded === project.id}
+                  aria-controls={'caso-' + project.id}
                 >
                   Conoce el caso <ChevronDown size={16} />
                 </button>
-                {expanded === project.id && (
-                  <div className="xp-project-case">
-                    <p>
-                      {project.id === 'el-gringo'
-                        ? 'El objetivo: acercar la carta y facilitar que una persona organice su pedido antes de conversar con el restaurante.'
-                        : 'El objetivo: reunir la oferta deportiva y facilitar una consulta con los artículos y opciones de interés.'}
-                    </p>
-                    <ul>
-                      {project.features.map((feature) => (
-                        <li key={feature}>
-                          <Check size={14} />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                    <small>
-                      Las operaciones de compra se continúan por WhatsApp. No se atribuyen pagos online,
-                      resultados comerciales ni tecnologías no comprobadas.
-                    </small>
-                  </div>
-                )}
+                <div className="xp-project-case" id={'caso-' + project.id} hidden={expanded !== project.id}>
+                  <p>
+                    {project.id === 'el-gringo'
+                      ? 'El objetivo: acercar la carta y facilitar que una persona organice su pedido antes de conversar con el restaurante.'
+                      : 'El objetivo: reunir la oferta deportiva y facilitar una consulta con los artículos y opciones de interés.'}
+                  </p>
+                  <ul>
+                    {project.features.map((feature) => (
+                      <li key={feature}>
+                        <Check size={14} />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <small>
+                    Las operaciones de compra se continúan por WhatsApp. No se atribuyen pagos online,
+                    resultados comerciales ni tecnologías no comprobadas.
+                  </small>
+                </div>
+
                 <Link className="xp-text-link" href={`/cotizar?tipo=${project.type}`}>
                   Quiero un proyecto para mi negocio <ArrowUpRight size={17} />
                 </Link>
               </div>
-              <div className={`xp-project-live ${mobile ? 'mobile' : ''}`}>
+              <div className={`xp-project-live ${mobileByProject[project.id] ? 'mobile' : ''}`}>
                 <div className="xp-project-browser">
                   <span>
                     <i />
@@ -92,16 +101,18 @@ export function ProjectsExperience() {
                   <span>{new URL(project.url).hostname}</span>
                   <div>
                     <button
-                      onClick={() => setMobile(false)}
+                      type="button"
+                      onClick={() => setDevice(project.id, false)}
                       aria-label="Vista de escritorio"
-                      aria-pressed={!mobile}
+                      aria-pressed={!mobileByProject[project.id]}
                     >
                       <Monitor size={14} />
                     </button>
                     <button
-                      onClick={() => setMobile(true)}
+                      type="button"
+                      onClick={() => setDevice(project.id, true)}
                       aria-label="Vista de celular"
-                      aria-pressed={mobile}
+                      aria-pressed={!!mobileByProject[project.id]}
                     >
                       <Smartphone size={14} />
                     </button>
@@ -118,17 +129,32 @@ export function ProjectsExperience() {
                 ) : (
                   <div className="xp-project-live-cover xp-project-cover">
                     <img className="xp-project-screenshot" src={project.cover} alt={"Pantalla de inicio de la web de "+project.name} width={1265} height={712} loading="lazy"/>
-                    <div className="xp-project-cover-actions"><div className="xp-project-cover-identity"><img src={project.logo} alt={"Logo de "+project.name} width={38} height={38}/><div><strong>{project.name}</strong><small>Captura real de la pantalla de inicio</small></div></div><button className="button button-primary" onClick={()=>setPreview(project.id)}>Explorar web en vivo <ArrowUpRight size={15}/></button></div>
+                    <div className="xp-project-cover-actions">
+                      <div className="xp-project-cover-identity">
+                        <img src={project.logo} alt="" width={38} height={38} />
+                        <div><strong>{project.name}</strong><small>Página de inicio</small></div>
+                      </div>
+                      <button id={'load-' + project.id} type="button" className="button button-primary" onClick={() => togglePreview(project.id, true)}>
+                        Explorar web en vivo <ArrowUpRight size={15} />
+                      </button>
+                    </div>
                   </div>
                 )}
-                <a
-                  className="xp-project-live-link"
-                  href={project.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Abrir sitio original <ExternalLink size={12} />
-                </a>
+                <div className="xp-project-live-actions">
+                  {preview === project.id && (
+                    <button id={'restore-' + project.id} type="button" className="xp-project-restore" onClick={() => togglePreview(project.id, false)}>
+                      Volver a la captura
+                    </button>
+                  )}
+                  <a
+                    className="xp-project-live-link"
+                    href={project.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir sitio original <ExternalLink size={12} />
+                  </a>
+                </div>
               </div>
             </div>
           </article>

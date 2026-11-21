@@ -1,0 +1,73 @@
+.not-found-editorial {
+  min-height: 100dvh;
+  background: var(--tk-paper);
+  color: var(--tk-ink);
+}
+
+.not-found-masthead {
+  padding: 12px clamp(20px, 6vw, 100px);
+  background: var(--tk-night);
+}
+
+.not-found-masthead a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tk-touch);
+}
+
+.not-found-masthead img {
+  width: clamp(140px, 17vw, 180px);
+  height: auto;
+  filter: brightness(0) invert(1);
+}
+
+.not-found-content {
+  width: min(100% - 40px, 850px);
+  margin-inline: auto;
+  padding-block: clamp(56px, 14vh, 155px);
+}
+
+.not-found-content > .not-found-code {
+  color: var(--tk-action);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .07em;
+}
+
+.not-found-content h1 {
+  margin-block: 14px;
+  font-family: var(--tk-display);
+  font-size: clamp(38px, 7vw, 90px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -.045em;
+}
+
+.not-found-content p {
+  color: var(--tk-muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.not-found-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tk-touch);
+  margin-top: 24px;
+  padding: 10px 16px;
+  border-radius: var(--tk-radius-control);
+  background: var(--tk-action);
+  color: #fff;
+  font-weight: 650;
+  transition: background-color var(--tk-motion-control) var(--tk-ease-out);
+}
+
+.not-found-content a:focus-visible {
+  outline: 2px solid var(--tk-action);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) {
+  .not-found-action:hover { background: #0a555b; }
+}

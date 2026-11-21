@@ -55,7 +55,8 @@ export function AccountNotifications() {
   const trigger = useRef<HTMLButtonElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const running = useRef<AbortController | null>(null);
-  const [open, setOpen] = useState(false);
+  const [openedBy, setOpen] = useState<false | 'keyboard' | 'pointer'>(false);
+  const open = Boolean(openedBy);
   const [inbox, setInbox] = useState<Inbox | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -137,8 +138,8 @@ export function AccountNotifications() {
         type="button" className="account-notifications-trigger" ref={trigger}
         aria-label={unread ? `Notificaciones, ${unread} sin leer` : 'Notificaciones'}
         aria-expanded={open} aria-controls={open ? id : undefined}
-        onClick={() => {
-          setOpen(!open);
+        onClick={event => {
+          setOpen(open ? false : event.detail > 0 ? 'pointer' : 'keyboard');
           if (!open) void refresh();
         }}
       >
@@ -146,11 +147,11 @@ export function AccountNotifications() {
         {unread > 0 && <span className="account-notifications-count" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
       </button>
       {open && (
-        <section className="account-notifications-panel" id={id} aria-labelledby={id + '-heading'}>
+        <section className="account-notifications-panel" data-pointer-open={openedBy === 'pointer' || undefined} id={id} aria-labelledby={id + '-heading'}>
           <div className="account-notifications-heading">
             <div>
               <h2 id={id + '-heading'} tabIndex={-1} ref={heading}>Notificaciones</h2>
-              <span aria-live="polite">{unread ? `${unread} sin leer` : 'Al día'}</span>
+              <span aria-live="polite">{error ? 'Consulta pendiente' : inbox ? (unread ? `${unread} sin leer` : 'Al día') : 'Cargando…'}</span>
             </div>
             <button type="button" className="account-notifications-icon" aria-label="Cerrar notificaciones" onClick={() => {
               setOpen(false);
@@ -159,7 +160,7 @@ export function AccountNotifications() {
           </div>
           {error && <p className="account-notifications-message" role="alert">{error} <button type="button" onClick={() => void refresh()}>Actualizar</button></p>}
           {!inbox && !error && <p className="account-notifications-message" role="status">Cargando notificaciones…</p>}
-          {inbox && !inbox.items.length && <p className="account-notifications-message">Aún no tienes notificaciones.</p>}
+          {inbox && !error && !inbox.items.length && <p className="account-notifications-message">Aún no tienes notificaciones.</p>}
           {!!unread && <button type="button" className="account-notifications-mark-all" disabled={busy} onClick={() => void markRead()}>Marcar todas como leídas</button>}
           {!!inbox?.items.length && <ul className="account-notifications-list">
             {inbox.items.map(item => {

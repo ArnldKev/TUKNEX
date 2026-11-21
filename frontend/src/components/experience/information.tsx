@@ -1,6 +1,6 @@
 'use client';
 import './evolution-pages.css';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +29,7 @@ import { faqs } from '@/lib/site-data';
 
 export function AboutExperience() {
   const [open, setOpen] = useState<number | null>(0);
+  const faqId = useId();
   return (
     <PublicShell>
       <PageIntro
@@ -106,7 +107,7 @@ export function AboutExperience() {
             Preparar mi proyecto <ArrowUpRight size={16} />
           </Link>
         </div>
-        <section className="xp-faq">
+        <section className="xp-faq" id="preguntas-frecuentes" tabIndex={-1}>
           <div>
             <span className="xp-eyebrow">
               <i />
@@ -128,12 +129,13 @@ export function AboutExperience() {
                   <button
                     onClick={() => setOpen(index === open ? null : index)}
                     aria-expanded={open === index}
+                    aria-controls={faqId + index}
                   >
                     {question}
                     <Plus size={18} />
                   </button>
                 </h3>
-                {open === index && <p>{answer}</p>}
+                <p id={faqId + index} hidden={open !== index}>{answer}</p>
               </article>
             ))}
           </div>
@@ -152,6 +154,17 @@ const contactSchema = z.object({
 type ContactInput = z.infer<typeof contactSchema>;
 export function ContactExperience() {
   const [sent, setSent] = useState(false);
+  const successHeading = useRef<HTMLHeadingElement>(null);
+  const formHeading = useRef<HTMLHeadingElement>(null);
+  const startedAnotherMessage = useRef(false);
+  const contactId = useId();
+  useEffect(() => {
+    if (sent) successHeading.current?.focus();
+    if (!sent && startedAnotherMessage.current) {
+      formHeading.current?.focus();
+      startedAnotherMessage.current = false;
+    }
+  }, [sent]);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [honeypot,setHoneypot]=useState('');
@@ -214,7 +227,7 @@ export function ContactExperience() {
           {sent ? (
             <div className="xp-contact-success" role="status">
               <CheckCheck size={44} />
-              <h2>Tu mensaje ha sido recibido.</h2>
+              <h2 ref={successHeading} tabIndex={-1}>Tu mensaje ha sido recibido.</h2>
               <p>
                 Tu consulta se guardó en TUKNEX y está disponible para nuestro equipo. Si necesitas conversar ahora, también puedes escribirnos por WhatsApp.
               </p>
@@ -232,6 +245,7 @@ export function ContactExperience() {
               </a>
               <button
                 onClick={() => {
+                  startedAnotherMessage.current = true;
                   setSent(false);
                   form.reset();
                 }}
@@ -250,7 +264,7 @@ export function ContactExperience() {
               })}
             >
               <span className="xp-eyebrow">CONVERSEMOS DE TU PROYECTO</span>
-              <h2>Cuéntanos de tu idea.</h2>
+              <h2 ref={formHeading} tabIndex={-1}>Cuéntanos de tu idea.</h2>
               <p>
                 Tu mensaje llegará al equipo de TUKNEX. Cuéntanos lo que necesitas y cómo podemos ayudarte.
               </p>
@@ -261,9 +275,10 @@ export function ContactExperience() {
                   placeholder="Tu nombre"
                   autoComplete="name"
                   aria-invalid={!!form.formState.errors.name}
+                  aria-describedby={form.formState.errors.name ? contactId + '-name' : undefined}
                 />
                 {form.formState.errors.name && (
-                  <small className="xp-error">{form.formState.errors.name.message}</small>
+                  <small id={contactId + '-name'} className="xp-error">{form.formState.errors.name.message}</small>
                 )}
               </label>
               <label>
@@ -274,9 +289,10 @@ export function ContactExperience() {
                   placeholder="cliente@example.com"
                   autoComplete="off"
                   aria-invalid={!!form.formState.errors.email}
+                  aria-describedby={form.formState.errors.email ? contactId + '-email' : undefined}
                 />
                 {form.formState.errors.email && (
-                  <small className="xp-error">{form.formState.errors.email.message}</small>
+                  <small id={contactId + '-email'} className="xp-error">{form.formState.errors.email.message}</small>
                 )}
               </label>
               <label>
@@ -286,17 +302,23 @@ export function ContactExperience() {
                   {...form.register('message')}
                   placeholder="Tengo un negocio y me gustaría..."
                   aria-invalid={!!form.formState.errors.message}
+                  aria-describedby={form.formState.errors.message ? contactId + '-message' : undefined}
                 />
                 {form.formState.errors.message && (
-                  <small className="xp-error">{form.formState.errors.message.message}</small>
+                  <small id={contactId + '-message'} className="xp-error">{form.formState.errors.message.message}</small>
                 )}
               </label>
               <label className="xp-checkbox">
-                <input type="checkbox" {...form.register('consent')} />
+                <input
+                  type="checkbox"
+                  {...form.register('consent')}
+                  aria-invalid={!!form.formState.errors.consent}
+                  aria-describedby={form.formState.errors.consent ? contactId + '-consent' : undefined}
+                />
                 <span>Acepto que TUKNEX use mis datos para responder esta consulta. <Link href="/privacidad" target="_blank" rel="noopener noreferrer">Cómo usamos tus datos</Link>.</span>
               </label>
               {form.formState.errors.consent && (
-                <small className="xp-error">{form.formState.errors.consent.message}</small>
+                <small id={contactId + '-consent'} className="xp-error">{form.formState.errors.consent.message}</small>
               )}
               <label className="contact-honeypot" aria-hidden="true">No completar<input tabIndex={-1} autoComplete="off" value={honeypot} onChange={e=>setHoneypot(e.target.value)}/></label>
               {error&&<p role="alert" className="platform-error">{error}</p>}
@@ -329,11 +351,7 @@ export function AssistantExperience() {
         text="El perrito digital de TUKNEX te explica la tecnología con palabras sencillas. Explora sus gestos y cuéntale lo que necesita tu negocio."
       />
       <section className="xp-assistant-page xp-container">
-        <div className="xp-assistant-model">
-          <NexiAvatar state="wave" interactive />
-          <span>Modelo 3D original inspirado en las referencias de TUKNEX.</span>
-        </div>
-        <div>
+        <div className="xp-assistant-copy">
           <span className="xp-eyebrow">
             <i />
             TU COMPAÑERO DIGITAL
@@ -361,7 +379,11 @@ export function AssistantExperience() {
           <button className="button button-primary" onClick={openNexi}>
             Iniciar conversación <MessageCircle size={17} />
           </button>
-          <small>Asistente demostrativo con respuestas guiadas. Sin IA generativa conectada.</small>
+          <small>Este asistente ofrece orientación con respuestas guiadas.</small>
+        </div>
+        <div className="xp-assistant-model">
+          <NexiAvatar state="wave" interactive />
+          <span>Explora los gestos de NEXI.</span>
         </div>
       </section>
     </PublicShell>

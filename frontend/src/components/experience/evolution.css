@@ -1,5 +1,4 @@
 /* FUTURE CONNECTED — public visual layer. Syne: self-hosted, SIL OFL 1.1. */
-@font-face {font-family:"Tuknex Display";src:url("/fonts/tuknex-display.woff2") format("woff2");font-style:normal;font-weight:400 800;font-display:optional;}
 .experience.future-connected {
   --fc-bg:#070c18; --fc-panel:#101b2d; --fc-raised:#15243b;
   --fc-ink:#edf5ff; --fc-muted:#a5b6cd; --fc-accent:#43dce0; --fc-focus:#73e8e3;

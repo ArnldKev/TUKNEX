@@ -195,8 +195,11 @@ function FieldDictationControl({value,field,label}:{value:ContextValue;field:Dic
     <Undo2 size={15} aria-hidden="true"/>Deshacer dictado
    </button>}
   </div>
-  <p id={statusId} className="qfd-status" role="status" aria-live="polite">
-   {owns&&(state.phase==='recording'?'Grabando · '+state.elapsed+' / 60 segundos':state.phase==='transcribing'?'Transcribiendo…':state.message)}
+  <p className="qfd-status" aria-hidden="true">
+   {owns&&(recording?'Grabando · '+state.elapsed+' / '+AUDIO_MAX_SECONDS+' segundos':state.phase==='transcribing'?'Transcribiendo…':state.message)}
+  </p>
+  <p id={statusId} className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+   {owns&&(recording?'Grabando. Puedes detener o cancelar el dictado. Límite de '+AUDIO_MAX_SECONDS+' segundos.':state.phase==='transcribing'?'Transcribiendo…':state.message)}
   </p>
   {owns&&state.error&&<p className="qfd-error" role="alert">{state.error}</p>}
   {tooLong&&<small className="qfd-length" role="alert">La respuesta tiene {(current??'').trim().length} caracteres; el máximo es {max}. Conservamos todo el texto para que puedas editarlo.</small>}

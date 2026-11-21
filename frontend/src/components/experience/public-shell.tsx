@@ -12,6 +12,7 @@ import './experience.css';
 import './future.css';
 import './account-projects.css';
 import './evolution.css';
+import './editorial-public.css';
 
 export const openNexi = (event: React.MouseEvent<HTMLButtonElement>) => {
   window.dispatchEvent(new CustomEvent('open-tuknex-chat', { detail: event.currentTarget }));
@@ -23,6 +24,7 @@ export function OfficialBrand() {
     </Link>
   );
 }
+const editorialRoutes = new Set(['/', '/explorar', '/proyectos', '/nosotros', '/contacto', '/asistente', '/resenas']);
 const links = [
   ['/', 'Inicio'],
   ['/explorar', 'Explorar'],
@@ -38,6 +40,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
   const navigationRef = useRef<HTMLElement>(null);
   const navigationId = useId();
   const { user, logout, ready } = useDemoAuth();
+  const accountHref = user?.role === 'admin' ? '/admin' : user?.role === 'subadmin' ? '/equipo' : user ? '/mi-cuenta' : '/acceder';
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
@@ -55,7 +58,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', keyboard);
   }, [open]);
   return (
-    <div className="experience future-connected" data-public-page={pathname}>
+    <div className={editorialRoutes.has(pathname) ? "experience future-connected editorial-public" : "experience future-connected"} data-public-page={pathname}>
       <a className="skip-link" href="#experiencia">
         Saltar al contenido
       </a>
@@ -85,7 +88,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             </button>
             <Link
               className={"xp-account"+(user?" xp-account-signed":"")}
-              href={user ? (user.role === 'admin' ? '/admin' : user.role === 'subadmin' ? '/equipo' : '/mi-cuenta') : '/acceder'}
+              href={accountHref}
               aria-label={user ? 'Ir al panel de '+user.name : 'Acceder'}
               title={user?.name}
             >
@@ -121,7 +124,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <div>
-              <span>CREEMOS ALGO</span>
+              <span>SOLUCIONES</span>
               <Link href="/explorar">Explorar soluciones</Link>
               <Link href="/cotizar">Diseñar mi proyecto</Link>
               <button onClick={openNexi}>Preguntar a NEXI</button>
@@ -134,7 +137,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <span>TU ESPACIO</span>
-              <Link href="/acceder">{DEMO_MODE ? 'Acceder a la demostración' : 'Acceder a mi cuenta'}</Link>
+              <Link href={accountHref}>{user ? 'Abrir mi cuenta' : DEMO_MODE ? 'Acceder a la demostración' : 'Acceder a mi cuenta'}</Link>
               <Link href="/resenas">Reseñas y experiencias</Link>
               <Link href="/privacidad">Uso de tus datos</Link>
               {user && (

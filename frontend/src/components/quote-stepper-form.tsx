@@ -2,9 +2,9 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {FormProvider,useForm,useWatch,type SubmitErrorHandler} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
-import {ArrowLeft,ArrowRight,Check,ShieldCheck,Sparkles} from 'lucide-react';
+import {ArrowLeft,ArrowRight,Check,Expand,ShieldCheck,Sparkles} from 'lucide-react';
 import {QuoteAuthDialog} from '@/components/auth/quote-auth-dialog';
-import {QuoteNexiAi} from '@/components/quote/nexi-ai';
+import {loadQuoteComponent} from '@/components/quote/load-quote-component';
 import {QuoteDictationProvider,QuoteDictationNotice} from '@/components/quote/field-dictation';
 import {billingBase,billingRequest} from '@/lib/billing/api';
 import {canSaveQuote,type VerificationStatus} from '@/lib/platform/verification';
@@ -35,7 +35,10 @@ import './quote/quote-flow.css';
 import './quote/quote-redesign.css';
 import './quote/quote-evolution.css';
 import './quote/quote-client-assignment.css';
+import './quote/quote-editorial.css';
 export {QuoteSummary} from '@/components/quote/steps/summary';
+
+const QuoteNexiAi=loadQuoteComponent(()=>import('@/components/quote/nexi-ai').then(module=>module.QuoteNexiAi),{loading:'Cargando ayuda opcional de NEXI…',error:'No pudimos cargar la ayuda de NEXI. Puedes continuar con el cuestionario y volver a intentarlo.',errorClassName:'quote-flow-error',retryClassName:'quote-back'});
 
 const steps=[
  {label:'Qué necesitas',title:'¿Qué necesitas?',description:'Elige lo que quieres conseguir. Te recomendaremos un punto de partida que puedes cambiar.'},
@@ -59,7 +62,10 @@ export function QuoteStepperForm(){
  const [result,setResult]=useState<QuoteResult|null>(null),[completedValues,setCompletedValues]=useState<QuoteFormValues|null>(null);
  const [prices,setPrices]=useState<Record<string,number>>({...DEFAULT_PRICES}),[notice,setNotice]=useState(''),[error,setError]=useState('');
  const [accessOpen,setAccessOpen]=useState(false),[savedId,setSavedId]=useState(''),[busy,setBusy]=useState(false),[recoveryMessage,setRecoveryMessage]=useState('');
- const headingRef=useRef<HTMLHeadingElement>(null),panelRef=useRef<HTMLDivElement>(null),requestKey=useRef<string|null>(null);
+ const headingRef=useRef<HTMLHeadingElement>(null),headingRegionRef=useRef<HTMLDivElement>(null),panelRef=useRef<HTMLDivElement>(null),requestKey=useRef<string|null>(null);
+ const previewTriggerRef=useRef<HTMLButtonElement>(null);
+ const [previewOpen,setPreviewOpen]=useState(false);
+ const expandedPreview=useMemo(()=>({open:previewOpen,onOpenChange:setPreviewOpen,triggerRef:previewTriggerRef}),[previewOpen]);
  const submitted=useRef(false);
  const navigationPending=useRef(false),focusTarget=useRef<'heading'|keyof QuoteFormValues|null>(null),flowRef=useRef(flow);
  flowRef.current=flow;
@@ -69,7 +75,8 @@ export function QuoteStepperForm(){
  const proposal=useMemo(()=>result&&completedValues?quoteProposalText(completedValues,result):'',[result,completedValues]);
  function focusQuestion(){
   const heading=headingRef.current;if(!heading)return;
-  heading.focus({preventScroll:true});heading.scrollIntoView({block:'start',behavior:'instant'});
+  heading.focus({preventScroll:true});
+  (headingRegionRef.current??heading).scrollIntoView({block:'start',behavior:'instant'});
  }
  function focusField(name:keyof QuoteFormValues){
   const field=panelRef.current?.querySelector<HTMLElement>('[name="'+name+'"]');
@@ -182,11 +189,20 @@ export function QuoteStepperForm(){
     <div className="quote-studio">
      {staffMode&&<div className="quote-staff-mode" role="note"><strong>Atención de cliente · {auth.user?.name}</strong><p>Completa las respuestas del cliente desde tu sesión. Al guardar quedarán a cargo del equipo; después podrás vincularlas a su cuenta por correo.</p></div>}
      <div className="quote-experience quote-v4 quote-guided" data-step={step+1}>
-     <div className="quote-layout">
+     <div className="quote-timeline" ref={headingRegionRef}>
       <nav className="quote-sidebar" aria-label="Pasos de la cotización"><ol className="quote-steps">{steps.map((item,index)=><li key={item.label} className={(index===step?'active ':'')+(flow.completed.includes(index)?'complete':'')}>
        <button type="button" disabled={index>furthestStep||busy} onClick={()=>goTo(index)} aria-label={`${index+1} ${item.label}`} aria-current={index===step?'step':undefined}><span className="quote-step-number">{flow.completed.includes(index)?<Check size={16} aria-hidden="true"/>:index+1}</span><span>{item.label}</span></button>
       </li>)}</ol></nav>
-      <div className="quote-progress-shell"><div className="quote-v4-progress"><span>Paso {step+1} de 6 · {steps[step].label}</span><strong>{progress}% completado</strong><div role="progressbar" aria-label="Etapas completadas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i style={{width:progress+'%'}}/></div></div></div>
+      <div className="quote-progress-shell">
+       <div className="quote-v4-progress">
+        <span>Paso {step+1} de {steps.length}<span className="quote-progress-label"> · {steps[step].label}</span></span>
+        <strong>{progress}%</strong>
+        <div role="progressbar" aria-label="Etapas completadas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i style={{width:progress+'%'}}/></div>
+       </div>
+       {flow.goalChosen&&<button type="button" className="quote-quick-preview" aria-haspopup="dialog" aria-expanded={previewOpen} onClick={event=>{previewTriggerRef.current=event.currentTarget;setPreviewOpen(true);}}><Expand size={17} aria-hidden="true"/> Ver boceto</button>}
+      </div>
+     </div>
+     <div className="quote-layout">
       <div className="quote-main" ref={panelRef}>
        <header className="quote-question-header"><h2 id="quote-question" ref={headingRef} tabIndex={-1}>{result?'Tu propuesta preliminar':steps[step].title}</h2><p id="quote-question-description" className="quote-step-description">{result?'El alcance y el precio final se confirman después de revisar tu solicitud.':steps[step].description}</p></header>
        {result&&completedValues?<QuoteResultStep values={completedValues} result={result} busy={busy} savedId={savedId} authenticated={auth.user?.role==='client'||staffMode} staffRole={staffMode?auth.user?.role as 'admin'|'subadmin':undefined} proposal={proposal} onPreferenceChange={preference=>{if(savedId||busy)return;form.setValue('paymentPreference',preference);setCompletedValues(old=>old?{...old,paymentPreference:preference}:old);requestKey.current=null;}} onEdit={goTo} onRequest={()=>void requestAdvice()} onWhatsApp={()=>void shareWhatsApp()}/>:
@@ -205,7 +221,7 @@ export function QuoteStepperForm(){
        <p className="quote-local-note">{recoveryMessage||'Tu avance se conserva temporalmente en esta pestaña. La solicitud se guardará para el equipo cuando la envíes.'} <a href="/privacidad">Uso de tus datos</a></p>
       </div>
      </div>
-     <aside className="quote-preview-column" aria-label="Tu idea y su estimación">{flow.goalChosen?<><QuotePreviewPanel disabled={busy||!!result} showEditor={false} openOnMobile={step===3}/><QuoteEstimatePanel prices={prices}/></>:<section className="quote-preview-intro"><Sparkles size={28} aria-hidden="true"/><h2>Tu idea comienza aquí</h2><p>Elige qué quieres conseguir. Después verás un boceto y una primera referencia de inversión.</p><span>Sin registro para explorar</span></section>}</aside>
+     <aside className="quote-preview-column" aria-label="Tu idea y su estimación">{flow.goalChosen?<><QuotePreviewPanel disabled={busy||!!result} showEditor={false} openOnMobile={step===3} expandedPreview={expandedPreview}/><QuoteEstimatePanel prices={prices}/></>:<section className="quote-preview-intro"><h2>Boceto de tu proyecto</h2><div className="quote-preview-empty"><Sparkles size={22} aria-hidden="true"/><p>Elige tu objetivo para ver cómo podría verse tu proyecto.</p></div></section>}</aside>
      </div>
     </div>
    </QuoteDictationSession>

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useReducer, useRef, useState, type RefObject } from 'react';
 import { ChevronDown, Expand, Palette, Sparkles } from 'lucide-react';
 import {
   buildSolutionPreview,
@@ -13,11 +13,18 @@ import { ExpandedSolutionPreviewModal } from './expanded-solution-preview-modal'
 import { SolutionPreviewMockup } from './solution-preview-mockup';
 import './solution-preview.css';
 
+export interface ExpandedPreviewControl {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+}
+
 export interface LiveSolutionPreviewProps {
   input: QuoteInput;
   businessName?: string;
   context?: PreviewContext;
   openOnMobile?: boolean;
+  expandedPreview?: ExpandedPreviewControl;
 }
 const contextFields: (keyof PreviewContext)[] = [
   'goal',
@@ -36,6 +43,7 @@ export const LiveSolutionPreview = memo(
     businessName = '',
     context = emptyContext,
     openOnMobile = false,
+    expandedPreview,
   }: LiveSolutionPreviewProps) {
     const model = useMemo(
       () => buildSolutionPreview(input, businessName, context),
@@ -54,10 +62,13 @@ export const LiveSolutionPreview = memo(
       ],
     );
     const [state, dispatch] = useReducer(previewInteractionReducer, undefined, initialPreviewInteraction);
-    const [expanded, setExpanded] = useState(false),
-      [inlineOpen, setInlineOpen] = useState(false);
-    const expandRef = useRef<HTMLButtonElement>(null),
-      previousKind = useRef(model.key);
+    const [ownExpanded, setOwnExpanded] = useState(false);
+    const [inlineOpen, setInlineOpen] = useState(false);
+    const ownTriggerRef = useRef<HTMLButtonElement>(null);
+    const previousKind = useRef(model.key);
+    const expanded = expandedPreview?.open ?? ownExpanded;
+    const setExpanded = expandedPreview?.onOpenChange ?? setOwnExpanded;
+    const triggerRef = expandedPreview?.triggerRef ?? ownTriggerRef;
     useEffect(() => {
       const query = window.matchMedia('(min-width: 1024px)');
       const sync = () => setInlineOpen(query.matches || openOnMobile);
@@ -75,21 +86,12 @@ export const LiveSolutionPreview = memo(
       <section className="live-solution-preview" aria-label="Vista previa en vivo de tu solución">
         <header className="lp-panel-heading">
           <div>
-            <span className="lp-panel-icon">
-              <Sparkles size={20} />
-            </span>
-            <h3>
-              Tu solución
-              <br />
-              <span>cobra forma.</span>
-            </h3>
+            <span className="lp-panel-icon"><Sparkles size={20} aria-hidden="true" /></span>
+            <h3>Boceto de tu proyecto</h3>
           </div>
-          <span className="lp-live-badge">
-            <i /> EN VIVO
-          </span>
         </header>
         <p className="lp-panel-description">
-          Una maqueta que cambia con tus respuestas. Explórala y empieza a imaginar tu proyecto.
+          Explora cómo cambia la maqueta con tus respuestas.
         </p>
         <div className="lp-model-meta">
           <span>{model.solutionName}</span>
@@ -102,10 +104,12 @@ export const LiveSolutionPreview = memo(
         </div>
         <p className="lp-style-description">{model.styleDescription}</p>
         <button
-          ref={expandRef}
           type="button"
           className="lp-expand-button"
-          onClick={() => setExpanded(true)}
+          onClick={(event) => {
+            triggerRef.current = event.currentTarget;
+            setExpanded(true);
+          }}
           aria-haspopup="dialog"
           aria-expanded={expanded}
         >
@@ -141,7 +145,7 @@ export const LiveSolutionPreview = memo(
           <ExpandedSolutionPreviewModal
             model={model}
             onClose={() => setExpanded(false)}
-            returnFocusRef={expandRef}
+            returnFocusRef={triggerRef}
           >
             <SolutionPreviewMockup model={model} state={state} onAction={dispatch} expanded />
           </ExpandedSolutionPreviewModal>
@@ -155,5 +159,6 @@ export const LiveSolutionPreview = memo(
     before.input.features === after.input.features &&
     before.businessName === after.businessName &&
     before.openOnMobile === after.openOnMobile &&
+    before.expandedPreview === after.expandedPreview &&
     contextFields.every((field) => before.context?.[field] === after.context?.[field]),
 );

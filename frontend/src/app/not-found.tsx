@@ -1,27 +1,23 @@
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import './not-found-editorial.css';
 
 export default function NotFound() {
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        display: 'grid',
-        placeItems: 'center',
-        textAlign: 'center',
-        padding: 24,
-        background: '#f6fafb',
-      }}
-    >
-      <div>
-        <span style={{ color: '#009c98', fontSize: 12, letterSpacing: 3 }}>TUKNEX · 404</span>
-        <h1 style={{ fontSize: 38, letterSpacing: -1.5, margin: '20px 0' }}>
-          Tu siguiente nivel está por aquí.
-        </h1>
-        <p style={{ color: '#7b8d98', marginBottom: 28 }}>No encontramos esta página. Volvamos al inicio.</p>
-        <Link href="/" className="button button-primary">
-          Ir al inicio ↗
+    <div className="not-found-editorial">
+      <header className="not-found-masthead">
+        <Link href="/" aria-label="TUKNEX, inicio">
+          <img src="/images/brand-logo.webp" alt="" width={180} height={56} />
         </Link>
-      </div>
-    </main>
+      </header>
+      <main className="not-found-content">
+        <p className="not-found-code">Error 404</p>
+        <h1>No encontramos la página.</h1>
+        <p>Si abriste un enlace, comprueba la dirección o vuelve al inicio.</p>
+        <Link href="/" className="not-found-action">
+          <ArrowLeft size={18} aria-hidden="true" /> Volver al inicio
+        </Link>
+      </main>
+    </div>
   );
 }

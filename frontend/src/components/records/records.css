@@ -265,3 +265,34 @@ body .platform-modal.records-detail {
 
 .records-list-search>label { color: #d9e7f5; font-size: 14px; font-weight: 600; }
 .records-list-search input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+body .platform-modal.records-detail {
+  font-family: var(--tk-body);
+  background: var(--tk-navy);
+  color: var(--tk-ink-on-dark);
+}
+
+.records-detail-header,
+.records-detail-actions {
+  border-color: var(--tk-line-on-dark);
+  background: var(--tk-night);
+}
+
+.records-detail-header {
+  padding-top: max(20px, env(safe-area-inset-top));
+}
+
+.records-detail-header h2 {
+  font: 680 clamp(23px, 3.4vw, 41px)/1.1 var(--tk-display);
+  letter-spacing: -.037em;
+}
+
+.records-detail-subtitle { color: var(--tk-muted-on-dark); }
+.records-detail-body { padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.records-list-search > span { padding-inline-start: 12px; padding-inline-end: 5px; }
+.records-list-items:has(:focus-visible) { overflow: visible; }
+
+@media (max-width: 390px) {
+  .records-detail-header { gap: 8px; }
+  .records-detail-close { padding-inline: 9px; font-size: 13px; }
+}

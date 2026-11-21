@@ -1,5 +1,6 @@
 import { pageMetadata } from '@/lib/seo';
 import './globals.css';
+import './editorial-tokens.css';
 import '@/components/auth/production.css';
 import '@/components/experience/future.css';
 import { DemoAuthProvider } from '@/lib/platform/auth';

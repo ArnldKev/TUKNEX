@@ -6,7 +6,7 @@ import { useQuoteProjectSession } from './project-session';
 import type { PreviewContext } from '@/lib/quote/preview';
 import type { QuoteInput } from '@/lib/pricing';
 import { QuoteVisualEditor } from './visual-editor';
-import { LiveSolutionPreview } from './live-solution-preview';
+import { LiveSolutionPreview, type ExpandedPreviewControl } from './live-solution-preview';
 
 export { LiveSolutionPreview } from './live-solution-preview';
 export { ExpandedSolutionPreviewModal } from './expanded-solution-preview-modal';
@@ -60,10 +60,10 @@ export const SolutionPreview = memo(function SolutionPreview({
 });
 
 /** Preview and pricing derive from the same validated project revision. */
-export const QuotePreviewPanel = memo(function QuotePreviewPanel({ disabled = false, onEdit, showEditor = true, openOnMobile = false }: { disabled?: boolean; onEdit?: () => void; showEditor?:boolean; openOnMobile?:boolean }) {
+export const QuotePreviewPanel = memo(function QuotePreviewPanel({ disabled = false, onEdit, showEditor = true, openOnMobile = false, expandedPreview }: { disabled?: boolean; onEdit?: () => void; showEditor?: boolean; openOnMobile?: boolean; expandedPreview?: ExpandedPreviewControl }) {
   const { history } = useQuoteProjectSession();
   const preview = useMemo(() => projectPreviewInput(history.present), [history.present]);
-  return <><LiveSolutionPreview {...preview} openOnMobile={openOnMobile}/>{showEditor&&<QuoteVisualEditor disabled={disabled} />}
+  return <><LiveSolutionPreview {...preview} openOnMobile={openOnMobile} expandedPreview={expandedPreview}/>{showEditor&&<QuoteVisualEditor disabled={disabled} />}
     {onEdit && <button type="button" className="lp-expand-button qve-edit-result" onClick={onEdit}>Editar boceto y recalcular</button>}
   </>;
 });
