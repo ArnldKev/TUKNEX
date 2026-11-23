@@ -55,3 +55,6 @@ Las operaciones de proyecto bloquean la asignación mientras guardan cambios. Re
 - En navegador: acceso y destino del desarrollador, envío directo de propuesta, edición de alcance/precio con versión 2, lectura global y comparación antes/después por el titular, bloqueo del panel del titular para desarrolladores y vistas de 1280/390 px sin desbordamiento observado.
 - La creación privada sí pasó las pruebas HTTP automatizadas. La prueba adicional de dar de alta otra cuenta desde el navegador fue bloqueada por revisión automática al considerarla acceso privilegiado; no se ejecutó ni se reintentó por otra vía. La interfaz de alta se conserva implementada.
 - No se publicaron cambios, no se consultaron credenciales y no se migró Neon ni la base real.
+
+## Ampliación del 21 de noviembre de 2026
+La gestión central está ahora en Usuarios. Se mantiene un titular único y se permiten administradores adicionales de operación; crear y suspender cuentas sigue reservado al titular. Esta ampliación reemplaza las referencias anteriores a que todas las cuentas admin son titulares. Ver [Gestión de usuarios](GESTION_USUARIOS.md).

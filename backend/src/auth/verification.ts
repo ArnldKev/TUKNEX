@@ -24,10 +24,11 @@ export class VerificationService {
     if(!process.env.VERIFICATION_SECRET || process.env.VERIFICATION_SECRET.length<32)throw new ServiceUnavailableException('La verificación aún no está configurada.');
     return createHmac('sha256',process.env.VERIFICATION_SECRET).update(id+':'+target+':'+code).digest('hex');
   }
-  async start(userId:string,purpose:VerificationPurpose) {
+  async start(userId:string,purpose:VerificationPurpose,authorize?:(tx:Sql)=>Promise<void>) {
     if(purpose!=='recovery'&&!verificationPolicy().verificationEnabled)throw new ServiceUnavailableException('La verificación de contacto está desactivada por ahora.');
     if(purpose==='phone'?!this.delivery.phoneAvailable():!this.delivery.emailAvailable())throw new ServiceUnavailableException(purpose==='phone'?'La verificación por SMS aún no está configurada.':'El envío de correo aún no está configurado.');
     return this.db.transaction(async tx=>{
+      await authorize?.(tx);
       const user=(await tx.query('SELECT * FROM usuarios WHERE id=$1 AND activo=true FOR UPDATE',[userId])).rows[0];
       if(!user)throw new BadRequestException('Cuenta no disponible.');
       const target=purpose==='phone'?user.telefono:user.correo;

@@ -13,7 +13,7 @@ export async function provisionAdmin(db: Pick<Database, 'transaction'>, value: u
   try {
     await db.transaction(async tx => {
       await tx.query(
-        "INSERT INTO usuarios(id,nombre,correo,password_hash,rol,cliente_id) VALUES($1,$2,$3,$4,'admin',NULL)",
+        "INSERT INTO usuarios(id,nombre,correo,password_hash,rol,cliente_id,is_owner) VALUES($1,$2,$3,$4,'admin',NULL,true)",
         [id, input.name, input.email, hash],
       );
     });
@@ -21,5 +21,5 @@ export async function provisionAdmin(db: Pick<Database, 'transaction'>, value: u
     if (error.code === '23505') throw new ConflictException('Ya existe una cuenta con ese correo o un administrador principal. No se ha cambiado ninguna cuenta.');
     throw error;
   }
-  return { id, name: input.name, email: input.email, role: 'admin' as const, clientId: null, isDemo: false as const, createdAt };
+  return { id, name: input.name, email: input.email, role: 'admin' as const, active: true, isOwner: true, clientId: null, isDemo: false as const, createdAt };
 }

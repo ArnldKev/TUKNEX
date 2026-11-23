@@ -62,6 +62,14 @@ export function RecoveryForm({ onBack }: { onBack?: () => void }) {
     }
   }
 
+  function useExistingCode() {
+    if (busy || !emailInput.current?.reportValidity()) return;
+    setEmail(email.trim().toLowerCase());
+    setError('');
+    setNotice('Introduce el último código recibido por correo. No se enviará otro código.');
+    setSent(true);
+  }
+
   function changeEmail() {
     setSent(false);
     setCode('');
@@ -105,7 +113,8 @@ export function RecoveryForm({ onBack }: { onBack?: () => void }) {
           <button className="platform-button" disabled={busy} type="submit">
             {busy ? 'Un momento…' : sent ? 'Actualizar contraseña' : 'Solicitar código'}
           </button>
-          {sent && <button className="platform-text-link" type="button" onClick={changeEmail}>Cambiar correo o solicitar otro código</button>}
+          {!sent && <button className="platform-secondary" type="button" disabled={busy} onClick={useExistingCode}>Ya tengo un código</button>}
+          {sent && <button className="platform-text-link" type="button" disabled={busy} onClick={changeEmail}>Cambiar correo o solicitar otro código</button>}
         </form>
       )}
       {!done && <p className="platform-muted">Si no recibes el código, puedes <Link href="/contacto">contactarnos</Link>.</p>}
