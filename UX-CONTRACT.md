@@ -62,3 +62,6 @@ El aviso de atención de administrador/subadministrador se sitúa antes del grid
 Tras cerrar o finalizar la bienvenida automática inicial, un visitante sin sesión entra al cotizador. Abrir el propósito manualmente no fuerza navegación; las cuentas identificadas mantienen su acceso. No se añade seguimiento remoto.
 
 Las listas privadas muestran Asignar cliente para solicitudes de equipo sin cuenta, con selector de cuentas activas, búsqueda por nombre/DNI/correo y confirmación; autoría y permisos siguen siendo del servidor. La vista PDF opcional `?preview=current` deriva un boceto imprimible de respuestas y estimación guardadas sin reprecificar ni modificar bytes históricos. La descarga original sin query se conserva. Detalle: [docs/COTIZADOR_STUDIO.md](docs/COTIZADOR_STUDIO.md).
+
+## Gestión central de usuarios — 21-11-2026
+El titular único crea cuentas desde Usuarios con contraseña inicial, sin envío automático de correo. Puede solicitar explícitamente un código de recuperación para que el destinatario elija contraseña. Los administradores adicionales operan el negocio pero no gestionan cuentas. Suspender revoca sesiones; no borra documentos. Vincular un cliente existente exige selección explícita. No hay permisos granulares editables ni cambios de rol en este incremento. Ver docs/GESTION_USUARIOS.md.

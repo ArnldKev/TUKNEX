@@ -10,6 +10,7 @@ import {quoteRequestSelect,exposeQuoteRequest} from '../quotes/quote-requests';
 import {AuthModule} from '../auth/auth.module';
 import {AdminGuard,TeamGuard,type Account} from '../auth/auth';
 import {credentials} from '../auth/account-fields';
+import {assertActiveOwner} from '../auth/owner-access';
 import {hashPassword} from '../auth/passwords';
 import {activityContext} from '../auth/activity-context';
 import {BillingModule} from '../billing/billing.module';
@@ -48,9 +49,9 @@ export class TeamService {
   return (await this.db.query("SELECT id,nombre,correo,rol,activo FROM usuarios WHERE rol='subadmin' ORDER BY nombre")).rows.map(r=>({id:r.id,name:r.nombre,email:r.correo,role:r.rol,active:r.activo}));
  }
  async createMember(a:Account,body:unknown){
-  this.owner(a);const input=parse(credentials,body),hash=await hashPassword(input.password),id=randomUUID();
+  this.owner(a);if(!a.isOwner)throw new ForbiddenException('Solo el administrador principal gestiona las cuentas.');const input=parse(credentials,body),hash=await hashPassword(input.password),id=randomUUID();
   return this.db.transaction(async tx=>{
-   await this.actor(tx,a);
+   await assertActiveOwner(tx,a);
    try{await tx.query("INSERT INTO usuarios(id,nombre,correo,password_hash,rol) VALUES($1,$2,$3,$4,'subadmin')",[id,input.name,input.email,hash]);}
    catch(e:any){if(e.code==='23505')throw new ConflictException('Ese correo ya tiene una cuenta.');throw e;}
    await this.billing.audit(tx,'subadministrador_creado',id,{name:input.name});
@@ -58,9 +59,9 @@ export class TeamService {
   });
  }
  async memberStatus(a:Account,id:string,body:unknown){
-  this.owner(a);parse(uuid,id);const {active}=parse(z.object({active:z.boolean()}).strict(),body);
+  this.owner(a);if(!a.isOwner)throw new ForbiddenException('Solo el administrador principal gestiona las cuentas.');parse(uuid,id);const {active}=parse(z.object({active:z.boolean()}).strict(),body);
   return this.db.transaction(async tx=>{
-   await this.actor(tx,a);
+   await assertActiveOwner(tx,a);
    const r=(await tx.query("UPDATE usuarios SET activo=$2 WHERE id=$1 AND rol='subadmin' RETURNING id",[id,active])).rows[0];
    if(!r)throw new NotFoundException('Subadministrador no encontrado.');
    if(!active)await tx.query('DELETE FROM sesiones WHERE usuario_id=$1',[id]);

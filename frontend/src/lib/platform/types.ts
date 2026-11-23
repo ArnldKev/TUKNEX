@@ -3,6 +3,9 @@ export type UserRole = 'client' | 'admin' | 'subadmin';
 export interface User {
   id: string;
   role: UserRole;
+  isOwner?: boolean;
+  active?: boolean;
+  clientId?: string | null;
   name: string;
   email: string;
   isDemo: boolean;
